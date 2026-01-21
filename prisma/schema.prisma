@@ -1,0 +1,215 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// Authentication
+// ============================================================================
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  hashedPassword String
+  name           String?
+  image          String?
+  locale         String    @default("en")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Relations
+  books         Book[]
+  authors       Author[]
+  genres        Genre[]
+  formats       Format[]
+  genders       Gender[]
+  nationalities Nationality[]
+  series        Series[]
+
+  @@map("users")
+}
+
+// ============================================================================
+// Books
+// ============================================================================
+
+model Book {
+  id          String       @id @default(cuid())
+  userId      String
+  title       String
+  slug        String       // URL-friendly version of title
+  coverUrl    String?
+  status      ReadingStatus @default(TO_READ)
+  totalPages  Int?
+  currentPage Int          @default(0)
+  rating      Int?         // 1-5 or 1-10, configurable
+  summary     String?      // Manual summary
+  favoriteQuote  String?
+  favoriteMoment String?
+  startDate   DateTime?
+  endDate     DateTime?
+  isWishlist  Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  authors BookAuthor[]
+  genres  BookGenre[]
+  format  Format?       @relation(fields: [formatId], references: [id])
+  formatId String?
+  series   Series?      @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  seriesId String?
+  seriesOrder Float?
+
+  @@unique([userId, slug])
+  @@index([userId])
+  @@index([status])
+  @@index([seriesId])
+  @@map("books")
+}
+
+enum ReadingStatus {
+  TO_READ
+  READING
+  READ
+  DROPPED
+}
+
+// ============================================================================
+// Authors
+// ============================================================================
+
+model Author {
+  id            String   @id @default(cuid())
+  userId        String
+  name          String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gender        Gender?       @relation(fields: [genderId], references: [id])
+  genderId      String?
+  nationality   Nationality?  @relation(fields: [nationalityId], references: [id])
+  nationalityId String?
+  books         BookAuthor[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("authors")
+}
+
+// ============================================================================
+// Series
+// ============================================================================
+
+model Series {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  slug      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  books Book[]
+
+  @@unique([userId, name])
+  @@unique([userId, slug])
+  @@index([userId])
+  @@map("series")
+}
+
+model BookAuthor {
+  bookId   String
+  authorId String
+
+  book   Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  author Author @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@id([bookId, authorId])
+  @@map("book_authors")
+}
+
+// ============================================================================
+// Configurable Entities (per user)
+// ============================================================================
+
+model Genre {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  color     String?  // For charts/visualization
+  createdAt DateTime @default(now())
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  books BookGenre[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("genres")
+}
+
+model BookGenre {
+  bookId  String
+  genreId String
+
+  book  Book  @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  genre Genre @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([bookId, genreId])
+  @@map("book_genres")
+}
+
+model Format {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String   // book, audiobook, ebook, wattpad, etc.
+  icon      String?  // Optional icon identifier
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  books Book[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("formats")
+}
+
+model Gender {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String   // Man, Woman, Non-binary, etc.
+  color     String?
+  createdAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  authors Author[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("genders")
+}
+
+model Nationality {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  code      String?  // ISO country code for flags
+  color     String?
+  createdAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  authors Author[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("nationalities")
+}

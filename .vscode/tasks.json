@@ -1,0 +1,149 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Dev Server",
+      "type": "npm",
+      "script": "dev",
+      "problemMatcher": [],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "group": "dev"
+      }
+    },
+    {
+      "label": "Build",
+      "type": "npm",
+      "script": "build",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "Type Check",
+      "type": "npm",
+      "script": "type-check",
+      "problemMatcher": ["$tsc"],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Lint",
+      "type": "npm",
+      "script": "lint",
+      "problemMatcher": ["$eslint-stylish"],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Lint Fix",
+      "type": "npm",
+      "script": "lint:fix",
+      "problemMatcher": ["$eslint-stylish"]
+    },
+    {
+      "label": "Format",
+      "type": "npm",
+      "script": "format",
+      "problemMatcher": []
+    },
+    {
+      "label": "Test",
+      "type": "npm",
+      "script": "test",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Test Watch",
+      "type": "npm",
+      "script": "test:watch",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "Test Coverage",
+      "type": "npm",
+      "script": "test:coverage",
+      "problemMatcher": []
+    },
+    {
+      "label": "DB Generate",
+      "type": "npm",
+      "script": "db:generate",
+      "problemMatcher": []
+    },
+    {
+      "label": "DB Push",
+      "type": "npm",
+      "script": "db:push",
+      "problemMatcher": []
+    },
+    {
+      "label": "DB Migrate",
+      "type": "npm",
+      "script": "db:migrate",
+      "problemMatcher": []
+    },
+    {
+      "label": "DB Studio",
+      "type": "npm",
+      "script": "db:studio",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "DB Seed",
+      "type": "npm",
+      "script": "db:seed",
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker Dev Up",
+      "type": "shell",
+      "command": "docker compose -f docker-compose.dev.yml up -d",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "Docker Dev Down",
+      "type": "shell",
+      "command": "docker compose -f docker-compose.dev.yml down",
+      "problemMatcher": []
+    },
+    {
+      "label": "Full Check",
+      "dependsOn": ["Type Check", "Lint", "Test"],
+      "dependsOrder": "sequence",
+      "problemMatcher": [],
+      "group": "test"
+    },
+    {
+      "label": "Setup Dev Environment",
+      "dependsOn": ["Docker Dev Up", "DB Generate", "DB Push", "DB Seed"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    }
+  ]
+}

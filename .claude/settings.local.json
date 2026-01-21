@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run type-check:*)",
+      "Bash(npm run lint)",
+      "Skill(frontend-design)",
+      "Skill(frontend-design:*)",
+      "Bash(npm run format:check:*)",
+      "Bash(npx prettier:*)",
+      "Bash(npm run db:generate:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(npx prisma migrate:*)"
+    ]
+  }
+}
