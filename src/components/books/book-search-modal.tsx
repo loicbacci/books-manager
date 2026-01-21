@@ -189,7 +189,7 @@ export function BookSearchModal({
                       <Flex gap={4}>
                         <Box flexShrink={0}>
                           <BookCover
-                            coverUrl={book.coverUrl}
+                            coverUrl={book.coverUrl ?? null}
                             title={book.title}
                             size="sm"
                           />

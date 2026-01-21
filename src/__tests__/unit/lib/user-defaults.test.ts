@@ -12,6 +12,9 @@ jest.mock("@/lib/db", () => ({
     genre: {
       createMany: jest.fn().mockResolvedValue({ count: 15 }),
     },
+    nationality: {
+      createMany: jest.fn().mockResolvedValue({ count: 10 }),
+    },
   },
 }));
 
@@ -64,10 +67,11 @@ describe("createUserDefaults", () => {
   it("creates all defaults in parallel", async () => {
     await createUserDefaults("test-user-id");
 
-    // All three should be called
+    // All defaults should be called
     expect(db.format.createMany).toHaveBeenCalledTimes(1);
     expect(db.gender.createMany).toHaveBeenCalledTimes(1);
     expect(db.genre.createMany).toHaveBeenCalledTimes(1);
+    expect(db.nationality.createMany).toHaveBeenCalledTimes(1);
   });
 
   it("uses the correct user ID for all defaults", async () => {
@@ -77,6 +81,7 @@ describe("createUserDefaults", () => {
     const formatCall = (db.format.createMany as jest.Mock).mock.calls[0][0];
     const genderCall = (db.gender.createMany as jest.Mock).mock.calls[0][0];
     const genreCall = (db.genre.createMany as jest.Mock).mock.calls[0][0];
+    const nationalityCall = (db.nationality.createMany as jest.Mock).mock.calls[0][0];
 
     // Check all items have the correct userId
     formatCall.data.forEach((item: { userId: string }) => {
@@ -87,6 +92,21 @@ describe("createUserDefaults", () => {
     });
     genreCall.data.forEach((item: { userId: string }) => {
       expect(item.userId).toBe(userId);
+    });
+    nationalityCall.data.forEach((item: { userId: string }) => {
+      expect(item.userId).toBe(userId);
+    });
+  });
+
+  it("creates default nationalities for the user", async () => {
+    await createUserDefaults("test-user-id");
+
+    expect(db.nationality.createMany).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({ name: "American", userId: "test-user-id" }),
+        expect.objectContaining({ name: "French", userId: "test-user-id" }),
+        expect.objectContaining({ name: "Japanese", userId: "test-user-id" }),
+      ]),
     });
   });
 });

@@ -1,5 +1,14 @@
 import "@testing-library/jest-dom";
 
+if (!global.structuredClone) {
+  global.structuredClone = <T,>(value: T): T => {
+    if (value === undefined) {
+      return value;
+    }
+    return JSON.parse(JSON.stringify(value)) as T;
+  };
+}
+
 // Mock next/navigation
 jest.mock("next/navigation", () => ({
   useRouter: () => ({

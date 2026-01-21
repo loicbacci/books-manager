@@ -527,7 +527,7 @@ export default function SettingsPage() {
                   setSectionsOpen((prev) => ({ ...prev, genres: !prev.genres }))
                 }
                 color="fg.default"
-                size="lg"
+                size="md"
                 buttonProps={{ px: 0, py: 0 }}
               />
               {sectionsOpen.genres && (
@@ -726,7 +726,7 @@ export default function SettingsPage() {
                   }))
                 }
                 color="fg.default"
-                size="lg"
+                size="md"
                 buttonProps={{ px: 0, py: 0 }}
               />
               {sectionsOpen.formats && (
@@ -845,7 +845,7 @@ export default function SettingsPage() {
                   }))
                 }
                 color="fg.default"
-                size="lg"
+                size="md"
                 buttonProps={{ px: 0, py: 0 }}
               />
               {sectionsOpen.genders && (
@@ -1047,7 +1047,7 @@ export default function SettingsPage() {
                   }))
                 }
                 color="fg.default"
-                size="lg"
+                size="md"
                 buttonProps={{ px: 0, py: 0 }}
               />
               {sectionsOpen.nationalities && (

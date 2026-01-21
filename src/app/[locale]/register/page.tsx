@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { RegisterForm } from "./register-form";
-import { Box, Container, Heading, Stack, Text } from "@chakra-ui/react";
+import { Box, Container, Heading, Stack, Text, Link as ChakraLink } from "@chakra-ui/react";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 
@@ -41,15 +41,9 @@ export default async function RegisterPage({ params }: Props) {
 
           <Text textAlign="center" color="text.secondary">
             {tAuth("hasAccount")}{" "}
-            <Text
-              as={Link}
-              href={`/${locale}/login`}
-              color="brand.fg"
-              fontWeight="medium"
-              _hover={{ textDecoration: "underline" }}
-            >
-              {tAuth("login")}
-            </Text>
+            <ChakraLink asChild color="brand.fg" fontWeight="medium" variant="underline">
+              <Link href={`/${locale}/login`}>{tAuth("login")}</Link>
+            </ChakraLink>
           </Text>
         </Stack>
       </Container>

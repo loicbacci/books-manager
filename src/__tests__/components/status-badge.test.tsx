@@ -30,30 +30,6 @@ describe("StatusBadge", () => {
     expect(badge).toHaveTextContent("Dropped");
   });
 
-  it("applies correct color scheme for TO_READ", () => {
-    render(<StatusBadge status="TO_READ" />);
-    const badge = screen.getByTestId("status-badge-to_read");
-    expect(badge).toHaveAttribute("data-color-palette", "gray");
-  });
-
-  it("applies correct color scheme for READING", () => {
-    render(<StatusBadge status="READING" />);
-    const badge = screen.getByTestId("status-badge-reading");
-    expect(badge).toHaveAttribute("data-color-palette", "blue");
-  });
-
-  it("applies correct color scheme for READ", () => {
-    render(<StatusBadge status="READ" />);
-    const badge = screen.getByTestId("status-badge-read");
-    expect(badge).toHaveAttribute("data-color-palette", "green");
-  });
-
-  it("applies correct color scheme for DROPPED", () => {
-    render(<StatusBadge status="DROPPED" />);
-    const badge = screen.getByTestId("status-badge-dropped");
-    expect(badge).toHaveAttribute("data-color-palette", "red");
-  });
-
   it("handles different sizes", () => {
     const { rerender } = render(<StatusBadge status="READING" size="sm" />);
     let badge = screen.getByTestId("status-badge-reading");

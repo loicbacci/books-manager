@@ -656,7 +656,6 @@ export default function BookDetailPage({
                             value={tag}
                             index={index}
                             colorPalette={palette}
-                            variant="subtle"
                             borderRadius="md"
                             px={2}
                             py={1}
@@ -744,20 +743,23 @@ export default function BookDetailPage({
                         }
                         width="80px"
                       />
-                    ) : book.rating ? (
+                    ) : book.rating !== null ? (
                       <Flex gap={1}>
-                        {Array.from({ length: 5 }).map((_, index) => (
-                          <GoStarFill
-                            key={index}
-                            size={22}
-                            color={
-                              index < book.rating
-                                ? "var(--chakra-colors-yellow-400)"
-                                : "var(--chakra-colors-gray-300)"
-                            }
-                            style={{ stroke: "black", strokeWidth: 1.75 }}
-                          />
-                        ))}
+                        {Array.from({ length: 5 }).map((_, index) => {
+                          const rating = book.rating ?? 0;
+                          return (
+                            <GoStarFill
+                              key={index}
+                              size={22}
+                              color={
+                                index < rating
+                                  ? "var(--chakra-colors-yellow-400)"
+                                  : "var(--chakra-colors-gray-300)"
+                              }
+                              style={{ stroke: "black", strokeWidth: 1.75 }}
+                            />
+                          );
+                        })}
                       </Flex>
                     ) : (
                       <Text color="fg.muted">{t("notRated")}</Text>

@@ -684,10 +684,11 @@ function BookCard({
                 </Text>
               </Box>
             )}
-            {fields.rating && book.rating && (
+            {fields.rating && book.rating !== null && (
               <Flex gap={1}>
                 {Array.from({ length: 5 }).map((_, index) => {
-                  const filledCount = Math.min(5, Math.round(book.rating / 2));
+                  const rating = book.rating ?? 0;
+                  const filledCount = Math.min(5, Math.round(rating / 2));
                   const fillColor =
                     index < filledCount
                       ? "var(--chakra-colors-yellow-400)"

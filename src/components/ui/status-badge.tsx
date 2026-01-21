@@ -11,12 +11,12 @@ export interface StatusBadgeProps {
 
 const statusConfig: Record<
   ReadingStatus,
-  { label: string; colorScheme: string }
+  { label: string; colorPalette: string }
 > = {
-  TO_READ: { label: "To Read", colorScheme: "gray" },
-  READING: { label: "Reading", colorScheme: "blue" },
-  READ: { label: "Read", colorScheme: "green" },
-  DROPPED: { label: "Dropped", colorScheme: "red" },
+  TO_READ: { label: "To Read", colorPalette: "gray" },
+  READING: { label: "Reading", colorPalette: "blue" },
+  READ: { label: "Read", colorPalette: "green" },
+  DROPPED: { label: "Dropped", colorPalette: "red" },
 };
 
 export function StatusBadge({ status, size = "md" }: StatusBadgeProps) {
@@ -36,7 +36,7 @@ export function StatusBadge({ status, size = "md" }: StatusBadgeProps) {
 
   return (
     <Badge
-      colorScheme={config.colorScheme}
+      colorPalette={config.colorPalette}
       fontSize={fontSizes[size]}
       px={paddings[size]}
       py={1}

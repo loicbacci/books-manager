@@ -1,9 +1,10 @@
 import { render, RenderOptions } from "@testing-library/react";
 import { ReactElement } from "react";
+import { ChakraProvider } from "@/components/providers/chakra-provider";
 
 // Mock providers wrapper for testing
 function AllTheProviders({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return <ChakraProvider>{children}</ChakraProvider>;
 }
 
 const customRender = (

@@ -14,11 +14,13 @@ jest.mock("@/lib/auth", () => ({
 // Mock db
 const mockFindMany = jest.fn();
 const mockCreate = jest.fn();
+const mockFindUnique = jest.fn();
 
 jest.mock("@/lib/db", () => ({
   db: {
     book: {
       findMany: (...args: unknown[]) => mockFindMany(...args),
+      findUnique: (...args: unknown[]) => mockFindUnique(...args),
       create: (...args: unknown[]) => mockCreate(...args),
     },
   },
@@ -27,6 +29,7 @@ jest.mock("@/lib/db", () => ({
 describe("GET /api/books", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockFindUnique.mockResolvedValue(null);
   });
 
   const createRequest = (params: Record<string, string> = {}) => {
@@ -152,6 +155,7 @@ describe("GET /api/books", () => {
           authors: expect.any(Object),
           genres: expect.any(Object),
           format: true,
+          series: true,
         }),
       })
     );
