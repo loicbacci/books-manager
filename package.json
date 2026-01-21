@@ -28,7 +28,7 @@
   "dependencies": {
     "@chakra-ui/react": "^3.3.0",
     "@emotion/react": "^11.13.5",
-    "@prisma/client": "^6.2.0",
+    "@prisma/client": "^7.3.0",
     "bcryptjs": "^2.4.3",
     "next": "^15.1.4",
     "next-auth": "^5.0.0-beta.25",
