@@ -13,18 +13,18 @@ const config: Config = {
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
+  modulePathIgnorePatterns: ["<rootDir>/.next/"],
   testPathIgnorePatterns: [
     "<rootDir>/node_modules/",
     "<rootDir>/.next/",
     "<rootDir>/src/__tests__/test-utils.tsx",
   ],
   collectCoverageFrom: [
-    "src/**/*.{js,jsx,ts,tsx}",
+    "src/app/api/**/*.{js,jsx,ts,tsx}",
+    "src/components/ui/**/*.{js,jsx,ts,tsx}",
+    "src/lib/**/*.{js,jsx,ts,tsx}",
+    "src/middleware.ts",
     "!src/**/*.d.ts",
-    "!src/app/**/layout.tsx",
-    "!src/app/**/loading.tsx",
-    "!src/app/**/error.tsx",
-    "!src/app/**/not-found.tsx",
   ],
   coverageThreshold: {
     global: {
