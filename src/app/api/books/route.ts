@@ -4,6 +4,12 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { generateUniqueSlug } from "@/lib/slugify";
 
+/**
+ * Payload for creating a book.
+ *
+ * Dates arrive as ISO strings and are converted to `Date` before persistence.
+ * Optional relation arrays allow attaching authors/genres in a single request.
+ */
 const createBookSchema = z.object({
   title: z.string().min(1).max(500),
   coverUrl: z.string().url().optional().nullable(),
@@ -24,7 +30,14 @@ const createBookSchema = z.object({
   genreIds: z.array(z.string()).optional(),
 });
 
-// GET /api/books - List all books for the current user
+/**
+ * List books for the authenticated user.
+ *
+ * Query params:
+ * - `status`: filter by reading status
+ * - `wishlist`: "true" to return wishlist items only
+ * - `search`: case-insensitive title search
+ */
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -90,7 +103,12 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/books - Create a new book
+/**
+ * Create a book for the authenticated user.
+ *
+ * Generates a user-scoped slug from the title and attaches relations
+ * if `authorIds`/`genreIds` are provided.
+ */
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
@@ -105,7 +123,7 @@ export async function POST(request: NextRequest) {
     const { authorIds, genreIds, startDate, endDate, ...bookData } =
       validatedData;
 
-    // Generate unique slug from title
+    // Generate a unique per-user slug to support readable URLs.
     const slug = await generateUniqueSlug(
       validatedData.title,
       session.user.id,

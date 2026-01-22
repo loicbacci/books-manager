@@ -4,11 +4,18 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { generateUniqueSlug } from "@/lib/slugify";
 
+/**
+ * Payload for creating a series.
+ */
 const createSeriesSchema = z.object({
   name: z.string().min(1).max(200),
 });
 
-// GET /api/series - List all series for the current user
+/**
+ * List series for the authenticated user.
+ *
+ * Includes a small preview of books in each series for dashboard cards.
+ */
 export async function GET() {
   try {
     const session = await auth();
@@ -44,7 +51,11 @@ export async function GET() {
   }
 }
 
-// POST /api/series - Create a new series
+/**
+ * Create a new series for the authenticated user.
+ *
+ * Generates a per-user slug from the series name.
+ */
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();

@@ -3,11 +3,17 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
+/**
+ * Payload for creating a gender label (user-scoped metadata).
+ */
 const createGenderSchema = z.object({
   name: z.string().min(1).max(100),
   color: z.string().optional().nullable(),
 });
 
+/**
+ * List genders for the authenticated user.
+ */
 export async function GET() {
   try {
     const session = await auth();
@@ -33,6 +39,9 @@ export async function GET() {
   }
 }
 
+/**
+ * Create a gender for the authenticated user.
+ */
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();

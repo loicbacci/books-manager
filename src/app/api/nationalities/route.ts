@@ -3,12 +3,18 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
+/**
+ * Payload for creating a nationality label.
+ */
 const createNationalitySchema = z.object({
   name: z.string().min(1).max(100),
   code: z.string().max(10).optional().nullable(),
   color: z.string().optional().nullable(),
 });
 
+/**
+ * List nationalities for the authenticated user.
+ */
 export async function GET() {
   try {
     const session = await auth();
@@ -34,6 +40,9 @@ export async function GET() {
   }
 }
 
+/**
+ * Create a nationality for the authenticated user.
+ */
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();

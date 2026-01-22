@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
+/**
+ * Detailed stats for the statistics page.
+ *
+ * Computes distributions (genres, genders, nationalities),
+ * monthly trends, and summary aggregates for charts.
+ */
 export async function GET() {
   try {
     const session = await auth();
@@ -12,7 +18,7 @@ export async function GET() {
     const userId = session.user.id;
     const currentYear = new Date().getFullYear();
 
-    // Get all completed books with their relations
+    // Load completed books with relations for aggregation.
     const completedBooks = await db.book.findMany({
       where: { userId, status: "READ", isWishlist: false },
       include: {
@@ -27,7 +33,7 @@ export async function GET() {
       },
     });
 
-    // Genre distribution
+    // Genre distribution (top 10) for pie charts.
     const genreCount: Record<
       string,
       { name: string; count: number; color: string | null }
@@ -48,7 +54,7 @@ export async function GET() {
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
-    // Author gender distribution
+    // Author gender distribution (unique authors).
     const genderCount: Record<string, { name: string; count: number }> = {};
     const countedAuthors = new Set<string>();
     completedBooks.forEach((book) => {
@@ -67,7 +73,7 @@ export async function GET() {
       (a, b) => b.count - a.count
     );
 
-    // Author nationality distribution
+    // Author nationality distribution (unique authors, top 10).
     const nationalityCount: Record<string, { name: string; count: number }> =
       {};
     const countedAuthorsNat = new Set<string>();
@@ -87,7 +93,7 @@ export async function GET() {
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
-    // Books read per month (this year)
+    // Books read per month for the current year.
     const monthlyReading: { month: string; count: number }[] = [];
     for (let i = 0; i < 12; i++) {
       const monthStart = new Date(currentYear, i, 1);
@@ -103,7 +109,7 @@ export async function GET() {
       monthlyReading.push({ month: monthName, count });
     }
 
-    // Rating distribution
+    // Rating distribution (count per rating value).
     const ratingDist: Record<number, number> = {};
     completedBooks.forEach((book) => {
       if (book.rating) {
@@ -117,7 +123,7 @@ export async function GET() {
       .map(([rating, count]) => ({ rating: parseInt(rating), count }))
       .sort((a, b) => a.rating - b.rating);
 
-    // Pages read per month (this year)
+    // Pages read per month for the current year.
     const monthlyPages: { month: string; pages: number }[] = [];
     for (let i = 0; i < 12; i++) {
       const monthStart = new Date(currentYear, i, 1);
@@ -135,7 +141,7 @@ export async function GET() {
       monthlyPages.push({ month: monthName, pages });
     }
 
-    // Summary stats
+    // Summary stats shown alongside charts.
     const totalBooksRead = completedBooks.length;
     const totalPagesRead = completedBooks.reduce(
       (sum, book) => sum + (book.totalPages || 0),

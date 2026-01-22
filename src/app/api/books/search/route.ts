@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { searchBooks } from "@/lib/book-metadata";
 
+/**
+ * Search external book metadata sources by query string.
+ *
+ * Query param:
+ * - `q`: search term (required)
+ */
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);

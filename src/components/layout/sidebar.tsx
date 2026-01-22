@@ -35,6 +35,9 @@ type NavItem = {
   icon: string;
 };
 
+/**
+ * Primary navigation entries for authenticated users.
+ */
 const navItems: NavItem[] = [
   { href: "/dashboard", labelKey: "dashboard", icon: "📊" },
   { href: "/library", labelKey: "library", icon: "📚" },
@@ -44,6 +47,9 @@ const navItems: NavItem[] = [
   { href: "/settings", labelKey: "settings", icon: "⚙️" },
 ];
 
+/**
+ * Desktop sidebar navigation for authenticated routes.
+ */
 export function Sidebar() {
   const t = useTranslations("nav");
   const tAuth = useTranslations("auth");
@@ -51,6 +57,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
 
+  // Extract the locale segment so we can switch languages without losing path.
   const localeMatch = pathname.match(/^\/(en|fr)(?=\/|$)/);
   const currentLocale = localeMatch?.[1] ?? "en";
   const pathWithoutLocale = localeMatch
@@ -64,6 +71,7 @@ export function Sidebar() {
     ],
   });
 
+  // Active if the current path matches or is a child route.
   const isActive = (href: string) => {
     const pathWithoutLocale = pathname.replace(/^\/(en|fr)/, "");
     return (
@@ -144,6 +152,7 @@ export function Sidebar() {
             justifyContent="flex-start"
             size="lg"
             px={4}
+            // Sign out and return to the public login page.
             onClick={() => signOut({ callbackUrl: "/login" })}
           >
             <Text as="span" mr={3}>
@@ -157,6 +166,9 @@ export function Sidebar() {
   );
 }
 
+/**
+ * Mobile top bar with a hamburger-triggered drawer.
+ */
 export function MobileNav() {
   const t = useTranslations("nav");
   const tAuth = useTranslations("auth");
@@ -165,6 +177,7 @@ export function MobileNav() {
   const pathname = usePathname();
   const router = useRouter();
 
+  // Extract the locale segment so we can keep users on the same route.
   const localeMatch = pathname.match(/^\/(en|fr)(?=\/|$)/);
   const currentLocale = localeMatch?.[1] ?? "en";
   const pathWithoutLocale = localeMatch
@@ -178,6 +191,7 @@ export function MobileNav() {
     ],
   });
 
+  // Active if the current path matches or is a child route.
   const isActive = (href: string) => {
     const pathWithoutLocale = pathname.replace(/^\/(en|fr)/, "");
     return (

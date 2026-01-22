@@ -28,6 +28,9 @@ type AuthorOption = {
   nationality?: { id: string; name: string } | null;
 };
 
+/**
+ * Props for selecting an existing author or creating a new one inline.
+ */
 type AuthorSelectProps = {
   authors: AuthorOption[];
   genders: Array<{ id: string; name: string }>;
@@ -41,6 +44,11 @@ type AuthorSelectProps = {
   isLoading?: boolean;
 };
 
+/**
+ * Author selector with optional inline creation and metadata selection.
+ *
+ * Used by book create/edit flows to avoid context switching.
+ */
 export function AuthorSelect({
   authors,
   genders,
@@ -80,6 +88,9 @@ export function AuthorSelect({
     ],
   });
 
+  /**
+   * Create a new author on the server and update parent state.
+   */
   const handleCreate = async () => {
     const trimmed = name.trim();
     if (!trimmed) return;
@@ -112,6 +123,9 @@ export function AuthorSelect({
     }
   };
 
+  /**
+   * Compose a short author description for select items.
+   */
   const getDescription = (author: AuthorOption) => {
     const gender = author.gender?.name ?? t("unknownGender");
     const nationality = author.nationality?.name ?? t("unknownNationality");

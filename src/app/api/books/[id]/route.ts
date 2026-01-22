@@ -4,6 +4,12 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { generateUniqueSlug } from "@/lib/slugify";
 
+/**
+ * Payload for partial book updates.
+ *
+ * The route accepts ISO strings for dates, and optional relation arrays
+ * to replace author/genre join tables when provided.
+ */
 const updateBookSchema = z.object({
   title: z.string().min(1).max(500).optional(),
   coverUrl: z.string().url().optional().nullable(),
@@ -28,7 +34,9 @@ type RouteParams = {
   params: Promise<{ id: string }>;
 };
 
-// GET /api/books/[id] - Get a single book
+/**
+ * Fetch a single book by slug or id (user-scoped).
+ */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await auth();
@@ -38,7 +46,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     const { id } = await params;
 
-    // Try to find by slug first, then by ID for backwards compatibility
+    // Try slug first, then ID to keep older URLs working.
     const book = await db.book.findFirst({
       where: {
         userId: session.user.id,
@@ -70,7 +78,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-// PATCH /api/books/[id] - Update a book
+/**
+ * Update a single book by slug or id.
+ *
+ * When `authorIds` or `genreIds` are provided, the join tables are replaced.
+ */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await auth();
@@ -82,7 +94,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const body = await request.json();
     const validatedData = updateBookSchema.parse(body);
 
-    // Check if book exists and belongs to user (by slug or ID)
+    // Ensure the book is user-owned (slug or id).
     const existingBook = await db.book.findFirst({
       where: {
         userId: session.user.id,
@@ -97,12 +109,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const { authorIds, genreIds, startDate, endDate, ...bookData } =
       validatedData;
 
-    // Build the update data
+    // Build the update payload before relation updates.
     const updateData: Record<string, unknown> = {
       ...bookData,
     };
 
-    // If title is being updated, regenerate slug
+    // Regenerate slug when title changes (avoid collisions).
     if (validatedData.title) {
       const newSlug = await generateUniqueSlug(
         validatedData.title,
@@ -125,9 +137,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       updateData.endDate = endDate ? new Date(endDate) : null;
     }
 
-    // Handle author relations if provided
+    // Replace author relations when provided.
     if (authorIds !== undefined) {
-      // Delete existing relations and create new ones
       await db.bookAuthor.deleteMany({ where: { bookId: existingBook.id } });
       if (authorIds.length > 0) {
         await db.bookAuthor.createMany({
@@ -139,7 +150,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    // Handle genre relations if provided
+    // Replace genre relations when provided.
     if (genreIds !== undefined) {
       await db.bookGenre.deleteMany({ where: { bookId: existingBook.id } });
       if (genreIds.length > 0) {
@@ -184,7 +195,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-// DELETE /api/books/[id] - Delete a book
+/**
+ * Delete a book by slug or id.
+ */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await auth();
@@ -194,7 +207,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     const { id } = await params;
 
-    // Check if book exists and belongs to user (by slug or ID)
+    // Ensure the book is user-owned before deletion.
     const existingBook = await db.book.findFirst({
       where: {
         userId: session.user.id,

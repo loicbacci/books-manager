@@ -3,11 +3,17 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
+/**
+ * Payload for creating a format (physical/digital type).
+ */
 const createFormatSchema = z.object({
   name: z.string().min(1).max(100),
   icon: z.string().optional().nullable(),
 });
 
+/**
+ * List formats for the authenticated user.
+ */
 export async function GET() {
   try {
     const session = await auth();
@@ -33,6 +39,9 @@ export async function GET() {
   }
 }
 
+/**
+ * Create a new format for the authenticated user.
+ */
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();

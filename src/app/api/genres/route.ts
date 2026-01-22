@@ -3,11 +3,19 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
+/**
+ * Payload for creating a genre.
+ *
+ * `color` is optional and used for UI badges and charts.
+ */
 const createGenreSchema = z.object({
   name: z.string().min(1).max(100),
   color: z.string().optional().nullable(),
 });
 
+/**
+ * List genres for the authenticated user.
+ */
 export async function GET() {
   try {
     const session = await auth();
@@ -33,6 +41,9 @@ export async function GET() {
   }
 }
 
+/**
+ * Create a genre for the authenticated user.
+ */
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();

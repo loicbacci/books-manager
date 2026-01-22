@@ -36,6 +36,9 @@ export type SearchResult = {
   publisher?: string;
 };
 
+/**
+ * Props for the online book search modal.
+ */
 type BookSearchModalProps = {
   open: boolean;
   onClose: () => void;
@@ -43,6 +46,11 @@ type BookSearchModalProps = {
   initialQuery?: string;
 };
 
+/**
+ * Modal for searching external metadata providers and selecting a result.
+ *
+ * Consumers receive the selected book via `onSelect`.
+ */
 export function BookSearchModal({
   open,
   onClose,
@@ -57,11 +65,11 @@ export function BookSearchModal({
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
-  // Auto-populate query and search when modal opens with initialQuery
+  // Auto-populate query and search when modal opens with initialQuery.
   useEffect(() => {
     if (open && initialQuery) {
       setQuery(initialQuery);
-      // Trigger search automatically
+      // Trigger search automatically.
       const searchWithInitialQuery = async () => {
         setLoading(true);
         setSearched(true);
@@ -86,13 +94,16 @@ export function BookSearchModal({
 
       searchWithInitialQuery();
     } else if (!open) {
-      // Reset when modal closes
+      // Reset local state when the dialog closes.
       setQuery("");
       setResults([]);
       setSearched(false);
     }
   }, [open, initialQuery]);
 
+  /**
+   * Execute the search request against the API.
+   */
   const handleSearch = async () => {
     if (!query.trim()) return;
 
@@ -123,6 +134,9 @@ export function BookSearchModal({
     }
   };
 
+  /**
+   * Commit the selected result and close the modal.
+   */
   const handleSelect = (book: SearchResult) => {
     onSelect(book);
     setQuery("");

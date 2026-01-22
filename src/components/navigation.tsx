@@ -5,10 +5,16 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
+/**
+ * Public navigation bar shown on unauthenticated pages.
+ *
+ * Authenticated views use the sidebar/mobile drawer instead.
+ */
 export function Navigation({ isAuthenticated }: { isAuthenticated: boolean }) {
   const tAuth = useTranslations("auth");
   const tCommon = useTranslations("common");
   const params = useParams();
+  // Locale is derived from the route segment: /[locale]/...
   const locale = params.locale as string;
 
   // Only show navigation for non-authenticated users

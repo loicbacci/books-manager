@@ -26,6 +26,9 @@ type SeriesOption = {
   name: string;
 };
 
+/**
+ * Props for selecting or creating a series inline.
+ */
 type SeriesSelectProps = {
   series: SeriesOption[];
   value: string | null;
@@ -37,6 +40,9 @@ type SeriesSelectProps = {
   isLoading?: boolean;
 };
 
+/**
+ * Series selector with an inline "add series" flow.
+ */
 export function SeriesSelect({
   series,
   value,
@@ -57,6 +63,9 @@ export function SeriesSelect({
     items: series.map((item) => ({ value: item.id, label: item.name })),
   });
 
+  /**
+   * Create a new series on the server and update parent state.
+   */
   const handleCreate = async () => {
     const trimmed = name.trim();
     if (!trimmed) return;

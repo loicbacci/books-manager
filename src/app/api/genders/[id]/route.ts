@@ -3,6 +3,9 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
+/**
+ * Payload for updating a gender.
+ */
 const updateGenderSchema = z.object({
   name: z.string().min(1).max(100),
   color: z.string().optional().nullable(),
@@ -12,6 +15,9 @@ type RouteParams = {
   params: Promise<{ id: string }>;
 };
 
+/**
+ * Update a gender by id (user-scoped).
+ */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await auth();
@@ -53,6 +59,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 }
 
+/**
+ * Delete a gender by id (user-scoped).
+ *
+ * Refuses deletion when authors are using the gender.
+ */
 export async function DELETE(_request: NextRequest, { params }: RouteParams) {
   try {
     const session = await auth();

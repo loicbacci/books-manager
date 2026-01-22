@@ -4,6 +4,12 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { createUserDefaults } from "@/lib/user-defaults";
 
+/**
+ * Request body contract for invite-only registration.
+ *
+ * Password and invite code validation are enforced here so the route
+ * fails fast before any database writes are attempted.
+ */
 const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
@@ -11,12 +17,20 @@ const registerSchema = z.object({
   inviteCode: z.string().min(1),
 });
 
+/**
+ * Register a new user with an invite code.
+ *
+ * - Validates input with Zod
+ * - Checks invite code from env
+ * - Rejects duplicate emails
+ * - Hashes password and creates defaults
+ */
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { email, password, name, inviteCode } = registerSchema.parse(body);
 
-    // Validate invite code
+    // Enforce invite-only signup.
     const validInviteCode = process.env.REGISTRATION_INVITE_CODE;
     if (!validInviteCode || inviteCode !== validInviteCode) {
       return NextResponse.json(
@@ -25,7 +39,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if user already exists
+    // Prevent duplicate accounts by email.
     const existingUser = await db.user.findUnique({
       where: { email },
     });
@@ -37,7 +51,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Hash password and create user
+    // Hash the password before persisting.
     const hashedPassword = await hash(password, 12);
 
     const user = await db.user.create({
@@ -48,7 +62,7 @@ export async function POST(req: Request) {
       },
     });
 
-    // Create default formats, genders, genres for the new user
+    // Seed per-user reference data (formats, genres, genders, etc.).
     await createUserDefaults(user.id);
 
     return NextResponse.json(

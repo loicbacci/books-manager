@@ -32,6 +32,11 @@ import {
 import { createListCollection } from "@chakra-ui/react";
 import { GroupToggle } from "@/components/ui/group-toggle";
 
+/**
+ * Normalized book shape required by the grid.
+ *
+ * The grid expects fully hydrated relations used for sorting/grouping.
+ */
 export type BookGridBook = {
   id: string;
   slug: string;
@@ -52,6 +57,9 @@ export type BookGridBook = {
   format: { id: string; name: string } | null;
 };
 
+/**
+ * Card layout toggles for the book grid.
+ */
 export type BookCardFields = {
   cover: boolean;
   title: boolean;
@@ -62,6 +70,9 @@ export type BookCardFields = {
   format: boolean;
 };
 
+/**
+ * Defaults for the card display toggles.
+ */
 const defaultFields: BookCardFields = {
   cover: true,
   title: true,
@@ -72,6 +83,9 @@ const defaultFields: BookCardFields = {
   format: false,
 };
 
+/**
+ * Reading status filters exposed in the UI.
+ */
 type FilterStatus =
   | "ALL"
   | "TO_READ"
@@ -94,6 +108,9 @@ type SortOption =
   | "updated-desc"
   | "progress-asc"
   | "progress-desc";
+/**
+ * Group-by options for segmented sections in the grid.
+ */
 type GroupOption =
   | "none"
   | "series"
@@ -127,6 +144,11 @@ type BookGridControlsProps = {
   onExpandAll: () => void;
 };
 
+/**
+ * Controls for sorting, grouping, filtering, and card-field toggles.
+ *
+ * Collapses on mobile behind a "Filters & display" button.
+ */
 function BookGridControls({
   areControlsOpen,
   onToggleControls,
@@ -349,6 +371,11 @@ type BookGridViewProps = {
   emptyText?: string;
 };
 
+/**
+ * Book grid with filtering, sorting, grouping, and persisted preferences.
+ *
+ * `cookieKey` persists UI state across sessions for each page.
+ */
 export function BookGridView({
   books,
   defaultFields: initialFields = defaultFields,
@@ -378,6 +405,7 @@ export function BookGridView({
     return match ? decodeURIComponent(match.split("=")[1]) : null;
   };
 
+  // Persist user preferences to a long-lived cookie.
   const writeCookie = (key: string, value: string) => {
     const maxAge = 60 * 60 * 24 * 365;
     document.cookie = `${key}=${encodeURIComponent(value)}; max-age=${maxAge}; path=/; samesite=lax`;
@@ -473,6 +501,7 @@ export function BookGridView({
     })),
   });
 
+  // Apply search and status/wishlist filters.
   const filteredBooks = useMemo(() => {
     const query = search.trim().toLowerCase();
 
@@ -491,6 +520,7 @@ export function BookGridView({
     });
   }, [books, filter, search]);
 
+  // Sort books by the selected sort key.
   const sortedBooks = useMemo(() => {
     const getAuthorName = (book: BookGridBook) =>
       book.authors[0]?.author.name.toLowerCase() || "";
@@ -553,6 +583,7 @@ export function BookGridView({
     }
   }, [filteredBooks, sort]);
 
+  // Group sorted books based on the current grouping choice.
   const groupedBooks = useMemo(() => {
     if (groupBy === "none") {
       return [{ key: "all", label: "", books: sortedBooks }];
@@ -754,6 +785,9 @@ function BookCard({
   book: BookGridBook;
   fields: BookCardFields;
 }) {
+  /**
+   * Reading progress percentage for the progress bar.
+   */
   const progress = book.totalPages
     ? Math.round((book.currentPage / book.totalPages) * 100)
     : 0;

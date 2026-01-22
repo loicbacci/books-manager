@@ -6,7 +6,11 @@ type RouteParams = {
   params: Promise<{ id: string }>;
 };
 
-// GET /api/authors/[id] - Get a single author with books
+/**
+ * Fetch a single author by id with their books.
+ *
+ * Returns the author profile plus a list of books that reference them.
+ */
 export async function GET(_request: NextRequest, { params }: RouteParams) {
   try {
     const session = await auth();

@@ -45,12 +45,21 @@ type Series = { id: string; name: string };
 type Gender = { id: string; name: string };
 type Nationality = { id: string; name: string };
 
+/**
+ * Props for the AddBookModal dialog.
+ *
+ * `onSuccess` is called after the server confirms creation so the parent
+ * can refresh lists.
+ */
 type AddBookModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
 };
 
+/**
+ * Static status values; labels are localized at render time.
+ */
 const statusOptions = [
   { value: "TO_READ", label: "To Read" },
   { value: "READING", label: "Reading" },
@@ -58,6 +67,10 @@ const statusOptions = [
   { value: "DROPPED", label: "Dropped" },
 ];
 
+/**
+ * Dialog for creating a new book, with optional metadata lookup
+ * and inline creation of related entities (authors/series).
+ */
 export function AddBookModal({
   isOpen,
   onClose,
@@ -100,6 +113,7 @@ export function AddBookModal({
     if (isOpen) {
       setIsAuthorsLoading(true);
       setIsSeriesLoading(true);
+      // Load reference data needed by select controls.
       Promise.all([
         fetch("/api/authors").then((r) => r.json()),
         fetch("/api/genres").then((r) => r.json()),
@@ -135,6 +149,9 @@ export function AddBookModal({
     }
   }, [isOpen]);
 
+  /**
+   * Submit the form to the API, then reset state and notify the parent.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -167,6 +184,7 @@ export function AddBookModal({
       });
 
       if (response.ok) {
+        // Reset the form so the next open starts clean.
         setFormData({
           title: "",
           coverUrl: "",
@@ -212,6 +230,9 @@ export function AddBookModal({
     items: formats.map((f) => ({ value: f.id, label: f.name })),
   });
 
+  /**
+   * Fill in fields from the external book search modal.
+   */
   const handleBookSelect = (book: SearchResult) => {
     setFormData({
       ...formData,

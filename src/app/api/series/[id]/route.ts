@@ -6,7 +6,11 @@ type RouteParams = {
   params: Promise<{ id: string }>;
 };
 
-// GET /api/series/[id] - Get a single series with books
+/**
+ * Fetch a series by id or slug (user-scoped).
+ *
+ * Returns series metadata and ordered books within that series.
+ */
 export async function GET(_request: NextRequest, { params }: RouteParams) {
   try {
     const session = await auth();

@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
+/**
+ * Lightweight stats for the dashboard summary cards.
+ *
+ * Includes counts, recent activity, and a short "currently reading" list.
+ */
 export async function GET() {
   try {
     const session = await auth();
@@ -13,7 +18,7 @@ export async function GET() {
     const currentYear = new Date().getFullYear();
     const startOfYear = new Date(currentYear, 0, 1);
 
-    // Get basic book counts
+    // High-level counts used by KPI cards.
     const [totalBooks, booksRead, booksReading, booksToRead, wishlistCount] =
       await Promise.all([
         db.book.count({ where: { userId, isWishlist: false } }),
@@ -27,7 +32,7 @@ export async function GET() {
         db.book.count({ where: { userId, isWishlist: true } }),
       ]);
 
-    // Get books read this year
+    // Read count since Jan 1 for year-to-date metrics.
     const booksReadThisYear = await db.book.count({
       where: {
         userId,
@@ -37,7 +42,7 @@ export async function GET() {
       },
     });
 
-    // Get total pages read (from completed books)
+    // Page total is derived from completed books only.
     const completedBooks = await db.book.findMany({
       where: { userId, status: "READ", isWishlist: false },
       select: { totalPages: true },
@@ -47,7 +52,7 @@ export async function GET() {
       0
     );
 
-    // Get currently reading books with progress
+    // Short list for the "currently reading" section.
     const currentlyReading = await db.book.findMany({
       where: { userId, status: "READING", isWishlist: false },
       select: {
@@ -69,7 +74,7 @@ export async function GET() {
       take: 5,
     });
 
-    // Get recent books
+    // Recent updates used for the "recent activity" list.
     const recentBooks = await db.book.findMany({
       where: { userId, isWishlist: false },
       select: {

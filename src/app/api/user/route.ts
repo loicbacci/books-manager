@@ -4,6 +4,12 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { hash, compare } from "bcryptjs";
 
+/**
+ * Request body for profile updates.
+ *
+ * - `currentPassword`/`newPassword` must be provided together
+ * - `locale` is restricted to supported locales
+ */
 const updateUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   locale: z.enum(["en", "fr"]).optional(),
@@ -11,6 +17,9 @@ const updateUserSchema = z.object({
   newPassword: z.string().min(8).optional(),
 });
 
+/**
+ * Fetch the authenticated user's profile metadata.
+ */
 export async function GET() {
   try {
     const session = await auth();
@@ -18,6 +27,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Select only public profile fields.
     const user = await db.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -68,7 +78,7 @@ export async function PATCH(request: NextRequest) {
       updateData.locale = locale;
     }
 
-    // Handle password change
+    // Handle password change with current-password verification.
     if (newPassword) {
       if (!currentPassword) {
         return NextResponse.json(
@@ -77,6 +87,7 @@ export async function PATCH(request: NextRequest) {
         );
       }
 
+      // Fetch hashed password for comparison.
       const user = await db.user.findUnique({
         where: { id: session.user.id },
         select: { hashedPassword: true },
@@ -97,6 +108,7 @@ export async function PATCH(request: NextRequest) {
         );
       }
 
+      // Persist the new password hash.
       updateData.hashedPassword = await hash(newPassword, 12);
     }
 
