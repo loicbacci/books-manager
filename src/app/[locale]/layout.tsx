@@ -4,6 +4,7 @@ import { getMessages, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import { ChakraProvider } from "@/components/providers/chakra-provider";
+import { ColorModeProvider } from "@/components/ui/color-mode";
 import { Navigation } from "@/components/navigation";
 import { Toaster } from "@/components/ui/toaster";
 import { auth } from "@/lib/auth";
@@ -40,9 +41,11 @@ export default async function LocaleLayout({ children, params }: Props) {
       <body>
         <NextIntlClientProvider messages={messages}>
           <ChakraProvider>
-            <Navigation isAuthenticated={!!session?.user} />
-            <Toaster />
-            {children}
+            <ColorModeProvider defaultTheme="system" enableSystem>
+              <Navigation isAuthenticated={!!session?.user} />
+              <Toaster />
+              {children}
+            </ColorModeProvider>
           </ChakraProvider>
         </NextIntlClientProvider>
       </body>

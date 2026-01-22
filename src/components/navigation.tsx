@@ -19,7 +19,7 @@ export function Navigation({ isAuthenticated }: { isAuthenticated: boolean }) {
 
   return (
     <Box
-      bg="surface.raised"
+      bg="bg.panel"
       borderBottom="1px"
       borderColor="border.default"
       py={4}
@@ -30,7 +30,7 @@ export function Navigation({ isAuthenticated }: { isAuthenticated: boolean }) {
             {tCommon("appName")}
           </Text>
           <HStack gap={2}>
-            <Button asChild variant="ghost" size="sm">
+            <Button asChild variant="ghost" size="sm" color="fg.default">
               <Link href={`/${locale}/login`}>{tAuth("login")}</Link>
             </Button>
             <Button asChild colorPalette="brand" size="sm">

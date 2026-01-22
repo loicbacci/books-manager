@@ -20,7 +20,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:ci": "jest --ci --coverage --maxWorkers=2"
+    "test:ci": "jest --ci --coverage --maxWorkers=2",
+    "test:e2e": "playwright test"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -28,11 +29,14 @@
   "dependencies": {
     "@chakra-ui/react": "^3.3.0",
     "@emotion/react": "^11.13.5",
+    "@floating-ui/react": "^0.27.16",
     "@prisma/client": "^6.2.0",
+    "@tiptap/react": "^3.16.0",
     "bcryptjs": "^2.4.3",
     "next": "^15.1.4",
     "next-auth": "^5.0.0-beta.25",
     "next-intl": "^3.26.0",
+    "next-themes": "^0.4.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-icons": "^5.3.0",
@@ -40,6 +44,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.51.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
     "@types/bcryptjs": "^2.4.6",

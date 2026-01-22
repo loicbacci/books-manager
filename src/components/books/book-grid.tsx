@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import NextLink from "next/link";
 import { useTranslations } from "next-intl";
 import { GoStarFill } from "react-icons/go";
+import { MdFilterList } from "react-icons/md";
 import {
   Box,
   Grid,
@@ -15,6 +16,7 @@ import {
   Badge,
   Button,
   Input,
+  type ListCollection,
 } from "@chakra-ui/react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ProgressBar } from "@/components/ui/progress-bar";
@@ -100,6 +102,245 @@ type GroupOption =
   | "rating"
   | "format";
 
+type SortOptionItem = { value: SortOption; label: string };
+type GroupOptionItem = { value: GroupOption; label: string };
+type FilterOptionItem = { value: FilterStatus; label: string };
+
+type BookGridControlsProps = {
+  areControlsOpen: boolean;
+  onToggleControls: () => void;
+  isDisplayOpen: boolean;
+  onToggleDisplay: () => void;
+  cardFields: BookCardFields;
+  onToggleCardField: (field: keyof BookCardFields) => void;
+  sort: SortOption;
+  onSortChange: (value: SortOption) => void;
+  sortCollection: ListCollection<SortOptionItem>;
+  groupBy: GroupOption;
+  onGroupByChange: (value: GroupOption) => void;
+  groupCollection: ListCollection<GroupOptionItem>;
+  filter: FilterStatus;
+  onFilterChange: (value: FilterStatus) => void;
+  filterCollection: ListCollection<FilterOptionItem>;
+  showGroupActions: boolean;
+  onCollapseAll: () => void;
+  onExpandAll: () => void;
+};
+
+function BookGridControls({
+  areControlsOpen,
+  onToggleControls,
+  isDisplayOpen,
+  onToggleDisplay,
+  cardFields,
+  onToggleCardField,
+  sort,
+  onSortChange,
+  sortCollection,
+  groupBy,
+  onGroupByChange,
+  groupCollection,
+  filter,
+  onFilterChange,
+  filterCollection,
+  showGroupActions,
+  onCollapseAll,
+  onExpandAll,
+}: BookGridControlsProps) {
+  const t = useTranslations("book");
+  const tCommon = useTranslations("common");
+  const controlBg = { base: "white", _dark: "bg.muted" };
+  const controlBorder = { base: "border.default", _dark: "border.default" };
+  const cardBg = { base: "bg.panel", _dark: "bg.card" };
+
+  return (
+    <Card.Root bg={cardBg}>
+      <Card.Body>
+        <Stack gap={4}>
+          <Flex
+            gap={4}
+            wrap="wrap"
+            direction={{ base: "column", md: "row" }}
+            align={{ base: "stretch", md: "center" }}
+          >
+            <Button
+              variant="outline"
+              width={{ base: "full", md: "auto" }}
+              onClick={onToggleControls}
+              display={{ base: "inline-flex", md: "none" }}
+            >
+              <Flex align="center" gap={2}>
+                <Text as="span">{t("filtersButton")}</Text>
+                <Box display="flex" alignItems="center">
+                  <MdFilterList />
+                </Box>
+              </Flex>
+            </Button>
+          </Flex>
+
+          <Box
+            display={{
+              base: areControlsOpen ? "block" : "none",
+              md: "block",
+            }}
+          >
+            <Flex
+              gap={4}
+              wrap="wrap"
+              direction={{ base: "column", md: "row" }}
+              align={{ base: "stretch", md: "center" }}
+            >
+              <Box position="relative">
+                <Button
+                  variant="outline"
+                  onClick={onToggleDisplay}
+                  width={{ base: "full", md: "auto" }}
+                >
+                  {t("cardDisplay")}
+                </Button>
+                {isDisplayOpen && (
+                  <Box
+                    position="absolute"
+                    mt={2}
+                    right={{ base: "auto", md: 0 }}
+                    left={{ base: 0, md: "auto" }}
+                    zIndex={10}
+                    bg="bg.panel"
+                    borderWidth="1px"
+                    borderRadius="md"
+                    boxShadow="md"
+                    p={3}
+                    minW={{ base: "full", md: "220px" }}
+                    maxW="90vw"
+                  >
+                    <Stack gap={2}>
+                      {[
+                        { key: "cover", label: t("cardDisplayCover") },
+                        { key: "title", label: t("cardDisplayTitle") },
+                        { key: "author", label: t("cardDisplayAuthor") },
+                        { key: "genres", label: t("cardDisplayGenres") },
+                        { key: "rating", label: t("cardDisplayRating") },
+                        { key: "status", label: t("cardDisplayStatus") },
+                        { key: "format", label: t("cardDisplayFormat") },
+                      ].map((item) => (
+                        <Flex key={item.key} align="center" gap={2}>
+                          <input
+                            type="checkbox"
+                            checked={cardFields[item.key as keyof BookCardFields]}
+                            onChange={() =>
+                              onToggleCardField(item.key as keyof BookCardFields)
+                            }
+                          />
+                          <Text fontSize="sm">{item.label}</Text>
+                        </Flex>
+                      ))}
+                    </Stack>
+                  </Box>
+                )}
+              </Box>
+              <SelectRoot
+                collection={sortCollection}
+                value={[sort]}
+                onValueChange={(e) => onSortChange(e.value[0] as SortOption)}
+                width={{ base: "full", md: "220px" }}
+              >
+                <SelectTrigger bg={controlBg} borderColor={controlBorder}>
+                  <SelectValueText placeholder={tCommon("sort")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {sortCollection.items.map((item) => (
+                    <SelectItem key={item.value} item={item}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </SelectRoot>
+              <Flex
+                align={{ base: "stretch", md: "center" }}
+                gap={2}
+                direction={{ base: "column", md: "row" }}
+                width={{ base: "full", md: "auto" }}
+              >
+                <Text fontSize="sm" color="fg.muted">
+                  {t("groupingLabel")}
+                </Text>
+                <SelectRoot
+                  collection={groupCollection}
+                  value={[groupBy]}
+                  onValueChange={(e) =>
+                    onGroupByChange(e.value[0] as GroupOption)
+                  }
+                  width={{ base: "full", md: "220px" }}
+                >
+                  <SelectTrigger bg={controlBg} borderColor={controlBorder}>
+                    <SelectValueText placeholder={t("groupBy")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {groupCollection.items.map((item) => (
+                      <SelectItem key={item.value} item={item}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </SelectRoot>
+              </Flex>
+              <Flex
+                align={{ base: "stretch", md: "center" }}
+                gap={2}
+                direction={{ base: "column", md: "row" }}
+                width={{ base: "full", md: "auto" }}
+              >
+                <Text fontSize="sm" color="fg.muted">
+                  {t("filteringLabel")}
+                </Text>
+                <SelectRoot
+                  collection={filterCollection}
+                  value={[filter]}
+                  onValueChange={(e) =>
+                    onFilterChange(e.value[0] as FilterStatus)
+                  }
+                  width={{ base: "full", md: "220px" }}
+                >
+                  <SelectTrigger bg={controlBg} borderColor={controlBorder}>
+                    <SelectValueText placeholder={t("filterBy")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filterCollection.items.map((item) => (
+                      <SelectItem key={item.value} item={item}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </SelectRoot>
+              </Flex>
+              {showGroupActions && (
+                <Flex gap={2} width={{ base: "full", md: "auto" }}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    width={{ base: "full", md: "auto" }}
+                    onClick={onCollapseAll}
+                  >
+                    {t("groupCollapseAll")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    width={{ base: "full", md: "auto" }}
+                    onClick={onExpandAll}
+                  >
+                    {t("groupExpandAll")}
+                  </Button>
+                </Flex>
+              )}
+            </Flex>
+          </Box>
+        </Stack>
+      </Card.Body>
+    </Card.Root>
+  );
+}
+
 type BookGridViewProps = {
   books: BookGridBook[];
   defaultFields?: BookCardFields;
@@ -128,6 +369,7 @@ export function BookGridView({
   >({});
   const [isDisplayOpen, setIsDisplayOpen] = useState(false);
   const [cardFields, setCardFields] = useState<BookCardFields>(initialFields);
+  const [areControlsOpen, setAreControlsOpen] = useState(false);
 
   const readCookie = (key: string) => {
     const match = document.cookie
@@ -201,7 +443,7 @@ export function BookGridView({
     { value: "progress-desc", label: t("sortProgressDesc") },
   ] as const;
 
-  const sortCollection = createListCollection({
+  const sortCollection = createListCollection<SortOptionItem>({
     items: sortOptions.map((option) => ({
       value: option.value,
       label: option.label,
@@ -217,14 +459,14 @@ export function BookGridView({
     { value: "format", label: t("groupFormat") },
   ] as const;
 
-  const groupCollection = createListCollection({
+  const groupCollection = createListCollection<GroupOptionItem>({
     items: groupOptions.map((option) => ({
       value: option.value,
       label: option.label,
     })),
   });
 
-  const filterCollection = createListCollection({
+  const filterCollection = createListCollection<FilterOptionItem>({
     items: filterOptions.map((option) => ({
       value: option.value,
       label: option.label,
@@ -420,147 +662,42 @@ export function BookGridView({
 
   return (
     <Stack gap={4}>
-      <Flex gap={4} wrap="wrap" align="center">
+      <Stack gap={4}>
         <Input
           placeholder={tCommon("search")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          maxW="300px"
+          maxW={{ base: "full", md: "300px" }}
         />
-        <Box position="relative">
-          <Button
-            variant="outline"
-            onClick={() => setIsDisplayOpen((prev) => !prev)}
-          >
-            {t("cardDisplay")}
-          </Button>
-          {isDisplayOpen && (
-            <Box
-              position="absolute"
-              mt={2}
-              right={0}
-              zIndex={10}
-              bg="bg.panel"
-              borderWidth="1px"
-              borderRadius="md"
-              boxShadow="md"
-              p={3}
-              minW="220px"
-            >
-              <Stack gap={2}>
-                {[
-                  { key: "cover", label: t("cardDisplayCover") },
-                  { key: "title", label: t("cardDisplayTitle") },
-                  { key: "author", label: t("cardDisplayAuthor") },
-                  { key: "genres", label: t("cardDisplayGenres") },
-                  { key: "rating", label: t("cardDisplayRating") },
-                  { key: "status", label: t("cardDisplayStatus") },
-                  { key: "format", label: t("cardDisplayFormat") },
-                ].map((item) => (
-                  <Flex key={item.key} align="center" gap={2}>
-                    <input
-                      type="checkbox"
-                      checked={cardFields[item.key as keyof BookCardFields]}
-                      onChange={() =>
-                        setCardFields((prev) => ({
-                          ...prev,
-                          [item.key]: !prev[item.key as keyof BookCardFields],
-                        }))
-                      }
-                    />
-                    <Text fontSize="sm">{item.label}</Text>
-                  </Flex>
-                ))}
-              </Stack>
-            </Box>
-          )}
-        </Box>
-        <SelectRoot
-          collection={sortCollection}
-          value={[sort]}
-          onValueChange={(e) => setSort(e.value[0] as SortOption)}
-          width="220px"
-        >
-          <SelectTrigger>
-            <SelectValueText placeholder={tCommon("sort")} />
-          </SelectTrigger>
-          <SelectContent>
-            {sortCollection.items.map((item) => (
-              <SelectItem key={item.value} item={item}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </SelectRoot>
-        <Flex align="center" gap={2}>
-          <Text fontSize="sm" color="fg.muted">
-            {t("groupingLabel")}
-          </Text>
-          <SelectRoot
-            collection={groupCollection}
-            value={[groupBy]}
-            onValueChange={(e) => setGroupBy(e.value[0] as GroupOption)}
-            width="220px"
-          >
-            <SelectTrigger>
-              <SelectValueText placeholder={t("groupBy")} />
-            </SelectTrigger>
-            <SelectContent>
-              {groupCollection.items.map((item) => (
-                <SelectItem key={item.value} item={item}>
-                  {item.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </SelectRoot>
-        </Flex>
-        <Flex align="center" gap={2}>
-          <Text fontSize="sm" color="fg.muted">
-            {t("filteringLabel")}
-          </Text>
-          <SelectRoot
-            collection={filterCollection}
-            value={[filter]}
-            onValueChange={(e) => setFilter(e.value[0] as FilterStatus)}
-            width="220px"
-          >
-            <SelectTrigger>
-              <SelectValueText placeholder={t("filterBy")} />
-            </SelectTrigger>
-            <SelectContent>
-              {filterCollection.items.map((item) => (
-                <SelectItem key={item.value} item={item}>
-                  {item.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </SelectRoot>
-        </Flex>
-        {groupBy !== "none" && groupedBooks.length > 0 && (
-          <Flex gap={2}>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                const nextState: Record<string, boolean> = {};
-                groupedBooks.forEach((group) => {
-                  nextState[group.key] = true;
-                });
-                setCollapsedGroups(nextState);
-              }}
-            >
-              {t("groupCollapseAll")}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setCollapsedGroups({})}
-            >
-              {t("groupExpandAll")}
-            </Button>
-          </Flex>
-        )}
-      </Flex>
+        <BookGridControls
+          areControlsOpen={areControlsOpen}
+          onToggleControls={() => setAreControlsOpen((prev) => !prev)}
+          isDisplayOpen={isDisplayOpen}
+          onToggleDisplay={() => setIsDisplayOpen((prev) => !prev)}
+          cardFields={cardFields}
+          onToggleCardField={(field) =>
+            setCardFields((prev) => ({ ...prev, [field]: !prev[field] }))
+          }
+          sort={sort}
+          onSortChange={(value) => setSort(value)}
+          sortCollection={sortCollection}
+          groupBy={groupBy}
+          onGroupByChange={(value) => setGroupBy(value)}
+          groupCollection={groupCollection}
+          filter={filter}
+          onFilterChange={(value) => setFilter(value)}
+          filterCollection={filterCollection}
+          showGroupActions={groupBy !== "none" && groupedBooks.length > 0}
+          onCollapseAll={() => {
+            const nextState: Record<string, boolean> = {};
+            groupedBooks.forEach((group) => {
+              nextState[group.key] = true;
+            });
+            setCollapsedGroups(nextState);
+          }}
+          onExpandAll={() => setCollapsedGroups({})}
+        />
+      </Stack>
 
       {sortedBooks.length === 0 ? (
         <Card.Root>

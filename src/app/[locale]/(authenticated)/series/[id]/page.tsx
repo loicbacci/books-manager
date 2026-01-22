@@ -13,6 +13,7 @@ import {
   Stack,
   Text,
 } from "@chakra-ui/react";
+import { FiArrowLeft } from "react-icons/fi";
 import { BookGridView, BookGridBook } from "@/components/books/book-grid";
 
 type Series = {
@@ -71,7 +72,7 @@ export default function SeriesDetailPage({
       <Stack gap={6}>
         <Flex justify="space-between" align="center" wrap="wrap" gap={4}>
           <Button variant="ghost" onClick={() => router.push("/series")}>
-            ← {tNav("series")}
+            <FiArrowLeft /> {tNav("series")}
           </Button>
         </Flex>
 

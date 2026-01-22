@@ -133,38 +133,105 @@ const config = defineConfig({
     },
     semanticTokens: {
       colors: {
+        bg: {
+          base: {
+            value: { _light: "{colors.cream.50}", _dark: "{colors.ink.950}" },
+          },
+          card: {
+            value: { _light: "{colors.cream.50}", _dark: "#1d1e21" },
+          },
+          panel: {
+            value: { _light: "white", _dark: "{colors.ink.900}" },
+          },
+          muted: {
+            value: { _light: "{colors.cream.100}", _dark: "{colors.ink.800}" },
+          },
+          subtle: {
+            value: { _light: "{colors.cream.50}", _dark: "{colors.ink.900}" },
+          },
+        },
+        fg: {
+          default: {
+            value: { _light: "{colors.ink.900}", _dark: "{colors.cream.50}" },
+          },
+          muted: {
+            value: { _light: "{colors.ink.500}", _dark: "{colors.cream.200}" },
+          },
+        },
         brand: {
-          solid: { value: "{colors.brand.700}" },
+          solid: {
+            value: { _light: "{colors.brand.700}", _dark: "{colors.brand.400}" },
+          },
           contrast: { value: "white" },
-          fg: { value: "{colors.brand.800}" },
-          muted: { value: "{colors.brand.100}" },
-          subtle: { value: "{colors.brand.50}" },
-          emphasized: { value: "{colors.brand.600}" },
-          focusRing: { value: "{colors.brand.500}" },
+          fg: {
+            value: { _light: "{colors.brand.800}", _dark: "#f07f98" },
+          },
+          muted: {
+            value: { _light: "{colors.brand.100}", _dark: "{colors.brand.900}" },
+          },
+          subtle: {
+            value: { _light: "{colors.brand.50}", _dark: "{colors.brand.950}" },
+          },
+          emphasized: {
+            value: { _light: "{colors.brand.600}", _dark: "{colors.brand.300}" },
+          },
+          focusRing: {
+            value: { _light: "{colors.brand.500}", _dark: "{colors.brand.300}" },
+          },
         },
         accent: {
-          solid: { value: "{colors.gold.600}" },
+          solid: {
+            value: { _light: "{colors.gold.600}", _dark: "{colors.gold.400}" },
+          },
           contrast: { value: "white" },
-          fg: { value: "{colors.gold.700}" },
-          muted: { value: "{colors.gold.100}" },
-          subtle: { value: "{colors.gold.50}" },
-          emphasized: { value: "{colors.gold.500}" },
+          fg: {
+            value: { _light: "{colors.gold.700}", _dark: "{colors.gold.300}" },
+          },
+          muted: {
+            value: { _light: "{colors.gold.100}", _dark: "{colors.gold.900}" },
+          },
+          subtle: {
+            value: { _light: "{colors.gold.50}", _dark: "{colors.gold.950}" },
+          },
+          emphasized: {
+            value: { _light: "{colors.gold.500}", _dark: "{colors.gold.300}" },
+          },
         },
         surface: {
-          base: { value: "{colors.cream.50}" },
-          raised: { value: "white" },
-          overlay: { value: "{colors.cream.100}" },
+          base: {
+            value: { _light: "{colors.cream.50}", _dark: "{colors.ink.950}" },
+          },
+          raised: {
+            value: { _light: "white", _dark: "{colors.ink.900}" },
+          },
+          overlay: {
+            value: { _light: "{colors.cream.100}", _dark: "{colors.ink.800}" },
+          },
         },
         text: {
-          primary: { value: "{colors.ink.900}" },
-          secondary: { value: "{colors.ink.600}" },
-          muted: { value: "{colors.ink.400}" },
-          inverse: { value: "{colors.cream.50}" },
+          primary: {
+            value: { _light: "{colors.ink.900}", _dark: "{colors.cream.50}" },
+          },
+          secondary: {
+            value: { _light: "{colors.ink.600}", _dark: "{colors.cream.200}" },
+          },
+          muted: {
+            value: { _light: "{colors.ink.400}", _dark: "{colors.cream.400}" },
+          },
+          inverse: {
+            value: { _light: "{colors.cream.50}", _dark: "{colors.ink.900}" },
+          },
         },
         border: {
-          default: { value: "{colors.cream.400}" },
-          muted: { value: "{colors.cream.300}" },
-          emphasis: { value: "{colors.brand.200}" },
+          default: {
+            value: { _light: "{colors.cream.400}", _dark: "{colors.ink.700}" },
+          },
+          muted: {
+            value: { _light: "{colors.cream.300}", _dark: "{colors.ink.800}" },
+          },
+          emphasis: {
+            value: { _light: "{colors.brand.200}", _dark: "{colors.brand.700}" },
+          },
         },
       },
     },

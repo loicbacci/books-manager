@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import {
+  Box,
   Button,
   Input,
   Stack,
@@ -29,11 +30,20 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { BookSearchModal, type SearchResult } from "./book-search-modal";
+import { AuthorSelect } from "./author-select";
+import { SeriesSelect } from "./series-select";
 
-type Author = { id: string; name: string };
+type Author = {
+  id: string;
+  name: string;
+  gender?: { id: string; name: string } | null;
+  nationality?: { id: string; name: string } | null;
+};
 type Genre = { id: string; name: string; color: string | null };
 type Format = { id: string; name: string };
 type Series = { id: string; name: string };
+type Gender = { id: string; name: string };
+type Nationality = { id: string; name: string };
 
 type AddBookModalProps = {
   isOpen: boolean;
@@ -58,11 +68,15 @@ export function AddBookModal({
   const tCommon = useTranslations("common");
 
   const [loading, setLoading] = useState(false);
-  const [_authors, setAuthors] = useState<Author[]>([]);
+  const [authors, setAuthors] = useState<Author[]>([]);
   const [_genres, setGenres] = useState<Genre[]>([]);
   const [formats, setFormats] = useState<Format[]>([]);
   const [series, setSeries] = useState<Series[]>([]);
+  const [genders, setGenders] = useState<Gender[]>([]);
+  const [nationalities, setNationalities] = useState<Nationality[]>([]);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [isAuthorsLoading, setIsAuthorsLoading] = useState(false);
+  const [isSeriesLoading, setIsSeriesLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -84,17 +98,40 @@ export function AddBookModal({
 
   useEffect(() => {
     if (isOpen) {
+      setIsAuthorsLoading(true);
+      setIsSeriesLoading(true);
       Promise.all([
         fetch("/api/authors").then((r) => r.json()),
         fetch("/api/genres").then((r) => r.json()),
         fetch("/api/formats").then((r) => r.json()),
         fetch("/api/series").then((r) => r.json()),
-      ]).then(([authorsData, genresData, formatsData, seriesData]) => {
-        setAuthors(authorsData);
-        setGenres(genresData);
-        setFormats(formatsData);
-        setSeries(seriesData);
-      });
+        fetch("/api/genders").then((r) => r.json()),
+        fetch("/api/nationalities").then((r) => r.json()),
+      ])
+        .then(
+          ([
+            authorsData,
+            genresData,
+            formatsData,
+            seriesData,
+            gendersData,
+            nationalitiesData,
+          ]) => {
+            setAuthors(authorsData);
+            setGenres(genresData);
+            setFormats(formatsData);
+            setSeries(seriesData);
+            setGenders(gendersData);
+            setNationalities(nationalitiesData);
+          }
+        )
+        .catch((error) => {
+          console.error("Failed to load metadata:", error);
+        })
+        .finally(() => {
+          setIsAuthorsLoading(false);
+          setIsSeriesLoading(false);
+        });
     }
   }, [isOpen]);
 
@@ -175,10 +212,6 @@ export function AddBookModal({
     items: formats.map((f) => ({ value: f.id, label: f.name })),
   });
 
-  const seriesCollection = createListCollection({
-    items: series.map((item) => ({ value: item.id, label: item.name })),
-  });
-
   const handleBookSelect = (book: SearchResult) => {
     setFormData({
       ...formData,
@@ -232,6 +265,7 @@ export function AddBookModal({
                       setFormData({ ...formData, title: e.target.value })
                     }
                     placeholder="Enter book title"
+                    bg={{ base: "white", _dark: "bg.muted" }}
                   />
                 </Field.Root>
 
@@ -243,8 +277,44 @@ export function AddBookModal({
                       setFormData({ ...formData, coverUrl: e.target.value })
                     }
                     placeholder="https://..."
+                    bg={{ base: "white", _dark: "bg.muted" }}
                   />
                 </Field.Root>
+
+                <Box borderTopWidth="1px" borderColor="border.muted" />
+
+                <Field.Root>
+                  <Field.Label>{t("authors")}</Field.Label>
+                  <AuthorSelect
+                    authors={authors}
+                    genders={genders}
+                    nationalities={nationalities}
+                    value={formData.authorIds[0] ?? null}
+                    onChange={(authorId) =>
+                      setFormData({
+                        ...formData,
+                        authorIds: authorId ? [authorId] : [],
+                      })
+                    }
+                    onAuthorCreated={(created) =>
+                      setAuthors((prev) =>
+                        [...prev, created].sort((a, b) =>
+                          a.name.localeCompare(b.name)
+                        )
+                      )
+                    }
+                    placeholder={t("authors")}
+                    isLoading={isAuthorsLoading}
+                    triggerProps={{
+                      bg: { base: "white", _dark: "bg.muted" },
+                    }}
+                    inputProps={{
+                      bg: { base: "white", _dark: "bg.muted" },
+                    }}
+                  />
+                </Field.Root>
+
+                <Box borderTopWidth="1px" borderColor="border.muted" />
 
                 <Flex gap={4}>
                   <Field.Root flex={1}>
@@ -256,7 +326,7 @@ export function AddBookModal({
                         setFormData({ ...formData, status: e.value[0] })
                       }
                     >
-                      <SelectTrigger>
+                      <SelectTrigger bg={{ base: "white", _dark: "bg.muted" }}>
                         <SelectValueText placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
@@ -282,7 +352,7 @@ export function AddBookModal({
                           })
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger bg={{ base: "white", _dark: "bg.muted" }}>
                           <SelectValueText placeholder="Select format" />
                         </SelectTrigger>
                         <SelectContent>
@@ -297,35 +367,37 @@ export function AddBookModal({
                   )}
                 </Flex>
 
+                <Box borderTopWidth="1px" borderColor="border.muted" />
+
                 <Flex gap={4}>
-                  {series.length > 0 && (
-                    <Field.Root flex={1}>
-                      <Field.Label>{t("series")}</Field.Label>
-                      <SelectRoot
-                        collection={seriesCollection}
-                        value={formData.seriesId ? [formData.seriesId] : []}
-                        onValueChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            seriesId: e.value[0] || "",
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValueText
-                            placeholder={t("seriesPlaceholder")}
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {seriesCollection.items.map((item) => (
-                            <SelectItem key={item.value} item={item}>
-                              {item.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </SelectRoot>
-                    </Field.Root>
-                  )}
+                  <Field.Root flex={1}>
+                    <Field.Label>{t("series")}</Field.Label>
+                    <SeriesSelect
+                      series={series}
+                      value={formData.seriesId || null}
+                      onChange={(seriesId) =>
+                        setFormData({
+                          ...formData,
+                          seriesId: seriesId || "",
+                        })
+                      }
+                      onSeriesCreated={(created) =>
+                        setSeries((prev) =>
+                          [...prev, created].sort((a, b) =>
+                            a.name.localeCompare(b.name)
+                          )
+                        )
+                      }
+                      isLoading={isSeriesLoading}
+                      placeholder={t("seriesPlaceholder")}
+                      triggerProps={{
+                        bg: { base: "white", _dark: "bg.muted" },
+                      }}
+                      inputProps={{
+                        bg: { base: "white", _dark: "bg.muted" },
+                      }}
+                    />
+                  </Field.Root>
 
                   <Field.Root flex={1}>
                     <Field.Label>{t("seriesOrder")}</Field.Label>
@@ -341,9 +413,12 @@ export function AddBookModal({
                         })
                       }
                       placeholder={t("seriesOrderPlaceholder")}
+                      bg={{ base: "white", _dark: "bg.muted" }}
                     />
                   </Field.Root>
                 </Flex>
+
+                <Box borderTopWidth="1px" borderColor="border.muted" />
 
                 <Flex gap={4}>
                   <Field.Root flex={1}>
@@ -356,6 +431,7 @@ export function AddBookModal({
                         setFormData({ ...formData, totalPages: e.target.value })
                       }
                       placeholder="e.g., 350"
+                      bg={{ base: "white", _dark: "bg.muted" }}
                     />
                   </Field.Root>
 
@@ -372,6 +448,7 @@ export function AddBookModal({
                         })
                       }
                       placeholder="0"
+                      bg={{ base: "white", _dark: "bg.muted" }}
                     />
                   </Field.Root>
 
@@ -386,9 +463,12 @@ export function AddBookModal({
                         setFormData({ ...formData, rating: e.target.value })
                       }
                       placeholder="1-5"
+                      bg={{ base: "white", _dark: "bg.muted" }}
                     />
                   </Field.Root>
                 </Flex>
+
+                <Box borderTopWidth="1px" borderColor="border.muted" />
 
                 <Field.Root>
                   <Field.Label>{t("summary")}</Field.Label>
@@ -399,8 +479,11 @@ export function AddBookModal({
                     }
                     placeholder="Your thoughts about the book..."
                     rows={3}
+                    bg={{ base: "white", _dark: "bg.muted" }}
                   />
                 </Field.Root>
+
+                <Box borderTopWidth="1px" borderColor="border.muted" />
 
                 <Field.Root>
                   <Flex align="center" gap={2}>

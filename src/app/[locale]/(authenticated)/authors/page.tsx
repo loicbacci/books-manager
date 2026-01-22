@@ -18,6 +18,17 @@ import {
   PopoverContent,
   PopoverBody,
 } from "@chakra-ui/react";
+import { FiArrowRight } from "react-icons/fi";
+import { MdFilterList } from "react-icons/md";
+import {
+  DialogRoot,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogBody,
+  DialogFooter,
+  DialogCloseTrigger,
+} from "@/components/ui/dialog";
 import {
   SelectRoot,
   SelectTrigger,
@@ -39,6 +50,7 @@ type Author = {
 export default function AuthorsPage() {
   const t = useTranslations("author");
   const tCommon = useTranslations("common");
+  const tSettings = useTranslations("settings");
   const tNav = useTranslations("nav");
 
   const [authors, setAuthors] = useState<Author[]>([]);
@@ -46,6 +58,22 @@ export default function AuthorsPage() {
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [genders, setGenders] = useState<Array<{ id: string; name: string }>>(
+    []
+  );
+  const [nationalities, setNationalities] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+  const [genderId, setGenderId] = useState("none");
+  const [nationalityId, setNationalityId] = useState("none");
+  const [isMetaLoading, setIsMetaLoading] = useState(false);
+  const [isAddingGender, setIsAddingGender] = useState(false);
+  const [newGenderName, setNewGenderName] = useState("");
+  const [isAddingNationality, setIsAddingNationality] = useState(false);
+  const [newNationalityName, setNewNationalityName] = useState("");
+  const [savingGender, setSavingGender] = useState(false);
+  const [savingNationality, setSavingNationality] = useState(false);
   const [sort, setSort] = useState<
     "name-asc" | "name-desc" | "count-desc" | "count-asc"
   >("name-asc");
@@ -57,6 +85,10 @@ export default function AuthorsPage() {
   >({});
   const [genderFilter, setGenderFilter] = useState<string>("all");
   const [nationalityFilter, setNationalityFilter] = useState<string>("all");
+  const [areControlsOpen, setAreControlsOpen] = useState(false);
+  const controlBg = { base: "white", _dark: "bg.subtle" };
+  const controlBorder = { base: "border.default", _dark: "border.default" };
+  const cardBg = { base: "bg.panel", _dark: "bg.card" };
 
   const fetchAuthors = async () => {
     try {
@@ -75,24 +107,41 @@ export default function AuthorsPage() {
     fetchAuthors();
   }, []);
 
-  const genders = Array.from(
+  useEffect(() => {
+    if (!isCreateOpen) return;
+    setIsMetaLoading(true);
+    Promise.all([
+      fetch("/api/genders").then((r) => r.json()),
+      fetch("/api/nationalities").then((r) => r.json()),
+    ])
+      .then(([gendersData, nationalitiesData]) => {
+        setGenders(gendersData);
+        setNationalities(nationalitiesData);
+      })
+      .catch((error) => {
+        console.error("Failed to fetch metadata:", error);
+      })
+      .finally(() => setIsMetaLoading(false));
+  }, [isCreateOpen]);
+
+  const genderNames = Array.from(
     new Set(authors.map((author) => author.gender?.name).filter(Boolean))
   ) as string[];
-  const nationalities = Array.from(
+  const nationalityNames = Array.from(
     new Set(authors.map((author) => author.nationality?.name).filter(Boolean))
   ) as string[];
 
-  const genderCollection = createListCollection({
+  const genderFilterCollection = createListCollection({
     items: [
       { value: "all", label: t("filterAll") },
-      ...genders.map((gender) => ({ value: gender, label: gender })),
+      ...genderNames.map((gender) => ({ value: gender, label: gender })),
     ],
   });
 
-  const nationalityCollection = createListCollection({
+  const nationalityFilterCollection = createListCollection({
     items: [
       { value: "all", label: t("filterAll") },
-      ...nationalities.map((nat) => ({ value: nat, label: nat })),
+      ...nationalityNames.map((nat) => ({ value: nat, label: nat })),
     ],
   });
 
@@ -110,6 +159,20 @@ export default function AuthorsPage() {
       { value: "none", label: t("groupNone") },
       { value: "gender", label: t("groupGender") },
       { value: "nationality", label: t("groupNationality") },
+    ],
+  });
+
+  const genderCollection = createListCollection({
+    items: [
+      { value: "none", label: t("unknownGender") },
+      ...genders.map((gender) => ({ value: gender.id, label: gender.name })),
+    ],
+  });
+
+  const nationalityCollection = createListCollection({
+    items: [
+      { value: "none", label: t("unknownNationality") },
+      ...nationalities.map((nat) => ({ value: nat.id, label: nat.name })),
     ],
   });
 
@@ -181,11 +244,18 @@ export default function AuthorsPage() {
       const response = await fetch("/api/authors", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim() }),
+        body: JSON.stringify({
+          name: name.trim(),
+          genderId: genderId === "none" ? null : genderId,
+          nationalityId: nationalityId === "none" ? null : nationalityId,
+        }),
       });
       if (response.ok) {
         setName("");
+        setGenderId("none");
+        setNationalityId("none");
         await fetchAuthors();
+        setIsCreateOpen(false);
       }
     } catch (error) {
       console.error("Failed to create author:", error);
@@ -194,149 +264,257 @@ export default function AuthorsPage() {
     }
   };
 
+  const handleCreateGender = async () => {
+    const trimmed = newGenderName.trim();
+    if (!trimmed) return;
+    setSavingGender(true);
+    try {
+      const response = await fetch("/api/genders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (response.ok) {
+        const created = await response.json();
+        setGenders((prev) =>
+          [...prev, created].sort((a, b) => a.name.localeCompare(b.name))
+        );
+        setGenderId(created.id);
+        setNewGenderName("");
+        setIsAddingGender(false);
+      }
+    } catch (error) {
+      console.error("Failed to create gender:", error);
+    } finally {
+      setSavingGender(false);
+    }
+  };
+
+  const handleCreateNationality = async () => {
+    const trimmed = newNationalityName.trim();
+    if (!trimmed) return;
+    setSavingNationality(true);
+    try {
+      const response = await fetch("/api/nationalities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (response.ok) {
+        const created = await response.json();
+        setNationalities((prev) =>
+          [...prev, created].sort((a, b) => a.name.localeCompare(b.name))
+        );
+        setNationalityId(created.id);
+        setNewNationalityName("");
+        setIsAddingNationality(false);
+      }
+    } catch (error) {
+      console.error("Failed to create nationality:", error);
+    } finally {
+      setSavingNationality(false);
+    }
+  };
+
   return (
     <Container maxW="container.lg" py={8}>
       <Stack gap={6}>
-        <Heading as="h1" size="2xl">
-          {tNav("authors")}
-        </Heading>
+        <Flex
+          justify={{ base: "flex-start", md: "space-between" }}
+          align={{ base: "flex-start", md: "center" }}
+          direction={{ base: "column", md: "row" }}
+          gap={3}
+        >
+          <Heading as="h1" size="2xl">
+            {tNav("authors")}
+          </Heading>
+          <Button colorPalette="brand" onClick={() => setIsCreateOpen(true)}>
+            {t("create")}
+          </Button>
+        </Flex>
 
-        <Card.Root>
-          <Card.Body>
-            <Stack gap={3}>
-              <Text fontWeight="semibold">{t("createTitle")}</Text>
-              <Flex gap={3} wrap="wrap">
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder={t("namePlaceholder")}
-                  maxW="400px"
-                />
-                <Button
-                  colorPalette="brand"
-                  onClick={handleCreate}
-                  loading={saving}
-                  loadingText={tCommon("loading")}
-                >
-                  {t("create")}
-                </Button>
-              </Flex>
-            </Stack>
-          </Card.Body>
-        </Card.Root>
-
-        <Flex gap={4} wrap="wrap" align="center">
+        <Stack gap={4}>
           <Input
             placeholder={tCommon("search")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             maxW="300px"
           />
-          <Flex align="center" gap={2}>
-            <Text fontSize="sm" color="fg.muted">
-              {t("sortingLabel")}
-            </Text>
-            <SelectRoot
-              collection={sortCollection}
-              value={[sort]}
-              onValueChange={(e) => setSort(e.value[0] as typeof sort)}
-              width="220px"
-            >
-              <SelectTrigger>
-                <SelectValueText placeholder={tCommon("sort")} />
-              </SelectTrigger>
-              <SelectContent>
-                {sortCollection.items.map((item) => (
-                  <SelectItem key={item.value} item={item}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </SelectRoot>
-          </Flex>
-          <Flex align="center" gap={2}>
-            <Text fontSize="sm" color="fg.muted">
-              {t("groupingLabel")}
-            </Text>
-            <SelectRoot
-              collection={groupCollection}
-              value={[groupBy]}
-              onValueChange={(e) => setGroupBy(e.value[0] as typeof groupBy)}
-              width="220px"
-            >
-              <SelectTrigger>
-                <SelectValueText placeholder={t("groupBy")} />
-              </SelectTrigger>
-              <SelectContent>
-                {groupCollection.items.map((item) => (
-                  <SelectItem key={item.value} item={item}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </SelectRoot>
-          </Flex>
-          <Flex align="center" gap={2}>
-            <Text fontSize="sm" color="fg.muted">
-              {t("filteringLabel")}
-            </Text>
-            <PopoverRoot positioning={{ placement: "bottom-start" }}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm">
-                  {t("filtersButton")}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent>
-                <PopoverBody>
-                  <Stack gap={3}>
-                    <Text fontSize="sm" color="fg.muted">
-                      {t("filterGender")}
-                    </Text>
-                    <SelectRoot
-                      collection={genderCollection}
+          <Card.Root bg={cardBg}>
+            <Card.Body>
+              <Stack gap={4}>
+                <Flex
+                  gap={4}
+                  wrap="wrap"
+                  direction={{ base: "column", md: "row" }}
+                  align={{ base: "stretch", md: "center" }}
+                >
+                  <Button
+                    variant="outline"
+                    width={{ base: "full", md: "auto" }}
+                    onClick={() => setAreControlsOpen((prev) => !prev)}
+                    display={{ base: "inline-flex", md: "none" }}
+                  >
+                    <Flex align="center" gap={2}>
+                      <Text as="span">{t("filtersButton")}</Text>
+                      <Box display="flex" alignItems="center">
+                        <MdFilterList />
+                      </Box>
+                    </Flex>
+                  </Button>
+                </Flex>
+
+                <Box
+                  display={{
+                    base: areControlsOpen ? "block" : "none",
+                    md: "block",
+                  }}
+                >
+                  <Flex
+                    gap={4}
+                    wrap="wrap"
+                    direction={{ base: "column", md: "row" }}
+                    align={{ base: "stretch", md: "center" }}
+                  >
+                    <Flex
+                      align={{ base: "stretch", md: "center" }}
+                      gap={2}
+                      direction={{ base: "column", md: "row" }}
+                      width={{ base: "full", md: "auto" }}
+                    >
+                      <Text fontSize="sm" color="fg.muted">
+                        {t("sortingLabel")}
+                      </Text>
+                      <SelectRoot
+                        collection={sortCollection}
+                        value={[sort]}
+                        onValueChange={(e) => setSort(e.value[0] as typeof sort)}
+                        width={{ base: "full", md: "220px" }}
+                      >
+                        <SelectTrigger bg={controlBg} borderColor={controlBorder}>
+                          <SelectValueText placeholder={tCommon("sort")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sortCollection.items.map((item) => (
+                            <SelectItem key={item.value} item={item}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </SelectRoot>
+                    </Flex>
+                    <Flex
+                      align={{ base: "stretch", md: "center" }}
+                      gap={2}
+                      direction={{ base: "column", md: "row" }}
+                      width={{ base: "full", md: "auto" }}
+                    >
+                      <Text fontSize="sm" color="fg.muted">
+                        {t("groupingLabel")}
+                      </Text>
+                      <SelectRoot
+                        collection={groupCollection}
+                        value={[groupBy]}
+                        onValueChange={(e) =>
+                          setGroupBy(e.value[0] as typeof groupBy)
+                        }
+                        width={{ base: "full", md: "220px" }}
+                      >
+                        <SelectTrigger bg={controlBg} borderColor={controlBorder}>
+                          <SelectValueText placeholder={t("groupBy")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {groupCollection.items.map((item) => (
+                            <SelectItem key={item.value} item={item}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </SelectRoot>
+                    </Flex>
+                    <Flex
+                      align={{ base: "stretch", md: "center" }}
+                      gap={2}
+                      direction={{ base: "column", md: "row" }}
+                      width={{ base: "full", md: "auto" }}
+                    >
+                      <Text fontSize="sm" color="fg.muted">
+                        {t("filteringLabel")}
+                      </Text>
+                      <PopoverRoot positioning={{ placement: "bottom-start" }}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            width={{ base: "full", md: "auto" }}
+                          >
+                            {t("filtersButton")}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent>
+                          <PopoverBody>
+                            <Stack gap={3}>
+                              <Text fontSize="sm" color="fg.muted">
+                                {t("filterGender")}
+                              </Text>
+                              <SelectRoot
+                      collection={genderFilterCollection}
                       value={[genderFilter]}
                       onValueChange={(e) =>
                         setGenderFilter(e.value[0] || "all")
                       }
-                    >
-                      <SelectTrigger>
-                        <SelectValueText placeholder={t("filterGender")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {genderCollection.items.map((item) => (
+                              >
+                                <SelectTrigger
+                                  bg={controlBg}
+                                  borderColor={controlBorder}
+                                >
+                                  <SelectValueText placeholder={t("filterGender")} />
+                                </SelectTrigger>
+                                <SelectContent>
+                        {genderFilterCollection.items.map((item) => (
                           <SelectItem key={item.value} item={item}>
                             {item.label}
                           </SelectItem>
                         ))}
-                      </SelectContent>
-                    </SelectRoot>
-                    <Text fontSize="sm" color="fg.muted">
-                      {t("filterNationality")}
-                    </Text>
-                    <SelectRoot
-                      collection={nationalityCollection}
+                                </SelectContent>
+                              </SelectRoot>
+                              <Text fontSize="sm" color="fg.muted">
+                                {t("filterNationality")}
+                              </Text>
+                              <SelectRoot
+                      collection={nationalityFilterCollection}
                       value={[nationalityFilter]}
                       onValueChange={(e) =>
                         setNationalityFilter(e.value[0] || "all")
                       }
-                    >
-                      <SelectTrigger>
-                        <SelectValueText placeholder={t("filterNationality")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {nationalityCollection.items.map((item) => (
+                              >
+                                <SelectTrigger
+                                  bg={controlBg}
+                                  borderColor={controlBorder}
+                                >
+                                  <SelectValueText
+                                    placeholder={t("filterNationality")}
+                                  />
+                                </SelectTrigger>
+                                <SelectContent>
+                        {nationalityFilterCollection.items.map((item) => (
                           <SelectItem key={item.value} item={item}>
                             {item.label}
                           </SelectItem>
                         ))}
-                      </SelectContent>
-                    </SelectRoot>
-                  </Stack>
-                </PopoverBody>
-              </PopoverContent>
-            </PopoverRoot>
-          </Flex>
-        </Flex>
+                                </SelectContent>
+                              </SelectRoot>
+                            </Stack>
+                          </PopoverBody>
+                        </PopoverContent>
+                      </PopoverRoot>
+                    </Flex>
+                  </Flex>
+                </Box>
+              </Stack>
+            </Card.Body>
+          </Card.Root>
+        </Stack>
 
         {loading ? (
           <Text color="fg.muted">{tCommon("loading")}</Text>
@@ -386,7 +564,7 @@ export default function AuthorsPage() {
                                 </Text>
                               )}
                             </Box>
-                            <Text color="fg.muted">→</Text>
+                            <FiArrowRight color="var(--chakra-colors-fg-muted)" />
                           </Flex>
                         </Card.Body>
                       </NextLink>
@@ -397,6 +575,172 @@ export default function AuthorsPage() {
           </Stack>
         )}
       </Stack>
+
+      <DialogRoot
+        open={isCreateOpen}
+        onOpenChange={(e) => !e.open && setIsCreateOpen(false)}
+      >
+        <DialogContent maxW="md">
+          <DialogHeader>
+            <DialogTitle>{t("createTitle")}</DialogTitle>
+            <DialogCloseTrigger />
+          </DialogHeader>
+          <DialogBody>
+            <Stack gap={3}>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={t("namePlaceholder")}
+              />
+              <Stack gap={2}>
+                <Text fontSize="sm" color="fg.muted">
+                  {t("gender")}
+                </Text>
+                <SelectRoot
+                  collection={genderCollection}
+                  value={[genderId]}
+                  onValueChange={(e) => setGenderId(e.value[0] || "none")}
+                >
+                  <SelectTrigger>
+                    <SelectValueText placeholder={t("gender")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {genderCollection.items.map((item) => (
+                      <SelectItem key={item.value} item={item}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </SelectRoot>
+                {isMetaLoading && (
+                  <Text fontSize="sm" color="fg.muted">
+                    {tCommon("loading")}
+                  </Text>
+                )}
+                {!isAddingGender ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    width="fit-content"
+                    onClick={() => setIsAddingGender(true)}
+                  >
+                    {tSettings("addGender")}
+                  </Button>
+                ) : (
+                  <Flex gap={2} wrap="wrap">
+                    <Input
+                      value={newGenderName}
+                      onChange={(e) => setNewGenderName(e.target.value)}
+                      placeholder={tSettings("addGender")}
+                      flex={1}
+                      minW="200px"
+                    />
+                    <Button
+                      size="sm"
+                      colorPalette="brand"
+                      onClick={handleCreateGender}
+                      loading={savingGender}
+                      loadingText={tCommon("loading")}
+                    >
+                      {tCommon("add")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setIsAddingGender(false);
+                        setNewGenderName("");
+                      }}
+                    >
+                      {tCommon("cancel")}
+                    </Button>
+                  </Flex>
+                )}
+              </Stack>
+              <Stack gap={2}>
+                <Text fontSize="sm" color="fg.muted">
+                  {t("nationality")}
+                </Text>
+                <SelectRoot
+                  collection={nationalityCollection}
+                  value={[nationalityId]}
+                  onValueChange={(e) =>
+                    setNationalityId(e.value[0] || "none")
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValueText placeholder={t("nationality")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {nationalityCollection.items.map((item) => (
+                      <SelectItem key={item.value} item={item}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </SelectRoot>
+                {isMetaLoading && (
+                  <Text fontSize="sm" color="fg.muted">
+                    {tCommon("loading")}
+                  </Text>
+                )}
+                {!isAddingNationality ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    width="fit-content"
+                    onClick={() => setIsAddingNationality(true)}
+                  >
+                    {tSettings("addNationality")}
+                  </Button>
+                ) : (
+                  <Flex gap={2} wrap="wrap">
+                    <Input
+                      value={newNationalityName}
+                      onChange={(e) => setNewNationalityName(e.target.value)}
+                      placeholder={tSettings("addNationality")}
+                      flex={1}
+                      minW="200px"
+                    />
+                    <Button
+                      size="sm"
+                      colorPalette="brand"
+                      onClick={handleCreateNationality}
+                      loading={savingNationality}
+                      loadingText={tCommon("loading")}
+                    >
+                      {tCommon("add")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setIsAddingNationality(false);
+                        setNewNationalityName("");
+                      }}
+                    >
+                      {tCommon("cancel")}
+                    </Button>
+                  </Flex>
+                )}
+              </Stack>
+            </Stack>
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsCreateOpen(false)}>
+              {tCommon("cancel")}
+            </Button>
+            <Button
+              colorPalette="brand"
+              onClick={handleCreate}
+              loading={saving}
+              loadingText={tCommon("loading")}
+            >
+              {t("create")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </DialogRoot>
     </Container>
   );
 }

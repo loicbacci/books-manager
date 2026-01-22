@@ -14,7 +14,7 @@ export function AppShell({ children }: AppShellProps) {
       <MobileNav />
       <Box
         ml={{ base: 0, md: "240px" }}
-        pb={{ base: "80px", md: 0 }}
+        pb={{ base: 0, md: 0 }}
         minH="100vh"
       >
         {children}

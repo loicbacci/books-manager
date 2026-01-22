@@ -187,7 +187,7 @@ export function BookSearchModal({
                   >
                     <Card.Body p={4}>
                       <Flex gap={4}>
-                        <Box flexShrink={0}>
+                        <Box flexShrink={0} width="72px">
                           <BookCover
                             coverUrl={book.coverUrl ?? null}
                             title={book.title}

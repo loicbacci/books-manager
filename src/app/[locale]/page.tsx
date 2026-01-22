@@ -36,10 +36,14 @@ export default async function HomePage({ params }: Props) {
       <Container maxW="container.xl" py={20}>
         <Stack gap={12} align="center" textAlign="center">
           <Stack gap={4}>
-            <Heading as="h1" size="4xl" color="brand.fg">
+            <Heading as="h1" size={{ base: "2xl", md: "4xl" }} color="brand.fg">
               {t("appName")}
             </Heading>
-            <Text fontSize="xl" color="gray.600" maxW="600px">
+            <Text
+              fontSize={{ base: "lg", md: "xl" }}
+              color="gray.600"
+              maxW="600px"
+            >
               Track your reading journey. Manage books you&apos;ve read, are
               reading, or want to read. Get insights into your reading habits
               with beautiful statistics.

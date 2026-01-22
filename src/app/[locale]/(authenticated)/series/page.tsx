@@ -14,6 +14,7 @@ import {
   Stack,
   Text,
 } from "@chakra-ui/react";
+import { FiArrowRight } from "react-icons/fi";
 import { BookCover } from "@/components/ui/book-cover";
 
 type Series = {
@@ -140,7 +141,7 @@ export default function SeriesPage() {
                             ))}
                           </Flex>
                         )}
-                        <Text color="fg.muted">→</Text>
+                        <FiArrowRight color="var(--chakra-colors-fg-muted)" />
                       </Flex>
                     </Flex>
                   </Card.Body>

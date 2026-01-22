@@ -4,7 +4,7 @@ Guidance for coding agents working in this repository. Base rules and project co
 
 ## Project Overview
 
-Books Manager is a multi-user web application for tracking personal book collections. Users can manage books they've read, are reading, or plan to read, with features like progress tracking, ratings, statistics, and wishlist management.
+Books Manager is a self-hosted, multi-user web application for tracking personal book collections. Users can manage books they've read, are reading, or plan to read, with progress tracking, ratings, wishlist management, and statistics dashboards. The app supports bilingual content (English/French) and invite-only registration.
 
 ## Tech Stack
 
@@ -17,16 +17,37 @@ Books Manager is a multi-user web application for tracking personal book collect
 - Charts: Recharts
 - Deployment: Docker + Docker Compose
 
-## Commands
+## Design Language
+
+The UI is intended to feel literary, warm, and refined rather than techy.
+
+- Typography: Headings use "Playfair Display" for a classic, bookish feel; body text uses "Source Sans 3" for clarity.
+- Palette: Deep burgundy (`brand`) as the primary, warm gold (`gold`) as the accent, cream (`cream`) for surfaces, and ink (`ink`) for text.
+- Surfaces: Soft, light backgrounds with raised cards; rounded corners (`md` to `xl`) and gentle shadows (`card`, `elevated`).
+- Layout: Clean grids and stacks, lots of whitespace, and card-based sections for dashboards and lists.
+- Navigation: Desktop uses a fixed left sidebar; mobile uses a bottom icon bar; emoji icons are used sparingly to add warmth.
+- Charts: Recharts are used for stats; prefer brand/neutral colors over default bright palettes.
+- Components: Prefer Chakra primitives; Tailwind `tw-` utilities only for layout/spacing.
+- Practicality: Some parts can be intentionally utilitarian; do not sacrifice UX just to force the theme.
+- Restraint: The UI does not need to lean heavily into the library aesthetic everywhere.
+- Defaults: Using default colors can be fine (e.g. yellow stars, Recharts default palettes).
+- Consistency: If a page uses `surface.*` tokens, avoid mixing in `gray.*` unless it is a deliberate neutral; keep backgrounds aligned across public/auth pages.
+- States: Use clear visual states for loading/empty/error (spinners, empty cards, muted text) and keep them minimal.
+- Icons: Prefer emoji for friendly accents; avoid mixing in multiple icon styles in the same view.
+- Density: Favor readable spacing and avoid overly tight controls; dashboard cards should remain scannable at a glance.
+
+## Build and test commands
 
 ```bash
 # Development
 npm run dev              # Start dev server
 npm run build            # Production build
+npm run start            # Start production server
 npm run lint             # Run ESLint
 npm run lint:fix         # Fix ESLint issues
 npm run type-check       # TypeScript check
 npm run format           # Format with Prettier
+npm run format:check     # Check formatting
 
 # Database
 npm run db:generate      # Generate Prisma client
@@ -49,7 +70,15 @@ npm run test:coverage     # Run tests with coverage report
 npm run test:ci           # Run tests in CI mode
 ```
 
-## Testing
+## Code style guidelines
+
+- TypeScript is strict (`tsconfig.json` uses `"strict": true`); keep API responses and Prisma queries fully typed.
+- Formatting is enforced by Prettier (`.prettierrc`): semicolons, double quotes, 2-space tabs, 80-char print width, Tailwind class sorting via `prettier-plugin-tailwindcss`.
+- Linting uses `eslint-config-next` (core web vitals + TypeScript); unused variables are disallowed unless prefixed with `_`.
+- Prefer Chakra UI components for UI primitives; use Tailwind utilities only for layout/spacing and keep the `tw-` prefix.
+- Add new translation keys to both `messages/en.json` and `messages/fr.json`.
+
+## Testing instructions
 
 - Unit tests: `src/__tests__/unit/`
 - Integration tests: `src/__tests__/integration/`
@@ -126,3 +155,7 @@ REGISTRATION_INVITE_CODE=<generate with: openssl rand -hex 16>
 - Run `npm run db:generate` after modifying `prisma/schema.prisma`.
 - Add new translation keys to both `messages/en.json` and `messages/fr.json`.
 - Keep API responses and database queries fully typed.
+
+## ExecPlans
+
+When writing complex features or significant refactors, use an ExecPlan (as described in .agent/PLANS.md) from design to implementation.

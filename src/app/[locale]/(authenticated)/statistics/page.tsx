@@ -159,7 +159,7 @@ export default function StatisticsPage() {
               <Heading as="h3" size="md" mb={4}>
                 Books Read Per Month ({new Date().getFullYear()})
               </Heading>
-              <Box height="300px">
+              <Box height={{ base: "220px", md: "300px" }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={stats.monthlyReading}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -179,7 +179,7 @@ export default function StatisticsPage() {
               <Heading as="h3" size="md" mb={4}>
                 Pages Read Per Month ({new Date().getFullYear()})
               </Heading>
-              <Box height="300px">
+              <Box height={{ base: "220px", md: "300px" }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={stats.monthlyPages}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -208,7 +208,7 @@ export default function StatisticsPage() {
               <Heading as="h3" size="md" mb={4}>
                 {t("genreDistribution")}
               </Heading>
-              <Box height="300px">
+              <Box height={{ base: "220px", md: "300px" }}>
                 {stats.genreDistribution.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -249,7 +249,7 @@ export default function StatisticsPage() {
               <Heading as="h3" size="md" mb={4}>
                 Rating Distribution
               </Heading>
-              <Box height="300px">
+              <Box height={{ base: "220px", md: "300px" }}>
                 {stats.ratingDistribution.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={stats.ratingDistribution}>
@@ -278,7 +278,7 @@ export default function StatisticsPage() {
               <Heading as="h3" size="md" mb={4}>
                 {t("authorGenders")}
               </Heading>
-              <Box height="300px">
+              <Box height={{ base: "220px", md: "300px" }}>
                 {stats.genderDistribution.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -319,7 +319,7 @@ export default function StatisticsPage() {
               <Heading as="h3" size="md" mb={4}>
                 {t("authorNationalities")}
               </Heading>
-              <Box height="300px">
+              <Box height={{ base: "220px", md: "300px" }}>
                 {stats.nationalityDistribution.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import NextLink from "next/link";
 import { GoStarFill } from "react-icons/go";
+import { FiArrowLeft } from "react-icons/fi";
 import {
   Box,
   Container,
@@ -33,6 +34,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { BookCover } from "@/components/ui/book-cover";
 import { resolvePalette } from "@/lib/color-palettes";
+import { SeriesSelect } from "@/components/books/series-select";
 import {
   SelectRoot,
   SelectTrigger,
@@ -108,12 +110,14 @@ export default function BookDetailPage({
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [_formats, setFormats] = useState<Format[]>([]);
   const [series, setSeries] = useState<Series[]>([]);
+  const [isSeriesLoading, setIsSeriesLoading] = useState(false);
   const [genres, setGenres] = useState<Genre[]>([]);
   const [genreTags, setGenreTags] = useState<string[]>([]);
   const [editData, setEditData] = useState<Partial<Book>>({});
 
   useEffect(() => {
     async function fetchBook() {
+      setIsSeriesLoading(true);
       try {
         const [bookRes, formatsRes, seriesRes, genresRes] = await Promise.all([
           fetch(`/api/books/${id}`),
@@ -152,6 +156,7 @@ export default function BookDetailPage({
       } catch (error) {
         console.error("Failed to fetch book:", error);
       } finally {
+        setIsSeriesLoading(false);
         setLoading(false);
       }
     }
@@ -356,10 +361,6 @@ export default function BookDetailPage({
     ],
   });
 
-  const seriesCollection = createListCollection({
-    items: series.map((item) => ({ value: item.id, label: item.name })),
-  });
-
   const genreColorMap = new Map(
     genres.map((genre) => [genre.name.toLowerCase(), genre.color])
   );
@@ -396,7 +397,7 @@ export default function BookDetailPage({
           {/* Header */}
           <Flex justify="space-between" align="flex-start" wrap="wrap" gap={4}>
             <Button variant="ghost" onClick={() => router.push("/library")}>
-              ← {tCommon("back")}
+              <FiArrowLeft /> {tCommon("back")}
             </Button>
             <Flex gap={2}>
               {isEditing ? (
@@ -591,30 +592,27 @@ export default function BookDetailPage({
 
               {isEditing && (
                 <Flex gap={3} align="center" wrap="wrap">
-                  {series.length > 0 && (
-                    <SelectRoot
-                      collection={seriesCollection}
-                      value={editData.seriesId ? [editData.seriesId] : []}
-                      onValueChange={(e) =>
+                  <Box minW="240px" flex={1}>
+                    <SeriesSelect
+                      series={series}
+                      value={editData.seriesId || null}
+                      onChange={(seriesId) =>
                         setEditData({
                           ...editData,
-                          seriesId: e.value[0] || null,
+                          seriesId,
                         })
                       }
-                      width="240px"
-                    >
-                      <SelectTrigger>
-                        <SelectValueText placeholder={t("seriesPlaceholder")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {seriesCollection.items.map((item) => (
-                          <SelectItem key={item.value} item={item}>
-                            {item.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </SelectRoot>
-                  )}
+                      onSeriesCreated={(created) =>
+                        setSeries((prev) =>
+                          [...prev, created].sort((a, b) =>
+                            a.name.localeCompare(b.name)
+                          )
+                        )
+                      }
+                      isLoading={isSeriesLoading}
+                      placeholder={t("seriesPlaceholder")}
+                    />
+                  </Box>
                   <Input
                     type="number"
                     min={0}

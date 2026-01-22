@@ -20,7 +20,7 @@ export function BookCover({ coverUrl, title, size = "md" }: BookCoverProps) {
   return (
     <Box
       aspectRatio={2 / 3}
-      bg="gray.100"
+      bg="bg.muted"
       borderRadius="md"
       display="flex"
       alignItems="center"
