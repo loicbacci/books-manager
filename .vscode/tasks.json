@@ -134,7 +134,7 @@
     },
     {
       "label": "Full Check",
-      "dependsOn": ["Type Check", "Lint", "Test"],
+      "dependsOn": ["Type Check", "Lint", "Test", "Build"],
       "dependsOrder": "sequence",
       "problemMatcher": [],
       "group": "test"

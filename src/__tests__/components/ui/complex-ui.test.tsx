@@ -129,8 +129,8 @@ describe("ui complex components", () => {
 
         <CarouselRoot withAutoplay slideCount={2}>
           <CarouselItemGroup>
-            <CarouselItem>Slide 1</CarouselItem>
-            <CarouselItem>Slide 2</CarouselItem>
+            <CarouselItem index={0}>Slide 1</CarouselItem>
+            <CarouselItem index={1}>Slide 2</CarouselItem>
           </CarouselItemGroup>
           <CarouselControls />
         </CarouselRoot>
@@ -210,13 +210,15 @@ describe("ui complex components", () => {
           </MenuTrigger>
           <MenuContent>
             <MenuArrow />
-            <MenuItem>Item</MenuItem>
-            <MenuCheckboxItem>Checked</MenuCheckboxItem>
+            <MenuItem value="item">Item</MenuItem>
+            <MenuCheckboxItem value="checked" checked>
+              Checked
+            </MenuCheckboxItem>
             <MenuRadioItemGroup value="one">
               <MenuRadioItem value="one">Radio</MenuRadioItem>
             </MenuRadioItemGroup>
             <MenuItemGroup title="Group">
-              <MenuTriggerItem startIcon={<span>+</span>}>
+              <MenuTriggerItem startIcon={<span>+</span>} value="more">
                 More
               </MenuTriggerItem>
             </MenuItemGroup>

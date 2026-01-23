@@ -59,12 +59,7 @@ export const TagsInputItem = React.forwardRef<
   )
 })
 
-export const TagsInputRoot = React.forwardRef<
-  HTMLDivElement,
-  ChakraTagsInput.RootProps
->(function TagsInputRoot(props, ref) {
-  return <ChakraTagsInput.Root {...props} ref={ref} />
-}) as ChakraTagsInput.RootProps
+export const TagsInputRoot = ChakraTagsInput.Root
 
 export const TagsInputItemText = ChakraTagsInput.ItemText
 export const TagsInputItemPreview = ChakraTagsInput.ItemPreview

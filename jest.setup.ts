@@ -27,7 +27,7 @@ if (typeof window !== "undefined") {
 }
 
 if (typeof DOMRect === "undefined") {
-  global.DOMRect = class DOMRect {
+  class MockDOMRect {
     x = 0;
     y = 0;
     width = 0;
@@ -46,28 +46,61 @@ if (typeof DOMRect === "undefined") {
       this.right = x + width;
       this.bottom = y + height;
     }
-  };
+    static fromRect(other?: DOMRectInit) {
+      if (!other) {
+        return new MockDOMRect();
+      }
+      return new MockDOMRect(
+        other.x ?? 0,
+        other.y ?? 0,
+        other.width ?? 0,
+        other.height ?? 0,
+      );
+    }
+  }
+
+  global.DOMRect = MockDOMRect as unknown as typeof DOMRect;
 }
 
 if (typeof IntersectionObserver === "undefined") {
-  global.IntersectionObserver = class IntersectionObserver {
-    constructor() {}
+  class MockIntersectionObserver {
+    root: Element | Document | null = null;
+    rootMargin = "";
+    thresholds: ReadonlyArray<number> = [];
+    constructor(
+      _callback: IntersectionObserverCallback,
+      options?: IntersectionObserverInit,
+    ) {
+      this.root = options?.root ?? null;
+      this.rootMargin = options?.rootMargin ?? "";
+      this.thresholds = Array.isArray(options?.threshold)
+        ? options?.threshold
+        : options?.threshold != null
+          ? [options.threshold]
+          : [];
+    }
     observe() {}
     unobserve() {}
     disconnect() {}
     takeRecords() {
       return [];
     }
-  };
+  }
+
+  global.IntersectionObserver =
+    MockIntersectionObserver as unknown as typeof IntersectionObserver;
 }
 
 if (typeof ResizeObserver === "undefined") {
-  global.ResizeObserver = class ResizeObserver {
-    constructor() {}
+  class MockResizeObserver {
+    constructor(_callback: ResizeObserverCallback) {}
     observe() {}
     unobserve() {}
     disconnect() {}
-  };
+  }
+
+  global.ResizeObserver =
+    MockResizeObserver as unknown as typeof ResizeObserver;
 }
 
 // Mock next/navigation

@@ -37,7 +37,7 @@ import {
   NumberInputLabel,
   NumberInputRoot,
 } from "@/components/ui/number-input";
-import { PinInput, PinInputField } from "@/components/ui/pin-input";
+import { PinInput } from "@/components/ui/pin-input";
 import {
   ProgressCircleRoot,
   ProgressCircleRing,
@@ -153,10 +153,7 @@ describe("ui basic components", () => {
           <NumberInputField />
         </NumberInputRoot>
 
-        <PinInput defaultValue={["1", "2"]}>
-          <PinInputField />
-          <PinInputField />
-        </PinInput>
+        <PinInput count={2} inputProps={{ "aria-label": "pin-input" }} />
 
         <ProgressRoot value={30}>
           <ProgressBar />
@@ -190,8 +187,8 @@ describe("ui basic components", () => {
         <Slider value={[25]} />
 
         <Splitter panels={[{ id: "pane-1" }, { id: "pane-2" }]}>
-          <SplitterPanel>Pane 1</SplitterPanel>
-          <SplitterPanel>Pane 2</SplitterPanel>
+          <SplitterPanel id="pane-1">Pane 1</SplitterPanel>
+          <SplitterPanel id="pane-2">Pane 2</SplitterPanel>
         </Splitter>
 
         <StatRoot>
@@ -205,21 +202,21 @@ describe("ui basic components", () => {
 
         <Status>Active</Status>
 
-        <StepperInput value={1} min={0} max={5} />
+        <StepperInput value="1" min={0} max={5} />
 
-        <StepsRoot defaultValue={2}>
+        <StepsRoot defaultStep={1} count={4}>
           <StepsList>
-            <StepsItem value={1} title="One" />
-            <StepsItem value={2} title="Two" />
-            <StepsItem value={3} title="Three" />
-            <ChakraSteps.Item value={4}>
+            <StepsItem index={0} title="One" />
+            <StepsItem index={1} title="Two" />
+            <StepsItem index={2} title="Three" />
+            <ChakraSteps.Item index={3}>
               <ChakraSteps.Trigger>
                 <StepsIndicator completedIcon={<span>Done</span>} />
               </ChakraSteps.Trigger>
               <ChakraSteps.Separator />
             </ChakraSteps.Item>
           </StepsList>
-          <StepsContent>Step content</StepsContent>
+          <StepsContent index={1}>Step content</StepsContent>
           <StepsCompletedContent>Completed</StepsCompletedContent>
           <StepsNextTrigger>Next</StepsNextTrigger>
           <StepsPrevTrigger>Prev</StepsPrevTrigger>
@@ -231,7 +228,9 @@ describe("ui basic components", () => {
 
         <TagsInputRoot defaultValue={["one"]}>
           <TagsInputControl>
-            <TagsInputItem value="one">one</TagsInputItem>
+            <TagsInputItem value="one" index={0}>
+              one
+            </TagsInputItem>
             <TagsInputInput aria-label="tags-input" />
           </TagsInputControl>
         </TagsInputRoot>
