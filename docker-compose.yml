@@ -1,11 +1,13 @@
 services:
   app:
     image: ${GHCR_IMAGE:-ghcr.io/loicbacci/books-manager:latest}
+    command: sh -c "node ./node_modules/.bin/prisma migrate deploy && node server.js"
     ports:
       - "3000:3000"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/booksmanager
       - NEXTAUTH_URL=http://localhost:3000
+      - AUTH_TRUST_HOST=true
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - REGISTRATION_INVITE_CODE=${REGISTRATION_INVITE_CODE}
     depends_on:
@@ -21,21 +23,9 @@ services:
       - POSTGRES_DB=booksmanager
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
     restart: unless-stopped
-
-  # Run migrations on startup
-  migrate:
-    image: ${GHCR_IMAGE:-ghcr.io/loicbacci/books-manager:latest}
-    command: npx prisma migrate deploy
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/booksmanager
-    depends_on:
-      db:
-        condition: service_healthy
