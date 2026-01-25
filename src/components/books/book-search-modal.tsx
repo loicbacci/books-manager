@@ -214,7 +214,8 @@ export function BookSearchModal({
                               {book.title}
                             </Text>
                             <Text fontSize="sm" color="fg.muted">
-                              {book.authors.join(", ") || "Unknown author"}
+                              {book.authors.join(", ") ||
+                                t("unknownAuthor")}
                             </Text>
                           </Box>
 
@@ -260,3 +261,5 @@ export function BookSearchModal({
     </DialogRoot>
   );
 }
+
+

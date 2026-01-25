@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import NextLink from "next/link";
 import { GoStarFill } from "react-icons/go";
 import { FiArrowLeft } from "react-icons/fi";
@@ -23,18 +23,22 @@ import {
   Field,
   Badge,
   createListCollection,
-  TagsInputRoot,
-  TagsInputControl,
-  TagsInputInput,
-  TagsInputItem,
-  TagsInputItemText,
-  TagsInputItemDeleteTrigger,
 } from "@chakra-ui/react";
+import { Tag } from "@/components/ui/tag";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { BookCover } from "@/components/ui/book-cover";
 import { resolvePalette } from "@/lib/color-palettes";
 import { SeriesSelect } from "@/components/books/series-select";
+import { AuthorSelect } from "@/components/books/author-select";
+import {
+  ComboboxRoot,
+  ComboboxControl,
+  ComboboxInput,
+  ComboboxContent,
+  ComboboxItem,
+  ComboboxItemText,
+} from "@/components/ui/combobox";
 import {
   SelectRoot,
   SelectTrigger,
@@ -55,7 +59,10 @@ import {
   BookSearchModal,
   type SearchResult,
 } from "@/components/books/book-search-modal";
+import { CreateGenreDialog } from "@/components/genres/create-genre-dialog";
+import { CreateAuthorDialog } from "@/components/authors/create-author-dialog";
 import { toaster } from "@/components/ui/toaster";
+import type { PageResult } from "@/types/pagination";
 
 type Book = {
   id: string;
@@ -79,7 +86,7 @@ type Book = {
       id: string;
       name: string;
       gender: { id: string; name: string } | null;
-      nationality: { id: string; name: string } | null;
+      nationalities: Array<{ nationality: { id: string; name: string } }>;
     };
   }>;
   genres: Array<{ genre: { id: string; name: string; color: string | null } }>;
@@ -89,6 +96,12 @@ type Book = {
 type Format = { id: string; name: string };
 type Series = { id: string; name: string };
 type Genre = { id: string; name: string; color: string | null };
+type Author = {
+  id: string;
+  name: string;
+  gender?: { id: string; name: string } | null;
+  nationalities?: Array<{ nationality: { id: string; name: string } }>;
+};
 
 export default function BookDetailPage({
   params,
@@ -101,6 +114,8 @@ export default function BookDetailPage({
   const tAuthor = useTranslations("author");
   const tStatus = useTranslations("status");
   const tCommon = useTranslations("common");
+  const tSettings = useTranslations("settings");
+  const locale = useLocale();
 
   const [book, setBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
@@ -109,30 +124,47 @@ export default function BookDetailPage({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [_formats, setFormats] = useState<Format[]>([]);
+  const [authors, setAuthors] = useState<Author[]>([]);
   const [series, setSeries] = useState<Series[]>([]);
   const [isSeriesLoading, setIsSeriesLoading] = useState(false);
+  const [isAuthorsLoading, setIsAuthorsLoading] = useState(false);
   const [genres, setGenres] = useState<Genre[]>([]);
-  const [genreTags, setGenreTags] = useState<string[]>([]);
+  const [editGenreIds, setEditGenreIds] = useState<string[]>([]);
+  const [genreQuery, setGenreQuery] = useState("");
+  const [isCreateGenreOpen, setIsCreateGenreOpen] = useState(false);
   const [editData, setEditData] = useState<Partial<Book>>({});
+  const [editAuthorIds, setEditAuthorIds] = useState<string[]>([]);
+  const [isCreateAuthorOpen, setIsCreateAuthorOpen] = useState(false);
 
   useEffect(() => {
     async function fetchBook() {
+      setIsAuthorsLoading(true);
       setIsSeriesLoading(true);
       try {
-        const [bookRes, formatsRes, seriesRes, genresRes] = await Promise.all([
+        const [
+          bookRes,
+          formatsRes,
+          seriesRes,
+          genresRes,
+          authorsRes,
+        ] = await Promise.all([
           fetch(`/api/books/${id}`),
           fetch("/api/formats"),
-          fetch("/api/series"),
+          fetch("/api/series?page=1&pageSize=200"),
           fetch("/api/genres"),
+          fetch("/api/authors?page=1&pageSize=200"),
         ]);
 
         if (bookRes.ok) {
           const bookData = await bookRes.json();
           setBook(bookData);
           setEditData(bookData);
-          setGenreTags(
+          setEditAuthorIds(
+            bookData.authors.map((entry: { author: { id: string } }) => entry.author.id)
+          );
+          setEditGenreIds(
             bookData.genres.map(
-              (g: { genre: { name: string } }) => g.genre.name
+              (g: { genre: { id: string } }) => g.genre.id
             )
           );
         } else if (bookRes.status === 404) {
@@ -146,7 +178,18 @@ export default function BookDetailPage({
 
         if (seriesRes.ok) {
           const seriesData = await seriesRes.json();
-          setSeries(seriesData);
+          const seriesItems = Array.isArray(seriesData)
+            ? seriesData
+            : (seriesData as PageResult<Series>).items;
+          setSeries(seriesItems ?? []);
+        }
+
+        if (authorsRes.ok) {
+          const authorsData = await authorsRes.json();
+          const authorItems = Array.isArray(authorsData)
+            ? authorsData
+            : (authorsData as PageResult<Author>).items;
+          setAuthors(authorItems ?? []);
         }
 
         if (genresRes.ok) {
@@ -157,6 +200,7 @@ export default function BookDetailPage({
         console.error("Failed to fetch book:", error);
       } finally {
         setIsSeriesLoading(false);
+        setIsAuthorsLoading(false);
         setLoading(false);
       }
     }
@@ -180,41 +224,6 @@ export default function BookDetailPage({
         normalizedEndDate = new Date().toISOString();
       }
 
-      const uniqueGenreNames = Array.from(
-        new Set(genreTags.map((name) => name.trim()).filter(Boolean))
-      );
-      const genreMap = new Map(
-        genres.map((genre) => [genre.name.toLowerCase(), genre])
-      );
-      const createdGenres: Genre[] = [];
-      const genreIds: string[] = [];
-
-      for (const name of uniqueGenreNames) {
-        const key = name.toLowerCase();
-        const existing = genreMap.get(key);
-        if (existing) {
-          genreIds.push(existing.id);
-          continue;
-        }
-
-        const response = await fetch("/api/genres", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name }),
-        });
-
-        if (response.ok) {
-          const created = await response.json();
-          genreMap.set(created.name.toLowerCase(), created);
-          createdGenres.push(created);
-          genreIds.push(created.id);
-        }
-      }
-
-      if (createdGenres.length > 0) {
-        setGenres((prev) => [...prev, ...createdGenres]);
-      }
-
       const response = await fetch(`/api/books/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -233,13 +242,23 @@ export default function BookDetailPage({
           seriesOrder: editData.seriesOrder ?? null,
           startDate: normalizedStartDate,
           endDate: normalizedEndDate,
-          genreIds,
+          authorIds: editAuthorIds,
+          genreIds: editGenreIds,
         }),
       });
 
       if (response.ok) {
         const updatedBook = await response.json();
         setBook(updatedBook);
+        setEditData(updatedBook);
+        setEditAuthorIds(
+          updatedBook.authors.map((entry: { author: { id: string } }) => entry.author.id)
+        );
+        setEditGenreIds(
+          updatedBook.genres.map(
+            (g: { genre: { id: string } }) => g.genre.id
+          )
+        );
         setIsEditing(false);
         toaster.create({ title: tCommon("changesSaved"), type: "success" });
       } else {
@@ -305,6 +324,7 @@ export default function BookDetailPage({
     }
   };
 
+  // Loading state
   if (loading) {
     return (
       <Container maxW="container.xl" py={8}>
@@ -333,7 +353,7 @@ export default function BookDetailPage({
     const diffMs = date.getTime() - Date.now();
     const dayMs = 24 * 60 * 60 * 1000;
     const diffDays = Math.round(diffMs / dayMs);
-    const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+    const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
 
     const absDays = Math.abs(diffDays);
     if (absDays >= 365) {
@@ -361,13 +381,22 @@ export default function BookDetailPage({
     ],
   });
 
-  const genreColorMap = new Map(
-    genres.map((genre) => [genre.name.toLowerCase(), genre.color])
-  );
-
   const paletteForGenre = (name: string, storedColor: string | null) => {
     return resolvePalette(name, storedColor);
   };
+
+  const filteredGenres = genres.filter((genre) =>
+    genre.name.toLowerCase().includes(genreQuery.trim().toLowerCase())
+  );
+  const genreCollection = createListCollection({
+    items: filteredGenres.map((genre) => ({
+      value: genre.id,
+      label: genre.name,
+    })),
+  });
+  const selectedGenres = genres.filter((genre) =>
+    editGenreIds.includes(genre.id)
+  );
 
   const handleBookSelect = (searchBook: SearchResult) => {
     setEditData({
@@ -386,11 +415,36 @@ export default function BookDetailPage({
 
   return (
     <>
+      {/* External book search modal */}
       <BookSearchModal
         open={isSearchModalOpen}
         onClose={() => setIsSearchModalOpen(false)}
         onSelect={handleBookSelect}
         initialQuery={searchQuery}
+      />
+      <CreateGenreDialog
+        open={isCreateGenreOpen}
+        onOpenChange={setIsCreateGenreOpen}
+        onCreated={(created) => {
+          setGenres((prev) =>
+            [...prev, created].sort((a, b) => a.name.localeCompare(b.name))
+          );
+          setEditGenreIds((prev) =>
+            Array.from(new Set([...prev, created.id]))
+          );
+        }}
+      />
+      <CreateAuthorDialog
+        open={isCreateAuthorOpen}
+        onOpenChange={setIsCreateAuthorOpen}
+        onCreated={(created) => {
+          setAuthors((prev) =>
+            [...prev, created].sort((a, b) => a.name.localeCompare(b.name))
+          );
+          setEditAuthorIds((prev) =>
+            Array.from(new Set([...prev, created.id]))
+          );
+        }}
       />
       <Container maxW="container.xl" py={8}>
         <Stack gap={6}>
@@ -415,7 +469,16 @@ export default function BookDetailPage({
                 </>
               ) : (
                 <>
-                  <Button variant="outline" onClick={() => setIsEditing(true)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setEditData(book);
+                      setEditAuthorIds(
+                        book.authors.map((entry) => entry.author.id)
+                      );
+                      setIsEditing(true);
+                    }}
+                  >
                     {tCommon("edit")}
                   </Button>
                   <Button
@@ -474,25 +537,25 @@ export default function BookDetailPage({
               {isEditing ? (
                 <>
                   <Field.Root>
-                    <Field.Label>{t("title")}</Field.Label>
-                    <Input
-                      value={editData.title || ""}
-                      onChange={(e) =>
-                        setEditData({ ...editData, title: e.target.value })
-                      }
-                      size="lg"
-                    />
+                  <Field.Label>{t("title")}</Field.Label>
+                  <Input
+                    value={editData.title || ""}
+                    onChange={(e) =>
+                      setEditData({ ...editData, title: e.target.value })
+                    }
+                    size="lg"
+                  />
                   </Field.Root>
 
                   <Field.Root>
-                    <Field.Label>{t("cover")} URL</Field.Label>
-                    <Input
-                      value={editData.coverUrl || ""}
-                      onChange={(e) =>
-                        setEditData({ ...editData, coverUrl: e.target.value })
-                      }
-                      placeholder="https://..."
-                    />
+                  <Field.Label>{t("cover")} URL</Field.Label>
+                  <Input
+                    value={editData.coverUrl || ""}
+                    onChange={(e) =>
+                      setEditData({ ...editData, coverUrl: e.target.value })
+                    }
+                    placeholder={t("coverUrlPlaceholder")}
+                  />
                   </Field.Root>
                 </>
               ) : (
@@ -542,7 +605,7 @@ export default function BookDetailPage({
                     width="200px"
                   >
                     <SelectTrigger>
-                      <SelectValueText placeholder="Select status" />
+                      <SelectValueText placeholder={t("statusPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
                       {statusCollection.items.map((item) => (
@@ -562,33 +625,51 @@ export default function BookDetailPage({
                 )}
               </Flex>
 
-              <Flex direction="column" gap={2}>
-                {book.authors.length > 0 ? (
-                  book.authors.map(({ author }) => {
-                    const gender =
-                      author.gender?.name || tAuthor("unknownGender");
-                    const nationality =
-                      author.nationality?.name || tAuthor("unknownNationality");
+              {isEditing ? (
+                <Field.Root>
+                  <Field.Label>{t("authors")}</Field.Label>
+                  <AuthorSelect
+                    authors={authors}
+                    value={editAuthorIds}
+                    onChange={setEditAuthorIds}
+                    placeholder={t("authors")}
+                    isLoading={isAuthorsLoading}
+                    onOpenCreateDialog={() => setIsCreateAuthorOpen(true)}
+                  />
+                </Field.Root>
+              ) : (
+                <Flex direction="column" gap={2}>
+                  {book.authors.length > 0 ? (
+                    book.authors.map(({ author }) => {
+                      const gender =
+                        author.gender?.name || tAuthor("unknownGender");
+                      const nationalityLabel =
+                        author.nationalities && author.nationalities.length > 0
+                          ? author.nationalities
+                              .map((entry) => entry.nationality.name)
+                              .join(", ")
+                          : tAuthor("unknownNationality");
 
-                    return (
-                      <Flex key={author.id} align="center" gap={2} wrap="wrap">
-                        <ChakraLink variant="underline" asChild>
-                          <NextLink href={`/authors/${author.id}`}>
-                            {author.name}
-                          </NextLink>
-                        </ChakraLink>
-                        <Text color="fg.muted" fontSize="sm">
-                          ({gender} · {nationality})
-                        </Text>
-                      </Flex>
-                    );
-                  })
-                ) : (
-                  <Text color="fg.muted" fontSize="lg">
-                    {t("groupUnknownAuthor")}
-                  </Text>
-                )}
-              </Flex>
+                      return (
+                        <Flex key={author.id} align="center" gap={2} wrap="wrap">
+                          <ChakraLink variant="underline" asChild>
+                            <NextLink href={`/authors/${author.id}`}>
+                              {author.name}
+                            </NextLink>
+                          </ChakraLink>
+                          <Text color="fg.muted" fontSize="sm">
+                            ({gender} · {nationalityLabel})
+                          </Text>
+                        </Flex>
+                      );
+                    })
+                  ) : (
+                    <Text color="fg.muted" fontSize="lg">
+                      {t("groupUnknownAuthor")}
+                    </Text>
+                  )}
+                </Flex>
+              )}
 
               {isEditing && (
                 <Flex gap={3} align="center" wrap="wrap">
@@ -635,37 +716,60 @@ export default function BookDetailPage({
               {isEditing ? (
                 <Field.Root>
                   <Field.Label>{t("genres")}</Field.Label>
-                  <TagsInputRoot
-                    value={genreTags}
-                    onValueChange={(details) => setGenreTags(details.value)}
-                    editable
+                  <ComboboxRoot
+                    collection={genreCollection}
+                    value={editGenreIds}
+                    multiple
+                    selectionBehavior="clear"
+                    closeOnSelect={false}
+                    inputValue={genreQuery}
+                    onValueChange={(details) => setEditGenreIds(details.value)}
+                    onInputValueChange={(details) =>
+                      setGenreQuery(details.inputValue)
+                    }
                   >
-                    <TagsInputControl>
-                      {genreTags.map((tag, index) => {
-                        const normalized = tag.toLowerCase();
-                        const palette = paletteForGenre(
-                          normalized,
-                          genreColorMap.get(normalized) ?? null
-                        );
-
-                        return (
-                          <TagsInputItem
-                            key={`${tag}-${index}`}
-                            value={tag}
-                            index={index}
-                            colorPalette={palette}
-                            borderRadius="md"
-                            px={2}
-                            py={1}
-                          >
-                            <TagsInputItemText />
-                            <TagsInputItemDeleteTrigger />
-                          </TagsInputItem>
-                        );
-                      })}
-                      <TagsInputInput placeholder={t("genresPlaceholder")} />
-                    </TagsInputControl>
-                  </TagsInputRoot>
+                    <ComboboxControl clearable>
+                      <ComboboxInput placeholder={t("genresPlaceholder")} />
+                    </ComboboxControl>
+                    <ComboboxContent>
+                      {genreCollection.items.map((item) => (
+                        <ComboboxItem key={item.value} item={item}>
+                          <ComboboxItemText>{item.label}</ComboboxItemText>
+                        </ComboboxItem>
+                      ))}
+                    </ComboboxContent>
+                  </ComboboxRoot>
+                  {selectedGenres.length > 0 && (
+                    <Flex wrap="wrap" gap={2} mt={2}>
+                      {selectedGenres.map((genre) => (
+                        <Tag
+                          key={genre.id}
+                          size="sm"
+                          colorPalette={paletteForGenre(
+                            genre.name,
+                            genre.color
+                          )}
+                          closable
+                          onClose={() =>
+                            setEditGenreIds((prev) =>
+                              prev.filter((id) => id !== genre.id)
+                            )
+                          }
+                        >
+                          {genre.name}
+                        </Tag>
+                      ))}
+                    </Flex>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    width="fit-content"
+                    mt={2}
+                    onClick={() => setIsCreateGenreOpen(true)}
+                  >
+                    {tSettings("addGenre")}
+                  </Button>
                 </Field.Root>
               ) : (
                 book.genres.length > 0 && (
@@ -950,3 +1054,4 @@ export default function BookDetailPage({
     </>
   );
 }
+

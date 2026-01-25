@@ -74,14 +74,36 @@ async function upsertAuthor(params: {
   userId: string;
   name: string;
   genderId?: string;
-  nationalityId?: string;
+  nationalityIds?: string[];
 }) {
-  const { userId, name, genderId, nationalityId } = params;
-  return prisma.author.upsert({
+  const { userId, name, genderId, nationalityIds = [] } = params;
+  const author = await prisma.author.upsert({
     where: { userId_name: { userId, name } },
-    update: { genderId, nationalityId },
-    create: { userId, name, genderId, nationalityId },
+    update: { genderId },
+    create: {
+      userId,
+      name,
+      genderId,
+      nationalities: {
+        create: nationalityIds.map((nationalityId) => ({
+          nationalityId,
+        })),
+      },
+    } as any,
   });
+  await (prisma as any).authorNationality.deleteMany({
+    where: { authorId: author.id },
+  });
+  if (nationalityIds.length > 0) {
+    await (prisma as any).authorNationality.createMany({
+      data: nationalityIds.map((nationalityId) => ({
+        authorId: author.id,
+        nationalityId,
+      })),
+      skipDuplicates: true,
+    });
+  }
+  return author;
 }
 
 async function upsertSeries(params: { userId: string; name: string }) {
@@ -158,61 +180,61 @@ async function main() {
     name: "Nicolas Mathieu",
     userId: user.id,
     genderId: manGender.id,
-    nationalityId: frenchNat.id,
+    nationalityIds: [frenchNat.id],
   });
   const lynetteNoni = await upsertAuthor({
     name: "Lynette Noni",
     userId: user.id,
     genderId: womanGender.id,
-    nationalityId: australianNat.id,
+    nationalityIds: [australianNat.id],
   });
   const sabrinaErinGin = await upsertAuthor({
     name: "Sabrina Erin Gin",
     userId: user.id,
     genderId: womanGender.id,
-    nationalityId: frenchNat.id,
+    nationalityIds: [frenchNat.id],
   });
   const harperLee = await upsertAuthor({
     name: "Harper Lee",
     userId: user.id,
     genderId: womanGender.id,
-    nationalityId: americanNat.id,
+    nationalityIds: [americanNat.id],
   });
   const hollyBlack = await upsertAuthor({
     name: "Holly Black",
     userId: user.id,
     genderId: womanGender.id,
-    nationalityId: americanNat.id,
+    nationalityIds: [americanNat.id],
   });
   const gengorohTagame = await upsertAuthor({
     name: "Gengoroh Tagame",
     userId: user.id,
     genderId: manGender.id,
-    nationalityId: japaneseNat.id,
+    nationalityIds: [japaneseNat.id],
   });
   const hitoshiIwaaki = await upsertAuthor({
     name: "Hitoshi Iwaaki",
     userId: user.id,
     genderId: manGender.id,
-    nationalityId: japaneseNat.id,
+    nationalityIds: [japaneseNat.id],
   });
   const soleneKate = await upsertAuthor({
     name: "Solène Kate",
     userId: user.id,
     genderId: womanGender.id,
-    nationalityId: frenchNat.id,
+    nationalityIds: [frenchNat.id],
   });
   const tomiAdeyemi = await upsertAuthor({
     name: "Tomi Adeyemi",
     userId: user.id,
     genderId: womanGender.id,
-    nationalityId: americanNat.id,
+    nationalityIds: [americanNat.id],
   });
   const caseyMcQuiston = await upsertAuthor({
     name: "Casey McQuiston",
     userId: user.id,
     genderId: womanGender.id,
-    nationalityId: americanNat.id,
+    nationalityIds: [americanNat.id],
   });
 
   console.log("✅ Created sample authors");

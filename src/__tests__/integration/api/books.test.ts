@@ -14,6 +14,7 @@ jest.mock("@/lib/auth", () => ({
 // Mock db
 const mockFindMany = jest.fn();
 const mockCreate = jest.fn();
+const mockCount = jest.fn();
 const mockFindUnique = jest.fn();
 
 jest.mock("@/lib/db", () => ({
@@ -21,6 +22,7 @@ jest.mock("@/lib/db", () => ({
     book: {
       findMany: (...args: unknown[]) => mockFindMany(...args),
       findUnique: (...args: unknown[]) => mockFindUnique(...args),
+      count: (...args: unknown[]) => mockCount(...args),
       create: (...args: unknown[]) => mockCreate(...args),
     },
   },
@@ -30,6 +32,7 @@ describe("GET /api/books", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockFindUnique.mockResolvedValue(null);
+    mockCount.mockResolvedValue(0);
   });
 
   const createRequest = (params: Record<string, string> = {}) => {
@@ -69,12 +72,13 @@ describe("GET /api/books", () => {
       },
     ];
     mockFindMany.mockResolvedValue(mockBooks);
+    mockCount.mockResolvedValue(mockBooks.length);
 
     const response = await GET(createRequest());
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data).toEqual(mockBooks);
+    expect(data.items).toEqual(mockBooks);
     expect(mockFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { userId: "user-123" },

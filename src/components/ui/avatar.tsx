@@ -32,3 +32,5 @@ export const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
 )
 
 export const AvatarGroup = ChakraAvatarGroup
+
+

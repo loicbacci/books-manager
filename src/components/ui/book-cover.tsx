@@ -43,3 +43,5 @@ export function BookCover({ coverUrl, title, size = "md" }: BookCoverProps) {
     </Box>
   );
 }
+
+

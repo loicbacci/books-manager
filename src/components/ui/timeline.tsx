@@ -19,3 +19,5 @@ export const TimelineItem = ChakraTimeline.Item
 export const TimelineIndicator = ChakraTimeline.Indicator
 export const TimelineTitle = ChakraTimeline.Title
 export const TimelineDescription = ChakraTimeline.Description
+
+

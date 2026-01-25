@@ -107,10 +107,16 @@ A self-hosted web application for managing your personal book collection. Track 
    REGISTRATION_INVITE_CODE=<your-invite-code>
    ```
 
-2. Build and start:
+2. (Optional) Override the GHCR image:
+
+   ```env
+   GHCR_IMAGE=ghcr.io/<owner>/<repo>:latest
+   ```
+
+3. Start:
 
    ```bash
-   docker compose up -d --build
+   docker compose up -d
    ```
 
    This starts:

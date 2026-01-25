@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import NextLink from "next/link";
 import {
@@ -21,15 +21,6 @@ import {
 import { FiArrowRight } from "react-icons/fi";
 import { MdFilterList } from "react-icons/md";
 import {
-  DialogRoot,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogBody,
-  DialogFooter,
-  DialogCloseTrigger,
-} from "@/components/ui/dialog";
-import {
   SelectRoot,
   SelectTrigger,
   SelectValueText,
@@ -38,42 +29,33 @@ import {
 } from "@/components/ui/select";
 import { createListCollection } from "@chakra-ui/react";
 import { GroupToggle } from "@/components/ui/group-toggle";
+import {
+  PaginationRoot,
+  PaginationPrevTrigger,
+  PaginationItems,
+  PaginationNextTrigger,
+  PaginationPageText,
+} from "@/components/ui/pagination";
+import { CreateAuthorDialog } from "@/components/authors/create-author-dialog";
+import type { PageResult } from "@/types/pagination";
 
 type Author = {
   id: string;
   name: string;
   gender: { id: string; name: string } | null;
-  nationality: { id: string; name: string } | null;
+  nationalities: Array<{ nationality: { id: string; name: string } }>;
   _count: { books: number };
 };
 
 export default function AuthorsPage() {
   const t = useTranslations("author");
   const tCommon = useTranslations("common");
-  const tSettings = useTranslations("settings");
   const tNav = useTranslations("nav");
 
   const [authors, setAuthors] = useState<Author[]>([]);
   const [loading, setLoading] = useState(true);
-  const [name, setName] = useState("");
-  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [genders, setGenders] = useState<Array<{ id: string; name: string }>>(
-    []
-  );
-  const [nationalities, setNationalities] = useState<
-    Array<{ id: string; name: string }>
-  >([]);
-  const [genderId, setGenderId] = useState("none");
-  const [nationalityId, setNationalityId] = useState("none");
-  const [isMetaLoading, setIsMetaLoading] = useState(false);
-  const [isAddingGender, setIsAddingGender] = useState(false);
-  const [newGenderName, setNewGenderName] = useState("");
-  const [isAddingNationality, setIsAddingNationality] = useState(false);
-  const [newNationalityName, setNewNationalityName] = useState("");
-  const [savingGender, setSavingGender] = useState(false);
-  const [savingNationality, setSavingNationality] = useState(false);
   const [sort, setSort] = useState<
     "name-asc" | "name-desc" | "count-desc" | "count-asc"
   >("name-asc");
@@ -86,50 +68,47 @@ export default function AuthorsPage() {
   const [genderFilter, setGenderFilter] = useState<string>("all");
   const [nationalityFilter, setNationalityFilter] = useState<string>("all");
   const [areControlsOpen, setAreControlsOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalAuthors, setTotalAuthors] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const pageSize = 50;
   const controlBg = { base: "white", _dark: "bg.subtle" };
   const controlBorder = { base: "border.default", _dark: "border.default" };
   const cardBg = { base: "bg.panel", _dark: "bg.card" };
 
-  const fetchAuthors = async () => {
+  const fetchAuthors = useCallback(async () => {
     try {
-      const response = await fetch("/api/authors");
+      setLoading(true);
+      const response = await fetch(
+        `/api/authors?page=${page}&pageSize=${pageSize}`
+      );
       if (response.ok) {
-        setAuthors(await response.json());
+        const data = (await response.json()) as PageResult<Author>;
+        setAuthors(data.items);
+        setTotalAuthors(data.total);
+        setTotalPages(data.totalPages);
       }
     } catch (error) {
       console.error("Failed to fetch authors:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, pageSize]);
 
   useEffect(() => {
     fetchAuthors();
-  }, []);
-
-  useEffect(() => {
-    if (!isCreateOpen) return;
-    setIsMetaLoading(true);
-    Promise.all([
-      fetch("/api/genders").then((r) => r.json()),
-      fetch("/api/nationalities").then((r) => r.json()),
-    ])
-      .then(([gendersData, nationalitiesData]) => {
-        setGenders(gendersData);
-        setNationalities(nationalitiesData);
-      })
-      .catch((error) => {
-        console.error("Failed to fetch metadata:", error);
-      })
-      .finally(() => setIsMetaLoading(false));
-  }, [isCreateOpen]);
+  }, [fetchAuthors]);
 
   const genderNames = Array.from(
     new Set(authors.map((author) => author.gender?.name).filter(Boolean))
   ) as string[];
   const nationalityNames = Array.from(
-    new Set(authors.map((author) => author.nationality?.name).filter(Boolean))
-  ) as string[];
+    new Set(
+      authors.flatMap((author) =>
+        author.nationalities.map((entry) => entry.nationality.name)
+      )
+    )
+  );
 
   const genderFilterCollection = createListCollection({
     items: [
@@ -162,30 +141,19 @@ export default function AuthorsPage() {
     ],
   });
 
-  const genderCollection = createListCollection({
-    items: [
-      { value: "none", label: t("unknownGender") },
-      ...genders.map((gender) => ({ value: gender.id, label: gender.name })),
-    ],
-  });
-
-  const nationalityCollection = createListCollection({
-    items: [
-      { value: "none", label: t("unknownNationality") },
-      ...nationalities.map((nat) => ({ value: nat.id, label: nat.name })),
-    ],
-  });
-
   const filteredAuthors = authors.filter((author) => {
     const query = search.trim().toLowerCase();
     if (query && !author.name.toLowerCase().includes(query)) return false;
     if (genderFilter !== "all" && author.gender?.name !== genderFilter)
       return false;
-    if (
-      nationalityFilter !== "all" &&
-      author.nationality?.name !== nationalityFilter
-    )
-      return false;
+    if (nationalityFilter !== "all") {
+      const authorNationalities = author.nationalities.map(
+        (entry) => entry.nationality.name
+      );
+      if (!authorNationalities.includes(nationalityFilter)) {
+        return false;
+      }
+    }
     return true;
   });
 
@@ -214,14 +182,31 @@ export default function AuthorsPage() {
     const unknownNationality = t("unknownNationality");
 
     for (const author of sortedAuthors) {
-      const label =
-        groupBy === "gender"
-          ? author.gender?.name || unknownGender
-          : author.nationality?.name || unknownNationality;
-      if (!groups.has(label)) {
-        groups.set(label, { label, authors: [] });
+      if (groupBy === "gender") {
+        const label = author.gender?.name || unknownGender;
+        if (!groups.has(label)) {
+          groups.set(label, { label, authors: [] });
+        }
+        groups.get(label)!.authors.push(author);
+        continue;
       }
-      groups.get(label)!.authors.push(author);
+
+      const authorNationalities = author.nationalities.map(
+        (entry) => entry.nationality.name
+      );
+      if (authorNationalities.length === 0) {
+        if (!groups.has(unknownNationality)) {
+          groups.set(unknownNationality, { label: unknownNationality, authors: [] });
+        }
+        groups.get(unknownNationality)!.authors.push(author);
+        continue;
+      }
+      authorNationalities.forEach((label) => {
+        if (!groups.has(label)) {
+          groups.set(label, { label, authors: [] });
+        }
+        groups.get(label)!.authors.push(author);
+      });
     }
 
     return Array.from(groups.entries())
@@ -237,88 +222,10 @@ export default function AuthorsPage() {
     setCollapsedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handleCreate = async () => {
-    if (!name.trim()) return;
-    setSaving(true);
-    try {
-      const response = await fetch("/api/authors", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          genderId: genderId === "none" ? null : genderId,
-          nationalityId: nationalityId === "none" ? null : nationalityId,
-        }),
-      });
-      if (response.ok) {
-        setName("");
-        setGenderId("none");
-        setNationalityId("none");
-        await fetchAuthors();
-        setIsCreateOpen(false);
-      }
-    } catch (error) {
-      console.error("Failed to create author:", error);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleCreateGender = async () => {
-    const trimmed = newGenderName.trim();
-    if (!trimmed) return;
-    setSavingGender(true);
-    try {
-      const response = await fetch("/api/genders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: trimmed }),
-      });
-      if (response.ok) {
-        const created = await response.json();
-        setGenders((prev) =>
-          [...prev, created].sort((a, b) => a.name.localeCompare(b.name))
-        );
-        setGenderId(created.id);
-        setNewGenderName("");
-        setIsAddingGender(false);
-      }
-    } catch (error) {
-      console.error("Failed to create gender:", error);
-    } finally {
-      setSavingGender(false);
-    }
-  };
-
-  const handleCreateNationality = async () => {
-    const trimmed = newNationalityName.trim();
-    if (!trimmed) return;
-    setSavingNationality(true);
-    try {
-      const response = await fetch("/api/nationalities", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: trimmed }),
-      });
-      if (response.ok) {
-        const created = await response.json();
-        setNationalities((prev) =>
-          [...prev, created].sort((a, b) => a.name.localeCompare(b.name))
-        );
-        setNationalityId(created.id);
-        setNewNationalityName("");
-        setIsAddingNationality(false);
-      }
-    } catch (error) {
-      console.error("Failed to create nationality:", error);
-    } finally {
-      setSavingNationality(false);
-    }
-  };
-
   return (
     <Container maxW="container.lg" py={8}>
       <Stack gap={6}>
+        {/* Page header + primary action */}
         <Flex
           justify={{ base: "flex-start", md: "space-between" }}
           align={{ base: "flex-start", md: "center" }}
@@ -333,6 +240,7 @@ export default function AuthorsPage() {
           </Button>
         </Flex>
 
+        {/* Search + filter controls */}
         <Stack gap={4}>
           <Input
             placeholder={tCommon("search")}
@@ -516,6 +424,7 @@ export default function AuthorsPage() {
           </Card.Root>
         </Stack>
 
+        {/* Loading / empty / list */}
         {loading ? (
           <Text color="fg.muted">{tCommon("loading")}</Text>
         ) : groupedAuthors.length === 0 ||
@@ -529,218 +438,80 @@ export default function AuthorsPage() {
             </Card.Body>
           </Card.Root>
         ) : (
-          <Stack gap={3}>
-            {groupedAuthors.map((group) => (
-              <Stack key={group.key} gap={2}>
-                {group.label && (
-                  <GroupToggle
-                    label={group.label}
-                    collapsed={!!collapsedGroups[group.key]}
-                    onToggle={() => toggleGroup(group.key)}
-                    size="sm"
-                  />
-                )}
-                {!collapsedGroups[group.key] &&
-                  group.authors.map((author) => (
-                    <Card.Root key={author.id} asChild>
-                      <NextLink href={`/authors/${author.id}`}>
-                        <Card.Body>
-                          <Flex justify="space-between" align="center" gap={4}>
-                            <Box>
-                              <Text fontWeight="semibold">{author.name}</Text>
-                              <Text color="fg.muted" fontSize="sm">
-                                {t("booksCount", {
-                                  count: author._count.books,
-                                })}
-                              </Text>
-                              {(author.gender || author.nationality) && (
+          <Stack gap={4}>
+            {/* Grouped author list */}
+            <Stack gap={3}>
+              {groupedAuthors.map((group) => (
+                <Stack key={group.key} gap={2}>
+                  {group.label && (
+                    <GroupToggle
+                      label={group.label}
+                      collapsed={!!collapsedGroups[group.key]}
+                      onToggle={() => toggleGroup(group.key)}
+                      size="sm"
+                    />
+                  )}
+                  {!collapsedGroups[group.key] &&
+                    group.authors.map((author) => (
+                      <Card.Root key={author.id} asChild>
+                        <NextLink href={`/authors/${author.id}`}>
+                          <Card.Body>
+                            <Flex justify="space-between" align="center" gap={4}>
+                              <Box>
+                                <Text fontWeight="semibold">{author.name}</Text>
                                 <Text color="fg.muted" fontSize="sm">
-                                  {[
-                                    author.gender?.name,
-                                    author.nationality?.name,
-                                  ]
-                                    .filter(Boolean)
-                                    .join(" • ")}
+                                  {t("booksCount", {
+                                    count: author._count.books,
+                                  })}
                                 </Text>
-                              )}
-                            </Box>
-                            <FiArrowRight color="var(--chakra-colors-fg-muted)" />
-                          </Flex>
-                        </Card.Body>
-                      </NextLink>
-                    </Card.Root>
-                  ))}
-              </Stack>
-            ))}
+                                {(author.gender || author.nationalities.length > 0) && (
+                                  <Text color="fg.muted" fontSize="sm">
+                                    {[
+                                      author.gender?.name,
+                                      author.nationalities
+                                        .map((entry) => entry.nationality.name)
+                                        .join(", "),
+                                    ]
+                                      .filter(Boolean)
+                                      .join(" • ")}
+                                  </Text>
+                                )}
+                              </Box>
+                              <FiArrowRight color="var(--chakra-colors-fg-muted)" />
+                            </Flex>
+                          </Card.Body>
+                        </NextLink>
+                      </Card.Root>
+                    ))}
+                </Stack>
+              ))}
+            </Stack>
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Flex justify="center">
+                <PaginationRoot
+                  count={totalAuthors}
+                  pageSize={pageSize}
+                  page={page}
+                  onPageChange={(e) => setPage(e.page)}
+                >
+                  <PaginationPrevTrigger />
+                  <PaginationItems />
+                  <PaginationNextTrigger />
+                  <PaginationPageText />
+                </PaginationRoot>
+              </Flex>
+            )}
           </Stack>
         )}
       </Stack>
 
-      <DialogRoot
+      <CreateAuthorDialog
         open={isCreateOpen}
-        onOpenChange={(e) => !e.open && setIsCreateOpen(false)}
-      >
-        <DialogContent maxW="md">
-          <DialogHeader>
-            <DialogTitle>{t("createTitle")}</DialogTitle>
-            <DialogCloseTrigger />
-          </DialogHeader>
-          <DialogBody>
-            <Stack gap={3}>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t("namePlaceholder")}
-              />
-              <Stack gap={2}>
-                <Text fontSize="sm" color="fg.muted">
-                  {t("gender")}
-                </Text>
-                <SelectRoot
-                  collection={genderCollection}
-                  value={[genderId]}
-                  onValueChange={(e) => setGenderId(e.value[0] || "none")}
-                >
-                  <SelectTrigger>
-                    <SelectValueText placeholder={t("gender")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {genderCollection.items.map((item) => (
-                      <SelectItem key={item.value} item={item}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </SelectRoot>
-                {isMetaLoading && (
-                  <Text fontSize="sm" color="fg.muted">
-                    {tCommon("loading")}
-                  </Text>
-                )}
-                {!isAddingGender ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    width="fit-content"
-                    onClick={() => setIsAddingGender(true)}
-                  >
-                    {tSettings("addGender")}
-                  </Button>
-                ) : (
-                  <Flex gap={2} wrap="wrap">
-                    <Input
-                      value={newGenderName}
-                      onChange={(e) => setNewGenderName(e.target.value)}
-                      placeholder={tSettings("addGender")}
-                      flex={1}
-                      minW="200px"
-                    />
-                    <Button
-                      size="sm"
-                      colorPalette="brand"
-                      onClick={handleCreateGender}
-                      loading={savingGender}
-                      loadingText={tCommon("loading")}
-                    >
-                      {tCommon("add")}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setIsAddingGender(false);
-                        setNewGenderName("");
-                      }}
-                    >
-                      {tCommon("cancel")}
-                    </Button>
-                  </Flex>
-                )}
-              </Stack>
-              <Stack gap={2}>
-                <Text fontSize="sm" color="fg.muted">
-                  {t("nationality")}
-                </Text>
-                <SelectRoot
-                  collection={nationalityCollection}
-                  value={[nationalityId]}
-                  onValueChange={(e) =>
-                    setNationalityId(e.value[0] || "none")
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValueText placeholder={t("nationality")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {nationalityCollection.items.map((item) => (
-                      <SelectItem key={item.value} item={item}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </SelectRoot>
-                {isMetaLoading && (
-                  <Text fontSize="sm" color="fg.muted">
-                    {tCommon("loading")}
-                  </Text>
-                )}
-                {!isAddingNationality ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    width="fit-content"
-                    onClick={() => setIsAddingNationality(true)}
-                  >
-                    {tSettings("addNationality")}
-                  </Button>
-                ) : (
-                  <Flex gap={2} wrap="wrap">
-                    <Input
-                      value={newNationalityName}
-                      onChange={(e) => setNewNationalityName(e.target.value)}
-                      placeholder={tSettings("addNationality")}
-                      flex={1}
-                      minW="200px"
-                    />
-                    <Button
-                      size="sm"
-                      colorPalette="brand"
-                      onClick={handleCreateNationality}
-                      loading={savingNationality}
-                      loadingText={tCommon("loading")}
-                    >
-                      {tCommon("add")}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setIsAddingNationality(false);
-                        setNewNationalityName("");
-                      }}
-                    >
-                      {tCommon("cancel")}
-                    </Button>
-                  </Flex>
-                )}
-              </Stack>
-            </Stack>
-          </DialogBody>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsCreateOpen(false)}>
-              {tCommon("cancel")}
-            </Button>
-            <Button
-              colorPalette="brand"
-              onClick={handleCreate}
-              loading={saving}
-              loadingText={tCommon("loading")}
-            >
-              {t("create")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </DialogRoot>
+        onOpenChange={setIsCreateOpen}
+        onCreated={fetchAuthors}
+      />
     </Container>
   );
 }
+

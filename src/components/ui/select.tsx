@@ -9,9 +9,10 @@ export const SelectTrigger = forwardRef<
   HTMLButtonElement,
   ChakraSelect.TriggerProps
 >(function SelectTrigger(props, ref) {
+  const { bg = "bg.input", ...rest } = props;
   return (
-    <ChakraSelect.Trigger ref={ref} {...props}>
-      {props.children}
+    <ChakraSelect.Trigger ref={ref} bg={bg} {...rest}>
+      {rest.children}
       <ChakraSelect.Indicator />
     </ChakraSelect.Trigger>
   );
@@ -42,3 +43,5 @@ export const SelectItem = forwardRef<HTMLDivElement, ChakraSelect.ItemProps>(
     );
   }
 );
+
+

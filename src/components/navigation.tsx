@@ -1,9 +1,7 @@
 "use client";
 
-import { Box, Container, HStack, Button, Text } from "@chakra-ui/react";
+import { Box, Container, HStack, Text } from "@chakra-ui/react";
 import { useTranslations } from "next-intl";
-import Link from "next/link";
-import { useParams } from "next/navigation";
 
 /**
  * Public navigation bar shown on unauthenticated pages.
@@ -11,12 +9,7 @@ import { useParams } from "next/navigation";
  * Authenticated views use the sidebar/mobile drawer instead.
  */
 export function Navigation({ isAuthenticated }: { isAuthenticated: boolean }) {
-  const tAuth = useTranslations("auth");
   const tCommon = useTranslations("common");
-  const params = useParams();
-  // Locale is derived from the route segment: /[locale]/...
-  const locale = params.locale as string;
-
   // Only show navigation for non-authenticated users
   // Authenticated users use the Sidebar/MobileNav instead
   if (isAuthenticated) {
@@ -35,16 +28,10 @@ export function Navigation({ isAuthenticated }: { isAuthenticated: boolean }) {
           <Text fontSize="xl" fontWeight="bold" color="brand.fg">
             {tCommon("appName")}
           </Text>
-          <HStack gap={2}>
-            <Button asChild variant="ghost" size="sm" color="fg.default">
-              <Link href={`/${locale}/login`}>{tAuth("login")}</Link>
-            </Button>
-            <Button asChild colorPalette="brand" size="sm">
-              <Link href={`/${locale}/register`}>{tAuth("register")}</Link>
-            </Button>
-          </HStack>
         </HStack>
       </Container>
     </Box>
   );
 }
+
+

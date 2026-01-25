@@ -21,7 +21,7 @@ type Author = {
   id: string;
   name: string;
   gender: { id: string; name: string } | null;
-  nationality: { id: string; name: string } | null;
+  nationalities: Array<{ nationality: { id: string; name: string } }>;
   books: BookGridBook[];
 };
 
@@ -58,6 +58,7 @@ export default function AuthorDetailPage({
     fetchAuthor();
   }, [id, router]);
 
+  // Loading state
   if (loading) {
     return (
       <Container maxW="container.lg" py={8}>
@@ -73,12 +74,14 @@ export default function AuthorDetailPage({
   return (
     <Container maxW="container.xl" py={8}>
       <Stack gap={6}>
+        {/* Back navigation */}
         <Flex justify="space-between" align="center" wrap="wrap" gap={4}>
           <Button variant="ghost" onClick={() => router.push("/authors")}>
             <FiArrowLeft /> {tNav("authors")}
           </Button>
         </Flex>
 
+        {/* Author header + metadata */}
         <Box>
           <Heading as="h1" size="2xl">
             {author.name}
@@ -89,14 +92,19 @@ export default function AuthorDetailPage({
                 {t("gender")}: {author.gender.name}
               </Badge>
             )}
-            {author.nationality && (
-              <Badge variant="subtle" colorPalette="orange">
-                {t("nationality")}: {author.nationality.name}
+            {author.nationalities.map((entry) => (
+              <Badge
+                key={entry.nationality.id}
+                variant="subtle"
+                colorPalette="orange"
+              >
+                {t("nationality")}: {entry.nationality.name}
               </Badge>
-            )}
+            ))}
           </Flex>
         </Box>
 
+        {/* Books list / empty state */}
         {author.books.length === 0 ? (
           <Card.Root>
             <Card.Body>
@@ -113,3 +121,4 @@ export default function AuthorDetailPage({
     </Container>
   );
 }
+

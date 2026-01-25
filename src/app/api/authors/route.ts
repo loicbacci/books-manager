@@ -1,40 +1,72 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 /**
  * Payload for creating a new author.
  *
- * `genderId` and `nationalityId` are optional and user-scoped.
+ * `genderId` and `nationalityIds` are optional and user-scoped.
  */
 const createAuthorSchema = z.object({
   name: z.string().min(1).max(200),
   genderId: z.string().optional().nullable(),
-  nationalityId: z.string().optional().nullable(),
+  nationalityIds: z.array(z.string()).optional(),
 });
 
 /**
  * List authors for the authenticated user.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const authors = await db.author.findMany({
-      where: { userId: session.user.id },
-      include: {
-        gender: true,
-        nationality: true,
-        _count: { select: { books: true } },
-      },
-      orderBy: { name: "asc" },
-    });
+    const { searchParams } = new URL(request.url);
+    const pageParam = searchParams.get("page");
+    const pageSizeParam = searchParams.get("pageSize");
+    const parseNumberParam = (value: string | null, fallback: number) => {
+      if (!value) return fallback;
+      const parsed = Number.parseInt(value, 10);
+      return Number.isNaN(parsed) ? fallback : parsed;
+    };
+    const page = Math.max(1, parseNumberParam(pageParam, 1));
+    const pageSize = Math.min(
+      100,
+      Math.max(1, parseNumberParam(pageSizeParam, 50))
+    );
+    const skip = (page - 1) * pageSize;
 
-    return NextResponse.json(authors);
+    const where = { userId: session.user.id };
+    const authorInclude =
+      {
+        gender: true,
+        nationalities: { include: { nationality: true } },
+        _count: { select: { books: true } },
+      } as unknown as Prisma.AuthorInclude;
+    const [authors, total] = await Promise.all([
+      db.author.findMany({
+        where,
+        include: authorInclude,
+        orderBy: { name: "asc" },
+        skip,
+        take: pageSize,
+      }),
+      db.author.count({ where }),
+    ]);
+
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+    return NextResponse.json({
+      items: authors,
+      page,
+      pageSize,
+      total,
+      totalPages,
+    });
   } catch (error) {
     console.error("Error fetching authors:", error);
     return NextResponse.json(
@@ -55,19 +87,24 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, genderId, nationalityId } = createAuthorSchema.parse(body);
+    const { name, genderId, nationalityIds = [] } =
+      createAuthorSchema.parse(body);
 
     const author = await db.author.create({
       data: {
         name,
         userId: session.user.id,
         genderId,
-        nationalityId,
-      },
+        nationalities: {
+          create: nationalityIds.map((nationalityId) => ({
+            nationalityId,
+          })),
+        },
+      } as unknown as Prisma.AuthorCreateInput,
       include: {
         gender: true,
-        nationality: true,
-      },
+        nationalities: { include: { nationality: true } },
+      } as unknown as Prisma.AuthorInclude,
     });
 
     return NextResponse.json(author, { status: 201 });

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
@@ -17,143 +18,208 @@ export async function GET() {
 
     const userId = session.user.id;
     const currentYear = new Date().getFullYear();
+    const yearStart = new Date(currentYear, 0, 1);
+    const nextYearStart = new Date(currentYear + 1, 0, 1);
 
-    // Load completed books with relations for aggregation.
-    const completedBooks = await db.book.findMany({
-      where: { userId, status: "READ", isWishlist: false },
-      include: {
-        genres: { include: { genre: true } },
-        authors: {
-          include: {
-            author: {
-              include: { gender: true, nationality: true },
-            },
-          },
-        },
-      },
+    type SummaryRow = {
+      total_books: number;
+      total_pages: number;
+      avg_rating: number | null;
+    };
+    type CountRow = { count: number };
+    type GenreRow = {
+      id: string;
+      name: string;
+      color: string | null;
+      count: number;
+    };
+    type DistributionRow = { name: string; count: number };
+    type MonthlyCountRow = { month: Date; count: number };
+    type MonthlyPagesRow = { month: Date; pages: number };
+    type RatingRow = { rating: number; count: number };
+
+    const [
+      summaryRows,
+      genreRows,
+      genderRows,
+      nationalityRows,
+      monthlyReadingRows,
+      monthlyPagesRows,
+      ratingRows,
+      uniqueAuthorsRows,
+      uniqueGenresRows,
+    ] = await Promise.all([
+      db.$queryRaw<SummaryRow[]>(Prisma.sql`
+        SELECT
+          COUNT(*)::int AS total_books,
+          COALESCE(SUM("totalPages"), 0)::int AS total_pages,
+          AVG("rating")::float AS avg_rating
+        FROM "books"
+        WHERE "userId" = ${userId}
+          AND "status" = 'READ'
+          AND "isWishlist" = false
+      `),
+      db.$queryRaw<GenreRow[]>(Prisma.sql`
+        SELECT
+          g."id",
+          g."name",
+          g."color",
+          COUNT(*)::int AS count
+        FROM "books" b
+        JOIN "book_genres" bg ON bg."bookId" = b."id"
+        JOIN "genres" g ON g."id" = bg."genreId"
+        WHERE b."userId" = ${userId}
+          AND b."status" = 'READ'
+          AND b."isWishlist" = false
+        GROUP BY g."id", g."name", g."color"
+        ORDER BY count DESC
+        LIMIT 10
+      `),
+      db.$queryRaw<DistributionRow[]>(Prisma.sql`
+        SELECT
+          COALESCE(g."name", 'Unknown') AS name,
+          COUNT(DISTINCT a."id")::int AS count
+        FROM "books" b
+        JOIN "book_authors" ba ON ba."bookId" = b."id"
+        JOIN "authors" a ON a."id" = ba."authorId"
+        LEFT JOIN "genders" g ON g."id" = a."genderId"
+        WHERE b."userId" = ${userId}
+          AND b."status" = 'READ'
+          AND b."isWishlist" = false
+        GROUP BY name
+        ORDER BY count DESC
+      `),
+      db.$queryRaw<DistributionRow[]>(Prisma.sql`
+        SELECT
+          COALESCE(n."name", 'Unknown') AS name,
+          COUNT(DISTINCT a."id")::int AS count
+        FROM "books" b
+        JOIN "book_authors" ba ON ba."bookId" = b."id"
+        JOIN "authors" a ON a."id" = ba."authorId"
+        LEFT JOIN "author_nationalities" an ON an."authorId" = a."id"
+        LEFT JOIN "nationalities" n ON n."id" = an."nationalityId"
+        WHERE b."userId" = ${userId}
+          AND b."status" = 'READ'
+          AND b."isWishlist" = false
+        GROUP BY name
+        ORDER BY count DESC
+        LIMIT 10
+      `),
+      db.$queryRaw<MonthlyCountRow[]>(Prisma.sql`
+        SELECT
+          date_trunc('month', b."endDate") AS month,
+          COUNT(*)::int AS count
+        FROM "books" b
+        WHERE b."userId" = ${userId}
+          AND b."status" = 'READ'
+          AND b."isWishlist" = false
+          AND b."endDate" >= ${yearStart}
+          AND b."endDate" < ${nextYearStart}
+        GROUP BY month
+        ORDER BY month
+      `),
+      db.$queryRaw<MonthlyPagesRow[]>(Prisma.sql`
+        SELECT
+          date_trunc('month', b."endDate") AS month,
+          COALESCE(SUM(b."totalPages"), 0)::int AS pages
+        FROM "books" b
+        WHERE b."userId" = ${userId}
+          AND b."status" = 'READ'
+          AND b."isWishlist" = false
+          AND b."endDate" >= ${yearStart}
+          AND b."endDate" < ${nextYearStart}
+        GROUP BY month
+        ORDER BY month
+      `),
+      db.$queryRaw<RatingRow[]>(Prisma.sql`
+        SELECT
+          b."rating"::int AS rating,
+          COUNT(*)::int AS count
+        FROM "books" b
+        WHERE b."userId" = ${userId}
+          AND b."status" = 'READ'
+          AND b."isWishlist" = false
+          AND b."rating" IS NOT NULL
+        GROUP BY b."rating"
+        ORDER BY b."rating"
+      `),
+      db.$queryRaw<CountRow[]>(Prisma.sql`
+        SELECT COUNT(DISTINCT a."id")::int AS count
+        FROM "books" b
+        JOIN "book_authors" ba ON ba."bookId" = b."id"
+        JOIN "authors" a ON a."id" = ba."authorId"
+        WHERE b."userId" = ${userId}
+          AND b."status" = 'READ'
+          AND b."isWishlist" = false
+      `),
+      db.$queryRaw<CountRow[]>(Prisma.sql`
+        SELECT COUNT(DISTINCT bg."genreId")::int AS count
+        FROM "books" b
+        JOIN "book_genres" bg ON bg."bookId" = b."id"
+        WHERE b."userId" = ${userId}
+          AND b."status" = 'READ'
+          AND b."isWishlist" = false
+      `),
+    ]);
+
+    const summary = summaryRows[0] ?? {
+      total_books: 0,
+      total_pages: 0,
+      avg_rating: null,
+    };
+
+    const totalBooksRead = summary.total_books ?? 0;
+    const totalPagesRead = summary.total_pages ?? 0;
+    const averageRating = summary.avg_rating ?? 0;
+    const uniqueAuthors = uniqueAuthorsRows[0]?.count ?? 0;
+    const uniqueGenres = uniqueGenresRows[0]?.count ?? 0;
+
+    const readingByMonth = new Map<number, number>();
+    monthlyReadingRows.forEach((row) => {
+      readingByMonth.set(row.month.getMonth(), row.count);
+    });
+    const pagesByMonth = new Map<number, number>();
+    monthlyPagesRows.forEach((row) => {
+      pagesByMonth.set(row.month.getMonth(), row.pages);
     });
 
-    // Genre distribution (top 10) for pie charts.
-    const genreCount: Record<
-      string,
-      { name: string; count: number; color: string | null }
-    > = {};
-    completedBooks.forEach((book) => {
-      book.genres.forEach(({ genre }) => {
-        if (!genreCount[genre.id]) {
-          genreCount[genre.id] = {
-            name: genre.name,
-            count: 0,
-            color: genre.color,
-          };
-        }
-        genreCount[genre.id].count++;
-      });
+    const monthlyReading = Array.from({ length: 12 }, (_value, index) => {
+      const monthStart = new Date(currentYear, index, 1);
+      return {
+        month: monthStart.toLocaleString("default", { month: "short" }),
+        count: readingByMonth.get(index) ?? 0,
+      };
     });
-    const genreDistribution = Object.values(genreCount)
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
 
-    // Author gender distribution (unique authors).
-    const genderCount: Record<string, { name: string; count: number }> = {};
-    const countedAuthors = new Set<string>();
-    completedBooks.forEach((book) => {
-      book.authors.forEach(({ author }) => {
-        if (!countedAuthors.has(author.id)) {
-          countedAuthors.add(author.id);
-          const genderName = author.gender?.name || "Unknown";
-          if (!genderCount[genderName]) {
-            genderCount[genderName] = { name: genderName, count: 0 };
-          }
-          genderCount[genderName].count++;
-        }
-      });
+    const monthlyPages = Array.from({ length: 12 }, (_value, index) => {
+      const monthStart = new Date(currentYear, index, 1);
+      return {
+        month: monthStart.toLocaleString("default", { month: "short" }),
+        pages: pagesByMonth.get(index) ?? 0,
+      };
     });
-    const genderDistribution = Object.values(genderCount).sort(
-      (a, b) => b.count - a.count
-    );
 
-    // Author nationality distribution (unique authors, top 10).
-    const nationalityCount: Record<string, { name: string; count: number }> =
-      {};
-    const countedAuthorsNat = new Set<string>();
-    completedBooks.forEach((book) => {
-      book.authors.forEach(({ author }) => {
-        if (!countedAuthorsNat.has(author.id)) {
-          countedAuthorsNat.add(author.id);
-          const natName = author.nationality?.name || "Unknown";
-          if (!nationalityCount[natName]) {
-            nationalityCount[natName] = { name: natName, count: 0 };
-          }
-          nationalityCount[natName].count++;
-        }
-      });
-    });
-    const nationalityDistribution = Object.values(nationalityCount)
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
+    const genreDistribution = genreRows.map((row) => ({
+      name: row.name,
+      count: row.count,
+      color: row.color,
+    }));
 
-    // Books read per month for the current year.
-    const monthlyReading: { month: string; count: number }[] = [];
-    for (let i = 0; i < 12; i++) {
-      const monthStart = new Date(currentYear, i, 1);
-      const monthEnd = new Date(currentYear, i + 1, 0, 23, 59, 59);
-      const count = completedBooks.filter((book) => {
-        if (!book.endDate) return false;
-        const endDate = new Date(book.endDate);
-        return endDate >= monthStart && endDate <= monthEnd;
-      }).length;
-      const monthName = monthStart.toLocaleString("default", {
-        month: "short",
-      });
-      monthlyReading.push({ month: monthName, count });
-    }
+    const genderDistribution = genderRows.map((row) => ({
+      name: row.name,
+      count: row.count,
+    }));
 
-    // Rating distribution (count per rating value).
-    const ratingDist: Record<number, number> = {};
-    completedBooks.forEach((book) => {
-      if (book.rating) {
-        if (!ratingDist[book.rating]) {
-          ratingDist[book.rating] = 0;
-        }
-        ratingDist[book.rating]++;
-      }
-    });
-    const ratingDistribution = Object.entries(ratingDist)
-      .map(([rating, count]) => ({ rating: parseInt(rating), count }))
-      .sort((a, b) => a.rating - b.rating);
+    const nationalityDistribution = nationalityRows.map((row) => ({
+      name: row.name,
+      count: row.count,
+    }));
 
-    // Pages read per month for the current year.
-    const monthlyPages: { month: string; pages: number }[] = [];
-    for (let i = 0; i < 12; i++) {
-      const monthStart = new Date(currentYear, i, 1);
-      const monthEnd = new Date(currentYear, i + 1, 0, 23, 59, 59);
-      const pages = completedBooks
-        .filter((book) => {
-          if (!book.endDate) return false;
-          const endDate = new Date(book.endDate);
-          return endDate >= monthStart && endDate <= monthEnd;
-        })
-        .reduce((sum, book) => sum + (book.totalPages || 0), 0);
-      const monthName = monthStart.toLocaleString("default", {
-        month: "short",
-      });
-      monthlyPages.push({ month: monthName, pages });
-    }
+    const ratingDistribution = ratingRows.map((row) => ({
+      rating: row.rating,
+      count: row.count,
+    }));
 
-    // Summary stats shown alongside charts.
-    const totalBooksRead = completedBooks.length;
-    const totalPagesRead = completedBooks.reduce(
-      (sum, book) => sum + (book.totalPages || 0),
-      0
-    );
-    const averageRating =
-      completedBooks.filter((b) => b.rating).length > 0
-        ? completedBooks
-            .filter((b) => b.rating)
-            .reduce((sum, b) => sum + (b.rating || 0), 0) /
-          completedBooks.filter((b) => b.rating).length
-        : 0;
     const averagePages =
       totalBooksRead > 0 ? Math.round(totalPagesRead / totalBooksRead) : 0;
 
@@ -163,8 +229,8 @@ export async function GET() {
         totalPagesRead,
         averageRating: Math.round(averageRating * 10) / 10,
         averagePages,
-        uniqueAuthors: countedAuthors.size,
-        uniqueGenres: Object.keys(genreCount).length,
+        uniqueAuthors,
+        uniqueGenres,
       },
       genreDistribution,
       genderDistribution,

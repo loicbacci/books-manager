@@ -54,7 +54,7 @@ export const createMockAuthor = (overrides = {}) => ({
   userId: "test-user-id",
   name: "Test Author",
   genderId: null,
-  nationalityId: null,
+  nationalities: [],
   createdAt: new Date("2024-01-01"),
   updatedAt: new Date("2024-01-01"),
   ...overrides,
@@ -95,3 +95,5 @@ export const createMockNationality = (overrides = {}) => ({
   createdAt: new Date("2024-01-01"),
   ...overrides,
 });
+
+

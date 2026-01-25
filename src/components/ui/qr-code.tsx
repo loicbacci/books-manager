@@ -21,3 +21,5 @@ export const QrCode = React.forwardRef<HTMLDivElement, QrCodeProps>(
     )
   },
 )
+
+

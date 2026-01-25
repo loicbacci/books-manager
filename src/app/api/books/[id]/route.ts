@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { generateUniqueSlug } from "@/lib/slugify";
@@ -30,6 +31,15 @@ const updateBookSchema = z.object({
   genreIds: z.array(z.string()).optional(),
 });
 
+const bookAuthorInclude = {
+  author: {
+    include: {
+      gender: true,
+      nationalities: { include: { nationality: true } },
+    },
+  },
+} as unknown as Prisma.BookAuthorInclude;
+
 type RouteParams = {
   params: Promise<{ id: string }>;
 };
@@ -54,7 +64,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       },
       include: {
         authors: {
-          include: { author: { include: { gender: true, nationality: true } } },
+          include: bookAuthorInclude,
         },
         genres: {
           include: { genre: true },
@@ -168,7 +178,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       data: updateData,
       include: {
         authors: {
-          include: { author: { include: { gender: true, nationality: true } } },
+          include: bookAuthorInclude,
         },
         genres: {
           include: { genre: true },

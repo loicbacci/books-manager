@@ -71,3 +71,5 @@ export const TagsInputLabel = ChakraTagsInput.Label
 export const TagsInputInput = ChakraTagsInput.Input
 export const TagsInputContext = ChakraTagsInput.Context
 export const TagsInputHiddenInput = ChakraTagsInput.HiddenInput
+
+

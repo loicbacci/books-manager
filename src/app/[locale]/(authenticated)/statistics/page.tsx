@@ -85,6 +85,7 @@ export default function StatisticsPage() {
     fetchStats();
   }, []);
 
+  // Loading state
   if (loading) {
     return (
       <Container maxW="container.xl" py={8}>
@@ -95,10 +96,11 @@ export default function StatisticsPage() {
     );
   }
 
+  // Error state
   if (!stats) {
     return (
       <Container maxW="container.xl" py={8}>
-        <Text>Failed to load statistics</Text>
+        <Text>{t("loadError")}</Text>
       </Container>
     );
   }
@@ -106,11 +108,12 @@ export default function StatisticsPage() {
   return (
     <Container maxW="container.xl" py={8}>
       <Stack gap={8}>
+        {/* Page title */}
         <Heading as="h1" size="2xl">
           {tNav("statistics")}
         </Heading>
 
-        {/* Summary Cards */}
+        {/* Summary cards */}
         <Grid
           templateColumns={{
             base: "repeat(2, 1fr)",
@@ -130,34 +133,34 @@ export default function StatisticsPage() {
             icon="📄"
           />
           <StatCard
-            label="Avg Rating"
+            label={t("avgRating")}
             value={stats.summary.averageRating.toFixed(1)}
             icon="⭐"
           />
           <StatCard
-            label="Avg Pages"
+            label={t("avgPages")}
             value={stats.summary.averagePages}
             icon="📖"
           />
           <StatCard
-            label="Authors"
+            label={t("authorsCount")}
             value={stats.summary.uniqueAuthors}
             icon="✍️"
           />
           <StatCard
-            label="Genres"
+            label={t("genresCount")}
             value={stats.summary.uniqueGenres}
             icon="🏷️"
           />
         </Grid>
 
-        {/* Charts Row 1 */}
+        {/* Charts row: monthly reading */}
         <Grid templateColumns={{ base: "1fr", lg: "1fr 1fr" }} gap={6}>
           {/* Monthly Reading */}
           <Card.Root>
             <Card.Body>
               <Heading as="h3" size="md" mb={4}>
-                Books Read Per Month ({new Date().getFullYear()})
+                {t("booksPerMonth", { year: new Date().getFullYear() })}
               </Heading>
               <Box height={{ base: "220px", md: "300px" }}>
                 <ResponsiveContainer width="100%" height="100%">
@@ -166,7 +169,11 @@ export default function StatisticsPage() {
                     <XAxis dataKey="month" />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
-                    <Bar dataKey="count" fill="#0073e6" name="Books" />
+                    <Bar
+                      dataKey="count"
+                      fill="#0073e6"
+                      name={t("booksLabel")}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </Box>
@@ -177,7 +184,7 @@ export default function StatisticsPage() {
           <Card.Root>
             <Card.Body>
               <Heading as="h3" size="md" mb={4}>
-                Pages Read Per Month ({new Date().getFullYear()})
+                {t("pagesPerMonth", { year: new Date().getFullYear() })}
               </Heading>
               <Box height={{ base: "220px", md: "300px" }}>
                 <ResponsiveContainer width="100%" height="100%">
@@ -191,7 +198,7 @@ export default function StatisticsPage() {
                       dataKey="pages"
                       stroke="#0073e6"
                       strokeWidth={2}
-                      name="Pages"
+                      name={t("pagesLabel")}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -200,7 +207,7 @@ export default function StatisticsPage() {
           </Card.Root>
         </Grid>
 
-        {/* Charts Row 2 */}
+        {/* Charts row: genre + rating */}
         <Grid templateColumns={{ base: "1fr", lg: "1fr 1fr" }} gap={6}>
           {/* Genre Distribution */}
           <Card.Root>
@@ -236,7 +243,7 @@ export default function StatisticsPage() {
                   </ResponsiveContainer>
                 ) : (
                   <Flex justify="center" align="center" height="100%">
-                    <Text color="fg.muted">No data available</Text>
+                    <Text color="fg.muted">{t("noData")}</Text>
                   </Flex>
                 )}
               </Box>
@@ -247,7 +254,7 @@ export default function StatisticsPage() {
           <Card.Root>
             <Card.Body>
               <Heading as="h3" size="md" mb={4}>
-                Rating Distribution
+                {t("ratingDistribution")}
               </Heading>
               <Box height={{ base: "220px", md: "300px" }}>
                 {stats.ratingDistribution.length > 0 ? (
@@ -257,12 +264,16 @@ export default function StatisticsPage() {
                       <XAxis dataKey="rating" />
                       <YAxis allowDecimals={false} />
                       <Tooltip />
-                      <Bar dataKey="count" fill="#ffbb28" name="Books" />
+                      <Bar
+                        dataKey="count"
+                        fill="#ffbb28"
+                        name={t("booksLabel")}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
                   <Flex justify="center" align="center" height="100%">
-                    <Text color="fg.muted">No ratings yet</Text>
+                    <Text color="fg.muted">{t("noRatings")}</Text>
                   </Flex>
                 )}
               </Box>
@@ -270,7 +281,7 @@ export default function StatisticsPage() {
           </Card.Root>
         </Grid>
 
-        {/* Charts Row 3 */}
+        {/* Charts row: author demographics */}
         <Grid templateColumns={{ base: "1fr", lg: "1fr 1fr" }} gap={6}>
           {/* Author Gender Distribution */}
           <Card.Root>
@@ -306,7 +317,7 @@ export default function StatisticsPage() {
                   </ResponsiveContainer>
                 ) : (
                   <Flex justify="center" align="center" height="100%">
-                    <Text color="fg.muted">No data available</Text>
+                    <Text color="fg.muted">{t("noData")}</Text>
                   </Flex>
                 )}
               </Box>
@@ -335,12 +346,16 @@ export default function StatisticsPage() {
                         tick={{ fontSize: 12 }}
                       />
                       <Tooltip />
-                      <Bar dataKey="count" fill="#82ca9d" name="Authors" />
+                      <Bar
+                        dataKey="count"
+                        fill="#82ca9d"
+                        name={t("authorsLabel")}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
                   <Flex justify="center" align="center" height="100%">
-                    <Text color="fg.muted">No data available</Text>
+                    <Text color="fg.muted">{t("noData")}</Text>
                   </Flex>
                 )}
               </Box>
@@ -377,3 +392,4 @@ function StatCard({
     </Card.Root>
   );
 }
+

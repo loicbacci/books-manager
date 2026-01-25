@@ -15,3 +15,4 @@ export default async function AuthenticatedLayout({ children }: Props) {
 
   return <AppShell>{children}</AppShell>;
 }
+

@@ -23,7 +23,10 @@
     "passwordChanged": "Password changed",
     "saveFailed": "Save failed",
     "deleteSuccess": "Deleted",
-    "deleteFailed": "Delete failed"
+    "deleteFailed": "Delete failed",
+    "clear": "Clear",
+    "optional": "Optional",
+    "viewAll": "View all"
   },
   "auth": {
     "login": "Log in",
@@ -39,7 +42,10 @@
     "loginError": "Invalid email or password",
     "registerError": "Registration failed",
     "passwordMismatch": "Passwords do not match",
-    "inviteCode": "Invite code"
+    "inviteCode": "Invite code",
+    "passwordHelp": "At least 8 characters",
+    "inviteCodeHelp": "Required for registration",
+    "passwordTooShort": "Password must be at least 8 characters"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -163,7 +169,14 @@
     "sortUpdatedDesc": "Updated (newest)",
     "sortProgressAsc": "Progress (least)",
     "sortProgressDesc": "Progress (most)",
-    "groupingLabel": "Grouping:"
+    "groupingLabel": "Grouping:",
+    "titlePlaceholder": "Enter book title",
+    "coverUrlPlaceholder": "https://...",
+    "statusPlaceholder": "Select status",
+    "formatPlaceholder": "Select format",
+    "totalPagesPlaceholder": "e.g., 350",
+    "summaryPlaceholder": "Your thoughts about the book...",
+    "unknownAuthor": "Unknown author"
   },
   "series": {
     "createTitle": "Create a series",
@@ -188,6 +201,22 @@
     "booksReading": "Currently reading",
     "pagesRead": "Pages read",
     "thisYear": "This year",
+    "thisMonth": "This month",
+    "recentBooks": "Recent books",
+    "avgRating": "Avg rating",
+    "avgPages": "Avg pages",
+    "authorsCount": "Authors",
+    "genresCount": "Genres",
+    "recentFinished": "Recently finished",
+    "booksPerMonth": "Books read per month ({year})",
+    "pagesPerMonth": "Pages read per month ({year})",
+    "ratingDistribution": "Rating distribution",
+    "noData": "No data available",
+    "noRatings": "No ratings yet",
+    "loadError": "Failed to load statistics",
+    "booksLabel": "Books",
+    "pagesLabel": "Pages",
+    "authorsLabel": "Authors",
     "genreDistribution": "Genre distribution",
     "authorGenders": "Author genders",
     "authorNationalities": "Author nationalities"

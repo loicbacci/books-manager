@@ -1,8 +1,6 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ${GHCR_IMAGE:-ghcr.io/loicbacci/books-manager:latest}
     ports:
       - "3000:3000"
     environment:
@@ -34,9 +32,7 @@ services:
 
   # Run migrations on startup
   migrate:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ${GHCR_IMAGE:-ghcr.io/loicbacci/books-manager:latest}
     command: npx prisma migrate deploy
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/booksmanager

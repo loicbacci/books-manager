@@ -12,9 +12,9 @@ export const ComboboxControl = React.forwardRef<
   HTMLDivElement,
   ComboboxControlProps
 >(function ComboboxControl(props, ref) {
-  const { children, clearable, ...rest } = props
+  const { children, clearable, bg = "bg.input", ...rest } = props
   return (
-    <ChakraCombobox.Control {...rest} ref={ref}>
+    <ChakraCombobox.Control {...rest} ref={ref} bg={bg}>
       {children}
       <ChakraCombobox.IndicatorGroup>
         {clearable && <ComboboxClearTrigger />}
@@ -107,3 +107,5 @@ export const ComboboxLabel = ChakraCombobox.Label
 export const ComboboxInput = ChakraCombobox.Input
 export const ComboboxEmpty = ChakraCombobox.Empty
 export const ComboboxItemText = ChakraCombobox.ItemText
+
+

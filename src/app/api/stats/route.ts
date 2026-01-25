@@ -15,8 +15,10 @@ export async function GET() {
     }
 
     const userId = session.user.id;
-    const currentYear = new Date().getFullYear();
+    const now = new Date();
+    const currentYear = now.getFullYear();
     const startOfYear = new Date(currentYear, 0, 1);
+    const startOfMonth = new Date(currentYear, now.getMonth(), 1);
 
     // High-level counts used by KPI cards.
     const [totalBooks, booksRead, booksReading, booksToRead, wishlistCount] =
@@ -33,24 +35,49 @@ export async function GET() {
       ]);
 
     // Read count since Jan 1 for year-to-date metrics.
-    const booksReadThisYear = await db.book.count({
-      where: {
-        userId,
-        status: "READ",
-        isWishlist: false,
-        endDate: { gte: startOfYear },
-      },
-    });
+    const [booksReadThisYear, booksReadThisMonth] = await Promise.all([
+      db.book.count({
+        where: {
+          userId,
+          status: "READ",
+          isWishlist: false,
+          endDate: { gte: startOfYear },
+        },
+      }),
+      db.book.count({
+        where: {
+          userId,
+          status: "READ",
+          isWishlist: false,
+          endDate: { gte: startOfMonth },
+        },
+      }),
+    ]);
 
-    // Page total is derived from completed books only.
-    const completedBooks = await db.book.findMany({
-      where: { userId, status: "READ", isWishlist: false },
-      select: { totalPages: true },
-    });
-    const totalPagesRead = completedBooks.reduce(
-      (sum, book) => sum + (book.totalPages || 0),
-      0
-    );
+    // Page totals are derived from completed books only.
+    const [pagesReadThisYearAggregate, pagesReadThisMonthAggregate] =
+      await Promise.all([
+        db.book.aggregate({
+          where: {
+            userId,
+            status: "READ",
+            isWishlist: false,
+            endDate: { gte: startOfYear },
+          },
+          _sum: { totalPages: true },
+        }),
+        db.book.aggregate({
+          where: {
+            userId,
+            status: "READ",
+            isWishlist: false,
+            endDate: { gte: startOfMonth },
+          },
+          _sum: { totalPages: true },
+        }),
+      ]);
+    const pagesReadThisYear = pagesReadThisYearAggregate._sum.totalPages ?? 0;
+    const pagesReadThisMonth = pagesReadThisMonthAggregate._sum.totalPages ?? 0;
 
     // Short list for the "currently reading" section.
     const currentlyReading = await db.book.findMany({
@@ -74,9 +101,35 @@ export async function GET() {
       take: 5,
     });
 
-    // Recent updates used for the "recent activity" list.
-    const recentBooks = await db.book.findMany({
-      where: { userId, isWishlist: false },
+    // Most recently finished books for the dashboard list.
+    const recentFinishedBooks = await db.book.findMany({
+      where: {
+        userId,
+        status: "READ",
+        isWishlist: false,
+        endDate: { not: null },
+      },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        coverUrl: true,
+        status: true,
+        rating: true,
+        authors: {
+          select: {
+            author: {
+              select: { name: true },
+            },
+          },
+        },
+      },
+      orderBy: [{ endDate: "desc" }, { updatedAt: "desc" }],
+      take: 6,
+    });
+
+    const wishlistBooks = await db.book.findMany({
+      where: { userId, isWishlist: true },
       select: {
         id: true,
         slug: true,
@@ -102,7 +155,9 @@ export async function GET() {
       booksReading,
       booksToRead,
       booksReadThisYear,
-      totalPagesRead,
+      booksReadThisMonth,
+      pagesReadThisYear,
+      pagesReadThisMonth,
       wishlistCount,
       currentlyReading: currentlyReading.map((book) => ({
         ...book,
@@ -111,7 +166,11 @@ export async function GET() {
           ? Math.round((book.currentPage / book.totalPages) * 100)
           : 0,
       })),
-      recentBooks: recentBooks.map((book) => ({
+      recentFinishedBooks: recentFinishedBooks.map((book) => ({
+        ...book,
+        authors: book.authors.map((ba) => ba.author.name),
+      })),
+      wishlistBooks: wishlistBooks.map((book) => ({
         ...book,
         authors: book.authors.map((ba) => ba.author.name),
       })),

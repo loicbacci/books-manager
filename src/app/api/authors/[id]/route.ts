@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -22,7 +23,10 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
 
     const author = await db.author.findFirst({
       where: { id, userId: session.user.id },
-      include: { gender: true, nationality: true },
+      include: {
+        gender: true,
+        nationalities: { include: { nationality: true } },
+      } as unknown as Prisma.AuthorInclude,
     });
 
     if (!author) {

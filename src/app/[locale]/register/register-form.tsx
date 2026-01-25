@@ -9,6 +9,7 @@ import { useTranslations } from "next-intl";
 export function RegisterForm({ locale }: { locale: string }) {
   const router = useRouter();
   const t = useTranslations("auth");
+  const tCommon = useTranslations("common");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -27,7 +28,7 @@ export function RegisterForm({ locale }: { locale: string }) {
     }
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters");
+      setError(t("passwordTooShort"));
       return;
     }
 
@@ -77,7 +78,9 @@ export function RegisterForm({ locale }: { locale: string }) {
     <form onSubmit={handleSubmit}>
       <Stack gap={4}>
         <Field.Root>
-          <Field.Label>{t("name")} (Optional)</Field.Label>
+          <Field.Label>
+            {t("name")} ({tCommon("optional")})
+          </Field.Label>
           <Input
             type="text"
             value={name}
@@ -107,7 +110,7 @@ export function RegisterForm({ locale }: { locale: string }) {
             autoComplete="new-password"
             minLength={8}
           />
-          <Field.HelperText>At least 8 characters</Field.HelperText>
+          <Field.HelperText>{t("passwordHelp")}</Field.HelperText>
         </Field.Root>
 
         <Field.Root>
@@ -129,7 +132,7 @@ export function RegisterForm({ locale }: { locale: string }) {
             onChange={(e) => setInviteCode(e.target.value)}
             required
           />
-          <Field.HelperText>Required for registration</Field.HelperText>
+          <Field.HelperText>{t("inviteCodeHelp")}</Field.HelperText>
         </Field.Root>
 
         {error && (
@@ -151,3 +154,4 @@ export function RegisterForm({ locale }: { locale: string }) {
     </form>
   );
 }
+

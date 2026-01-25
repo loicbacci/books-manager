@@ -34,3 +34,5 @@ export const SplitterRoot = ChakraSplitter.Root
 export const SplitterRootProvider = ChakraSplitter.RootProvider
 export const SplitterPropsProvider = ChakraSplitter.PropsProvider
 export const SplitterContext = ChakraSplitter.Context
+
+

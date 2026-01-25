@@ -1,4 +1,5 @@
 import { createSystem, defaultConfig, defineConfig } from "@chakra-ui/react";
+import { selectAnatomy } from "@chakra-ui/react/anatomy";
 
 const config = defineConfig({
   theme: {
@@ -140,6 +141,9 @@ const config = defineConfig({
           card: {
             value: { _light: "{colors.cream.50}", _dark: "#1d1e21" },
           },
+          input: {
+            value: { _light: "white", _dark: "{colors.ink.800}" },
+          },
           panel: {
             value: { _light: "white", _dark: "{colors.ink.900}" },
           },
@@ -201,6 +205,9 @@ const config = defineConfig({
           base: {
             value: { _light: "{colors.cream.50}", _dark: "{colors.ink.950}" },
           },
+          card: {
+            value: { _light: "{colors.cream.50}", _dark: "#1d1e21" },
+          },
           raised: {
             value: { _light: "white", _dark: "{colors.ink.900}" },
           },
@@ -231,6 +238,36 @@ const config = defineConfig({
           },
           emphasis: {
             value: { _light: "{colors.brand.200}", _dark: "{colors.brand.700}" },
+          },
+        },
+      },
+    },
+    recipes: {
+      input: {
+        variants: {
+          variant: {
+            outline: {
+              bg: "bg.input",
+            },
+          },
+        },
+      },
+      button: {
+        variants: {
+          variant: {
+            outline: {
+              bg: "bg.input",
+            },
+          },
+        },
+      },
+    },
+    slotRecipes: {
+      select: {
+        slots: selectAnatomy.keys(),
+        base: {
+          trigger: {
+            bg: "bg.input",
           },
         },
       },

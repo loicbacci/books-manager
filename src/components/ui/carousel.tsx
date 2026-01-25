@@ -89,3 +89,5 @@ export const CarouselIndicator = Carousel.Indicator
 export const CarouselPrevTrigger = Carousel.PrevTrigger
 export const CarouselNextTrigger = Carousel.NextTrigger
 export const CarouselAutoplayTrigger = Carousel.AutoplayTrigger
+
+

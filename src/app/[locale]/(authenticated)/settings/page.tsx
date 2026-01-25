@@ -406,6 +406,7 @@ export default function SettingsPage() {
     }
   };
 
+  // Loading state
   if (loading) {
     return (
       <Container maxW="container.xl" py={8}>
@@ -419,10 +420,12 @@ export default function SettingsPage() {
   return (
     <Container maxW="container.lg" py={8}>
       <Stack gap={8}>
+        {/* Page title */}
         <Heading as="h1" size="2xl">
           {t("title")}
         </Heading>
 
+        {/* Save feedback */}
         {message && (
           <Box
             p={3}
@@ -1235,3 +1238,4 @@ export default function SettingsPage() {
     </Container>
   );
 }
+

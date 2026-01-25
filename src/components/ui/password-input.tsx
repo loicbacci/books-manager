@@ -157,3 +157,5 @@ function getColorPalette(percent: number) {
       return { label: "High", colorPalette: "green" }
   }
 }
+
+

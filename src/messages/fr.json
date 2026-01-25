@@ -23,7 +23,10 @@
     "passwordChanged": "Mot de passe modifié",
     "saveFailed": "Échec de l'enregistrement",
     "deleteSuccess": "Supprimé",
-    "deleteFailed": "Échec de la suppression"
+    "deleteFailed": "Échec de la suppression",
+    "clear": "Effacer",
+    "optional": "Optionnel",
+    "viewAll": "Voir tout"
   },
   "auth": {
     "login": "Connexion",
@@ -39,7 +42,10 @@
     "loginError": "Email ou mot de passe invalide",
     "registerError": "L'inscription a échoué",
     "passwordMismatch": "Les mots de passe ne correspondent pas",
-    "inviteCode": "Code d'invitation"
+    "inviteCode": "Code d'invitation",
+    "passwordHelp": "Au moins 8 caractères",
+    "inviteCodeHelp": "Requis pour l'inscription",
+    "passwordTooShort": "Le mot de passe doit contenir au moins 8 caractères"
   },
   "nav": {
     "dashboard": "Tableau de bord",
@@ -163,7 +169,14 @@
     "sortUpdatedDesc": "Modifié (récent)",
     "sortProgressAsc": "Progression (faible)",
     "sortProgressDesc": "Progression (forte)",
-    "groupingLabel": "Regroupement :"
+    "groupingLabel": "Regroupement :",
+    "titlePlaceholder": "Entrez le titre du livre",
+    "coverUrlPlaceholder": "https://...",
+    "statusPlaceholder": "Sélectionner un statut",
+    "formatPlaceholder": "Sélectionner un format",
+    "totalPagesPlaceholder": "ex : 350",
+    "summaryPlaceholder": "Vos pensées sur le livre...",
+    "unknownAuthor": "Auteur·ice inconnu·e"
   },
   "series": {
     "createTitle": "Créer une série",
@@ -188,6 +201,22 @@
     "booksReading": "En cours de lecture",
     "pagesRead": "Pages lues",
     "thisYear": "Cette année",
+    "thisMonth": "Ce mois-ci",
+    "recentBooks": "Livres récents",
+    "avgRating": "Note moyenne",
+    "avgPages": "Pages moyennes",
+    "authorsCount": "Auteur·ices",
+    "genresCount": "Genres",
+    "recentFinished": "Récemment terminés",
+    "booksPerMonth": "Livres lus par mois ({year})",
+    "pagesPerMonth": "Pages lues par mois ({year})",
+    "ratingDistribution": "Répartition des notes",
+    "noData": "Aucune donnée disponible",
+    "noRatings": "Aucune note pour le moment",
+    "loadError": "Impossible de charger les statistiques",
+    "booksLabel": "Livres",
+    "pagesLabel": "Pages",
+    "authorsLabel": "Auteur·ices",
     "genreDistribution": "Répartition par genre",
     "authorGenders": "Genres des auteur·ices",
     "authorNationalities": "Nationalités des auteur·ices"

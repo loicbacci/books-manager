@@ -25,7 +25,9 @@ type Stats = {
   booksReading: number;
   booksToRead: number;
   booksReadThisYear: number;
-  totalPagesRead: number;
+  booksReadThisMonth: number;
+  pagesReadThisYear: number;
+  pagesReadThisMonth: number;
   wishlistCount: number;
   currentlyReading: Array<{
     id: string;
@@ -37,7 +39,16 @@ type Stats = {
     authors: string[];
     progress: number;
   }>;
-  recentBooks: Array<{
+  wishlistBooks: Array<{
+    id: string;
+    slug: string;
+    title: string;
+    coverUrl: string | null;
+    status: string;
+    rating: number | null;
+    authors: string[];
+  }>;
+  recentFinishedBooks: Array<{
     id: string;
     slug: string;
     title: string;
@@ -52,6 +63,7 @@ export default function DashboardPage() {
   const t = useTranslations("nav");
   const tStats = useTranslations("stats");
   const tBook = useTranslations("book");
+  const tCommon = useTranslations("common");
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -72,6 +84,7 @@ export default function DashboardPage() {
     fetchStats();
   }, []);
 
+  // Loading state
   if (loading) {
     return (
       <Container maxW="container.xl" py={8}>
@@ -85,22 +98,31 @@ export default function DashboardPage() {
   return (
     <Container maxW="container.xl" py={8}>
       <Stack gap={8}>
+        {/* Page title */}
         <Heading as="h1" size="2xl">
           {t("dashboard")}
         </Heading>
 
-        {/* Stats Cards */}
+        {/* KPI summary cards */}
         <Grid
           templateColumns={{
             base: "repeat(2, 1fr)",
-            md: "repeat(4, 1fr)",
+            md: "repeat(3, 1fr)",
+            lg: "repeat(5, 1fr)",
           }}
-          gap={4}
+          gap={{ base: 3, md: 4 }}
         >
           <StatCard
             label={tStats("booksRead")}
-            value={stats?.booksRead ?? 0}
+            subLabel={tStats("thisYear")}
+            value={stats?.booksReadThisYear ?? 0}
             icon="📚"
+          />
+          <StatCard
+            label={tStats("booksRead")}
+            subLabel={tStats("thisMonth")}
+            value={stats?.booksReadThisMonth ?? 0}
+            icon="🗓️"
           />
           <StatCard
             label={tStats("booksReading")}
@@ -108,129 +130,222 @@ export default function DashboardPage() {
             icon="📖"
           />
           <StatCard
-            label={tStats("thisYear")}
-            value={stats?.booksReadThisYear ?? 0}
-            icon="📅"
+            label={tStats("pagesRead")}
+            subLabel={tStats("thisYear")}
+            value={stats?.pagesReadThisYear ?? 0}
+            icon="📄"
           />
           <StatCard
             label={tStats("pagesRead")}
-            value={stats?.totalPagesRead ?? 0}
-            icon="📄"
+            subLabel={tStats("thisMonth")}
+            value={stats?.pagesReadThisMonth ?? 0}
+            icon="📝"
           />
         </Grid>
 
-        {/* Currently Reading */}
+        {/* Currently reading list */}
         {stats?.currentlyReading && stats.currentlyReading.length > 0 && (
-          <Box>
-            <Heading as="h2" size="lg" mb={4}>
-              {tStats("booksReading")}
-            </Heading>
-            <Grid
-              templateColumns={{
-                base: "1fr",
-                md: "repeat(2, 1fr)",
-                lg: "repeat(3, 1fr)",
-              }}
-              gap={4}
-            >
-              {stats.currentlyReading.map((book) => (
-                <Card.Root key={book.id}>
-                  <Card.Body>
-                    <Stack gap={3}>
-                      <Box>
-                        <Text fontWeight="semibold" lineClamp={1}>
-                          {book.title}
-                        </Text>
-                        <Text fontSize="sm" color="fg.muted">
-                          {book.authors.join(", ") || "Unknown author"}
-                        </Text>
-                      </Box>
-                      <Box>
-                        <Flex justify="space-between" mb={1}>
-                          <Text fontSize="sm" color="fg.muted">
-                            {tBook("progress")}
-                          </Text>
-                          <Text fontSize="sm" fontWeight="medium">
-                            {book.progress}%
-                          </Text>
-                        </Flex>
-                        <ProgressBar value={book.progress} />
-                        <Text fontSize="xs" color="fg.muted" mt={1}>
-                          {book.currentPage} / {book.totalPages ?? "?"}{" "}
-                          {tBook("pages")}
-                        </Text>
-                      </Box>
-                    </Stack>
-                  </Card.Body>
-                </Card.Root>
-              ))}
-            </Grid>
-          </Box>
+          <Card.Root bg="surface.card" boxShadow="card">
+            <Card.Body p={{ base: 4, md: 6 }}>
+              <Heading as="h2" size="lg" mb={4}>
+                {tStats("booksReading")}
+              </Heading>
+              <Grid
+                templateColumns={{
+                  base: "1fr",
+                  md: "repeat(2, 1fr)",
+                  lg: "repeat(3, 1fr)",
+                }}
+                gap={4}
+              >
+                {stats.currentlyReading.map((book) => (
+                  <Card.Root key={book.id}>
+                    <Card.Body>
+                      <Flex
+                        gap={4}
+                        direction={{ base: "row", md: "column" }}
+                        align={{ base: "flex-start", md: "stretch" }}
+                      >
+                        <Box
+                          w={{ base: "84px", md: "full" }}
+                          flexShrink={0}
+                        >
+                          <BookCover
+                            coverUrl={book.coverUrl}
+                            title={book.title}
+                            size="xs"
+                          />
+                        </Box>
+                        <Stack gap={3} flex={1}>
+                          <Box>
+                            <Text fontWeight="semibold" lineClamp={2}>
+                              {book.title}
+                            </Text>
+                            <Text fontSize="sm" color="fg.muted" lineClamp={1}>
+                              {book.authors.join(", ") ||
+                                tBook("unknownAuthor")}
+                            </Text>
+                          </Box>
+                          <Box>
+                            <Flex justify="space-between" mb={1}>
+                              <Text fontSize="sm" color="fg.muted">
+                                {tBook("progress")}
+                              </Text>
+                              <Text fontSize="sm" fontWeight="medium">
+                                {book.progress}%
+                              </Text>
+                            </Flex>
+                            <ProgressBar value={book.progress} />
+                            <Text fontSize="xs" color="fg.muted" mt={1}>
+                              {book.currentPage} / {book.totalPages ?? "?"}{" "}
+                              {tBook("pages")}
+                            </Text>
+                          </Box>
+                        </Stack>
+                      </Flex>
+                    </Card.Body>
+                  </Card.Root>
+                ))}
+              </Grid>
+            </Card.Body>
+          </Card.Root>
         )}
 
-        {/* Recent Books */}
-        <Box>
-          <Flex justify="space-between" align="center" mb={4}>
+        {/* Wishlist books grid */}
+        <Card.Root bg="surface.card" boxShadow="card">
+          <Card.Body p={{ base: 4, md: 6 }}>
+            <Flex justify="space-between" align="center" mb={4}>
+              <Heading as="h2" size="lg">
+                {tBook("wishlist")}
+              </Heading>
+              <Button asChild variant="ghost" size="sm">
+                <NextLink href="/library">{tCommon("viewAll")}</NextLink>
+              </Button>
+            </Flex>
+
+            {stats?.wishlistBooks && stats.wishlistBooks.length > 0 ? (
+              <Grid
+                templateColumns={{
+                  base: "repeat(2, 1fr)",
+                  md: "repeat(3, 1fr)",
+                  lg: "repeat(6, 1fr)",
+                }}
+                gap={4}
+              >
+                {stats.wishlistBooks.map((book) => (
+                  <Card.Root key={book.id} asChild>
+                    <NextLink href={`/books/${book.slug}`}>
+                      <Card.Body p={3}>
+                        <Stack gap={2}>
+                          <BookCover
+                            coverUrl={book.coverUrl}
+                            title={book.title}
+                            size="sm"
+                          />
+                          <Box>
+                            <Text
+                              fontSize="sm"
+                              fontWeight="semibold"
+                              lineClamp={2}
+                            >
+                              {book.title}
+                            </Text>
+                            <Text fontSize="xs" color="fg.muted" lineClamp={1}>
+                              {book.authors.join(", ") ||
+                                tBook("unknownAuthor")}
+                            </Text>
+                          </Box>
+                          <StatusBadge status={book.status} />
+                        </Stack>
+                      </Card.Body>
+                    </NextLink>
+                  </Card.Root>
+                ))}
+              </Grid>
+            ) : (
+              <Card.Root>
+                <Card.Body>
+                  <Stack align="center" py={8}>
+                    <Text fontSize="4xl">✨</Text>
+                    <Text color="fg.muted">{tBook("noBooks")}</Text>
+                    <Button asChild colorPalette="brand" mt={2}>
+                      <NextLink href="/library">{tBook("addBook")}</NextLink>
+                    </Button>
+                  </Stack>
+                </Card.Body>
+              </Card.Root>
+            )}
+          </Card.Body>
+        </Card.Root>
+
+        {/* Recently finished books grid */}
+        <Card.Root bg="surface.card" boxShadow="card">
+          <Card.Body p={{ base: 4, md: 6 }}>
+            <Flex justify="space-between" align="center" mb={4}>
             <Heading as="h2" size="lg">
-              Recent Books
+              {tStats("recentFinished")}
             </Heading>
             <Button asChild variant="ghost" size="sm">
-              <NextLink href="/library">View all</NextLink>
+              <NextLink href="/library">{tCommon("viewAll")}</NextLink>
             </Button>
-          </Flex>
+            </Flex>
 
-          {stats?.recentBooks && stats.recentBooks.length > 0 ? (
-            <Grid
-              templateColumns={{
-                base: "repeat(2, 1fr)",
-                md: "repeat(3, 1fr)",
-                lg: "repeat(6, 1fr)",
-              }}
-              gap={4}
-            >
-              {stats.recentBooks.map((book) => (
-                <Card.Root key={book.id} asChild>
-                  <NextLink href={`/books/${book.slug}`}>
-                    <Card.Body p={3}>
-                      <Stack gap={2}>
-                        <BookCover
-                          coverUrl={book.coverUrl}
-                          title={book.title}
-                          size="sm"
-                        />
-                        <Box>
-                          <Text
-                            fontSize="sm"
-                            fontWeight="semibold"
-                            lineClamp={2}
-                          >
-                            {book.title}
-                          </Text>
+            {stats?.recentFinishedBooks &&
+            stats.recentFinishedBooks.length > 0 ? (
+              <Grid
+                templateColumns={{
+                  base: "repeat(2, 1fr)",
+                  md: "repeat(3, 1fr)",
+                  lg: "repeat(6, 1fr)",
+                }}
+                gap={4}
+              >
+                {stats.recentFinishedBooks.map((book) => (
+                  <Card.Root key={book.id} asChild>
+                    <NextLink href={`/books/${book.slug}`}>
+                      <Card.Body p={3}>
+                        <Stack gap={2}>
+                          <BookCover
+                            coverUrl={book.coverUrl}
+                            title={book.title}
+                            size="sm"
+                          />
+                          <Box>
+                            <Text
+                              fontSize="sm"
+                              fontWeight="semibold"
+                              lineClamp={2}
+                            >
+                              {book.title}
+                            </Text>
                           <Text fontSize="xs" color="fg.muted" lineClamp={1}>
-                            {book.authors.join(", ") || "Unknown"}
+                            {book.authors.join(", ") ||
+                              tBook("unknownAuthor")}
                           </Text>
-                        </Box>
-                        <StatusBadge status={book.status} />
-                      </Stack>
-                    </Card.Body>
-                  </NextLink>
-                </Card.Root>
-              ))}
-            </Grid>
-          ) : (
-            <Card.Root>
-              <Card.Body>
-                <Stack align="center" py={8}>
-                  <Text fontSize="4xl">📚</Text>
-                  <Text color="fg.muted">{tBook("noBooks")}</Text>
-                  <Button asChild colorPalette="brand" mt={2}>
-                    <NextLink href="/library">{tBook("addBook")}</NextLink>
-                  </Button>
-                </Stack>
-              </Card.Body>
-            </Card.Root>
-          )}
-        </Box>
+                          </Box>
+                          <StatusBadge status={book.status} />
+                        </Stack>
+                      </Card.Body>
+                    </NextLink>
+                  </Card.Root>
+                ))}
+              </Grid>
+            ) : (
+              // Empty state
+              <Card.Root>
+                <Card.Body>
+                  <Stack align="center" py={8}>
+                    <Text fontSize="4xl">📚</Text>
+                    <Text color="fg.muted">{tBook("noBooks")}</Text>
+                    <Button asChild colorPalette="brand" mt={2}>
+                      <NextLink href="/library">{tBook("addBook")}</NextLink>
+                    </Button>
+                  </Stack>
+                </Card.Body>
+              </Card.Root>
+            )}
+          </Card.Body>
+        </Card.Root>
       </Stack>
     </Container>
   );
@@ -238,28 +353,41 @@ export default function DashboardPage() {
 
 function StatCard({
   label,
+  subLabel,
   value,
   icon,
 }: {
   label: string;
+  subLabel?: string;
   value: number;
   icon: string;
 }) {
   return (
+    // Small stat card used in the KPI grid
     <Card.Root>
-      <Card.Body>
-        <Flex align="center" gap={3}>
-          <Text fontSize="2xl">{icon}</Text>
+      <Card.Body p={{ base: 3, md: 4 }}>
+        <Flex align="center" gap={{ base: 2, md: 3 }}>
+          <Text fontSize={{ base: "lg", md: "2xl" }}>{icon}</Text>
           <Box>
-            <Text fontSize="2xl" fontWeight="bold">
+            <Text fontSize={{ base: "xl", md: "2xl" }} fontWeight="bold">
               {value.toLocaleString()}
             </Text>
-            <Text fontSize="sm" color="fg.muted">
+            <Text
+              fontSize={{ base: "xs", md: "sm" }}
+              color="fg.muted"
+              lineClamp={{ base: 2, md: 1 }}
+            >
               {label}
             </Text>
+            {subLabel ? (
+              <Text fontSize="xs" color="fg.muted" lineClamp={1}>
+                {subLabel}
+              </Text>
+            ) : null}
           </Box>
         </Flex>
       </Card.Body>
     </Card.Root>
   );
 }
+

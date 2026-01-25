@@ -785,6 +785,7 @@ function BookCard({
   book: BookGridBook;
   fields: BookCardFields;
 }) {
+  const t = useTranslations("book");
   /**
    * Reading progress percentage for the progress bar.
    */
@@ -824,7 +825,7 @@ function BookCard({
               {fields.author && (
                 <Text fontSize="xs" color="fg.muted" lineClamp={1}>
                   {book.authors.map((a) => a.author.name).join(", ") ||
-                    "Unknown"}
+                    t("unknownAuthor")}
                 </Text>
               )}
               {fields.genres && book.genres.length > 0 && (
@@ -882,3 +883,5 @@ function BookCard({
     </Card.Root>
   );
 }
+
+

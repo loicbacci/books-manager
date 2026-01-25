@@ -23,6 +23,7 @@ jest.mock("@/lib/db", () => ({
   db: {
     author: {
       findMany: jest.fn(),
+      count: jest.fn(),
       create: jest.fn(),
     },
     format: {
@@ -43,6 +44,7 @@ jest.mock("@/lib/db", () => ({
     },
     series: {
       findMany: jest.fn(),
+      count: jest.fn(),
       create: jest.fn(),
     },
   },
@@ -55,12 +57,12 @@ jest.mock("@/lib/slugify", () => ({
 const getDb = () =>
   (jest.requireMock("@/lib/db") as {
     db: {
-      author: { findMany: jest.Mock; create: jest.Mock };
+      author: { findMany: jest.Mock; count: jest.Mock; create: jest.Mock };
       format: { findMany: jest.Mock; create: jest.Mock };
       genre: { findMany: jest.Mock; create: jest.Mock };
       gender: { findMany: jest.Mock; create: jest.Mock };
       nationality: { findMany: jest.Mock; create: jest.Mock };
-      series: { findMany: jest.Mock; create: jest.Mock };
+      series: { findMany: jest.Mock; count: jest.Mock; create: jest.Mock };
     };
   }).db;
 
@@ -84,20 +86,27 @@ describe("collection routes", () => {
   it("returns 401 for unauthorized collection GETs", async () => {
     mockAuth.mockResolvedValue(null);
 
-    expect((await getAuthors()).status).toBe(401);
+    expect(
+      (await getAuthors(new NextRequest("http://localhost/api/authors"))).status
+    ).toBe(401);
     expect((await getFormats()).status).toBe(401);
     expect((await getGenres()).status).toBe(401);
     expect((await getGenders()).status).toBe(401);
     expect((await getNationalities()).status).toBe(401);
-    expect((await getSeries()).status).toBe(401);
+    expect(
+      (await getSeries(new NextRequest("http://localhost/api/series"))).status
+    ).toBe(401);
   });
 
   it("lists authors for the current user", async () => {
     mockAuth.mockResolvedValue({ user: { id: "user-1" } });
     const db = getDb();
     db.author.findMany.mockResolvedValue([{ id: "a1" }]);
+    db.author.count.mockResolvedValue(1);
 
-    const response = await getAuthors();
+    const response = await getAuthors(
+      new NextRequest("http://localhost/api/authors")
+    );
 
     expect(response.status).toBe(200);
     expect(getDb().author.findMany).toHaveBeenCalledWith(
@@ -115,7 +124,7 @@ describe("collection routes", () => {
       jsonRequest("http://localhost/api/authors", {
         name: "Author",
         genderId: "gender-1",
-        nationalityId: "nat-1",
+        nationalityIds: ["nat-1"],
       })
     );
     expect(okResponse.status).toBe(201);
@@ -236,10 +245,13 @@ describe("collection routes", () => {
     mockAuth.mockResolvedValue({ user: { id: "user-1" } });
     const db = getDb();
     db.series.findMany.mockResolvedValue([{ id: "s1" }]);
+    db.series.count.mockResolvedValue(1);
     db.series.create.mockResolvedValue({ id: "s1" });
     getSlugifyMock().mockResolvedValue("series-slug");
 
-    expect((await getSeries()).status).toBe(200);
+    expect(
+      (await getSeries(new NextRequest("http://localhost/api/series"))).status
+    ).toBe(200);
 
     const response = await postSeries(
       jsonRequest("http://localhost/api/series", { name: "Series" })

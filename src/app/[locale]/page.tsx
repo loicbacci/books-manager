@@ -32,9 +32,11 @@ export default async function HomePage({ params }: Props) {
   const tAuth = await getTranslations("auth");
 
   return (
+    // Page shell
     <Box minH="100vh" bg="gray.50">
       <Container maxW="container.xl" py={20}>
         <Stack gap={12} align="center" textAlign="center">
+          {/* Hero header */}
           <Stack gap={4}>
             <Heading as="h1" size={{ base: "2xl", md: "4xl" }} color="brand.fg">
               {t("appName")}
@@ -50,6 +52,7 @@ export default async function HomePage({ params }: Props) {
             </Text>
           </Stack>
 
+          {/* Primary calls-to-action */}
           <Flex gap={4}>
             <Button asChild colorPalette="brand" size="lg">
               <Link href={`/${locale}/login`}>{tAuth("login")}</Link>
@@ -59,6 +62,7 @@ export default async function HomePage({ params }: Props) {
             </Button>
           </Flex>
 
+          {/* Feature highlights */}
           <Stack gap={8} pt={8}>
             <Heading as="h2" size="xl">
               Features
@@ -122,3 +126,4 @@ function FeatureCard({
     </Box>
   );
 }
+

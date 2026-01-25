@@ -168,3 +168,5 @@ export const FileInput = React.forwardRef<HTMLButtonElement, FileInputProps>(
 export const FileUploadLabel = ChakraFileUpload.Label
 export const FileUploadClearTrigger = ChakraFileUpload.ClearTrigger
 export const FileUploadTrigger = ChakraFileUpload.Trigger
+
+

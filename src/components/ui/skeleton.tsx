@@ -45,3 +45,5 @@ export const SkeletonText = React.forwardRef<HTMLDivElement, SkeletonTextProps>(
 )
 
 export const Skeleton = ChakraSkeleton
+
+

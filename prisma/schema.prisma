@@ -69,7 +69,11 @@ model Book {
   @@unique([userId, slug])
   @@index([userId])
   @@index([status])
+  @@index([userId, status, isWishlist])
+  @@index([userId, updatedAt])
+  @@index([userId, endDate])
   @@index([seriesId])
+  @@index([seriesId, seriesOrder])
   @@map("books")
 }
 
@@ -95,8 +99,7 @@ model Author {
   user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   gender        Gender?       @relation(fields: [genderId], references: [id])
   genderId      String?
-  nationality   Nationality?  @relation(fields: [nationalityId], references: [id])
-  nationalityId String?
+  nationalities AuthorNationality[]
   books         BookAuthor[]
 
   @@unique([userId, name])
@@ -134,6 +137,7 @@ model BookAuthor {
   author Author @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   @@id([bookId, authorId])
+  @@index([authorId])
   @@map("book_authors")
 }
 
@@ -164,6 +168,7 @@ model BookGenre {
   genre Genre @relation(fields: [genreId], references: [id], onDelete: Cascade)
 
   @@id([bookId, genreId])
+  @@index([genreId])
   @@map("book_genres")
 }
 
@@ -206,10 +211,22 @@ model Nationality {
   color     String?
   createdAt DateTime @default(now())
 
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  authors Author[]
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  authors    AuthorNationality[]
 
   @@unique([userId, name])
   @@index([userId])
   @@map("nationalities")
+}
+
+model AuthorNationality {
+  authorId      String
+  nationalityId String
+
+  author      Author      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  nationality Nationality @relation(fields: [nationalityId], references: [id], onDelete: Cascade)
+
+  @@id([authorId, nationalityId])
+  @@index([nationalityId])
+  @@map("author_nationalities")
 }

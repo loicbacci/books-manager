@@ -84,3 +84,5 @@ describe("Select components", () => {
     expect(document.querySelectorAll("[data-item-indicator]").length).toBe(1);
   });
 });
+
+

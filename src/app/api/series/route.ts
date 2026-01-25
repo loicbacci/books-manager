@@ -16,7 +16,7 @@ const createSeriesSchema = z.object({
  *
  * Includes a small preview of books in each series for dashboard cards.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await auth();
 
@@ -24,24 +24,53 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const series = await db.series.findMany({
-      where: { userId: session.user.id },
-      orderBy: { name: "asc" },
-      include: {
-        _count: { select: { books: true } },
-        books: {
-          select: {
-            id: true,
-            title: true,
-            coverUrl: true,
-          },
-          orderBy: [{ seriesOrder: "asc" }, { title: "asc" }],
-          take: 4,
-        },
-      },
-    });
+    const { searchParams } = new URL(request.url);
+    const pageParam = searchParams.get("page");
+    const pageSizeParam = searchParams.get("pageSize");
+    const parseNumberParam = (value: string | null, fallback: number) => {
+      if (!value) return fallback;
+      const parsed = Number.parseInt(value, 10);
+      return Number.isNaN(parsed) ? fallback : parsed;
+    };
+    const page = Math.max(1, parseNumberParam(pageParam, 1));
+    const pageSize = Math.min(
+      100,
+      Math.max(1, parseNumberParam(pageSizeParam, 24))
+    );
+    const skip = (page - 1) * pageSize;
 
-    return NextResponse.json(series);
+    const where = { userId: session.user.id };
+    const [series, total] = await Promise.all([
+      db.series.findMany({
+        where,
+        orderBy: { name: "asc" },
+        include: {
+          _count: { select: { books: true } },
+          books: {
+            select: {
+              id: true,
+              title: true,
+              coverUrl: true,
+            },
+            orderBy: [{ seriesOrder: "asc" }, { title: "asc" }],
+            take: 4,
+          },
+        },
+        skip,
+        take: pageSize,
+      }),
+      db.series.count({ where }),
+    ]);
+
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+    return NextResponse.json({
+      items: series,
+      page,
+      pageSize,
+      total,
+      totalPages,
+    });
   } catch (error) {
     console.error("Error fetching series:", error);
     return NextResponse.json(

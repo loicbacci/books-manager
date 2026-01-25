@@ -15,14 +15,19 @@ jest.mock("@/lib/db", () => ({
   db: {
     book: {
       count: jest.fn(),
+      aggregate: jest.fn(),
       findMany: jest.fn(),
     },
+    $queryRaw: jest.fn(),
   },
 }));
 
 const getDb = () =>
   (jest.requireMock("@/lib/db") as {
-    db: { book: { count: jest.Mock; findMany: jest.Mock } };
+    db: {
+      book: { count: jest.Mock; aggregate: jest.Mock; findMany: jest.Mock };
+      $queryRaw: jest.Mock;
+    };
   }).db;
 
 describe("stats routes", () => {
@@ -46,10 +51,13 @@ describe("stats routes", () => {
       .mockResolvedValueOnce(3)
       .mockResolvedValueOnce(3)
       .mockResolvedValueOnce(2)
+      .mockResolvedValueOnce(1)
       .mockResolvedValueOnce(1);
 
+    db.book.aggregate
+      .mockResolvedValueOnce({ _sum: { totalPages: 300 } })
+      .mockResolvedValueOnce({ _sum: { totalPages: 120 } });
     db.book.findMany
-      .mockResolvedValueOnce([{ totalPages: 100 }, { totalPages: 200 }])
       .mockResolvedValueOnce([
         {
           id: "reading-1",
@@ -71,6 +79,17 @@ describe("stats routes", () => {
           rating: 8,
           authors: [{ author: { name: "Author" } }],
         },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "wish-1",
+          slug: "wish-1",
+          title: "Wishlist",
+          coverUrl: null,
+          status: "TO_READ",
+          rating: null,
+          authors: [{ author: { name: "Author" } }],
+        },
       ]);
 
     const response = await getStats();
@@ -78,31 +97,30 @@ describe("stats routes", () => {
 
     expect(response.status).toBe(200);
     expect(data.totalBooks).toBe(10);
-    expect(data.totalPagesRead).toBe(300);
+    expect(data.pagesReadThisYear).toBe(300);
+    expect(data.pagesReadThisMonth).toBe(120);
     expect(data.currentlyReading[0].progress).toBe(50);
   });
 
   it("returns detailed stats", async () => {
     mockAuth.mockResolvedValue({ user: { id: "user-1" } });
-    getDb().book.findMany.mockResolvedValue([
-      {
-        totalPages: 300,
-        rating: 8,
-        endDate: new Date(),
-        genres: [
-          { genre: { id: "g1", name: "Fantasy", color: "blue" } },
-        ],
-        authors: [
-          {
-            author: {
-              id: "a1",
-              gender: { name: "Woman" },
-              nationality: { name: "French" },
-            },
-          },
-        ],
-      },
-    ]);
+    const db = getDb();
+    const now = new Date("2024-02-10T00:00:00.000Z");
+
+    db.$queryRaw
+      .mockResolvedValueOnce([
+        { total_books: 1, total_pages: 300, avg_rating: 8 },
+      ])
+      .mockResolvedValueOnce([
+        { id: "g1", name: "Fantasy", color: "blue", count: 1 },
+      ])
+      .mockResolvedValueOnce([{ name: "Woman", count: 1 }])
+      .mockResolvedValueOnce([{ name: "French", count: 1 }])
+      .mockResolvedValueOnce([{ month: now, count: 1 }])
+      .mockResolvedValueOnce([{ month: now, pages: 300 }])
+      .mockResolvedValueOnce([{ rating: 8, count: 1 }])
+      .mockResolvedValueOnce([{ count: 1 }])
+      .mockResolvedValueOnce([{ count: 1 }]);
 
     const response = await getDetailed();
     const data = await response.json();

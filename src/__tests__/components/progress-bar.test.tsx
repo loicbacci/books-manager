@@ -92,3 +92,5 @@ describe("ProgressBar", () => {
     expect(progressBar).toHaveAttribute("aria-valuenow", "33");
   });
 });
+
+

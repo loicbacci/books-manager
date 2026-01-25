@@ -50,6 +50,19 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
     const wishlist = searchParams.get("wishlist");
     const search = searchParams.get("search");
+    const pageParam = searchParams.get("page");
+    const pageSizeParam = searchParams.get("pageSize");
+    const parseNumberParam = (value: string | null, fallback: number) => {
+      if (!value) return fallback;
+      const parsed = Number.parseInt(value, 10);
+      return Number.isNaN(parsed) ? fallback : parsed;
+    };
+    const page = Math.max(1, parseNumberParam(pageParam, 1));
+    const pageSize = Math.min(
+      100,
+      Math.max(1, parseNumberParam(pageSizeParam, 50))
+    );
+    const skip = (page - 1) * pageSize;
 
     const where: {
       userId: string;
@@ -72,28 +85,41 @@ export async function GET(request: NextRequest) {
       where.title = { contains: search, mode: "insensitive" };
     }
 
-    const books = await db.book.findMany({
-      where,
-      include: {
-        authors: {
-          include: {
-            author: true,
+    const [books, total] = await Promise.all([
+      db.book.findMany({
+        where,
+        include: {
+          authors: {
+            include: {
+              author: true,
+            },
           },
-        },
-        genres: {
-          include: {
-            genre: true,
+          genres: {
+            include: {
+              genre: true,
+            },
           },
+          format: true,
+          series: true,
         },
-        format: true,
-        series: true,
-      },
-      orderBy: {
-        updatedAt: "desc",
-      },
-    });
+        orderBy: {
+          updatedAt: "desc",
+        },
+        skip,
+        take: pageSize,
+      }),
+      db.book.count({ where }),
+    ]);
 
-    return NextResponse.json(books);
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+    return NextResponse.json({
+      items: books,
+      page,
+      pageSize,
+      total,
+      totalPages,
+    });
   } catch (error) {
     console.error("Error fetching books:", error);
     return NextResponse.json(
