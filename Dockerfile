@@ -43,17 +43,16 @@ RUN chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy Prisma files for migrations
+# Copy Prisma schema and migrations
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
-# Copy node_modules for Prisma CLI (needed for migrations)
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin ./node_modules/.bin
+# Copy generated Prisma client
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma/client ./node_modules/@prisma/client
 
-# Add node_modules/.bin to PATH for npx to find Prisma CLI
-ENV PATH="/app/node_modules/.bin:$PATH"
+# Install Prisma CLI with all dependencies for running migrations
+COPY --from=builder /app/package.json ./package.json
+RUN npm install prisma --save-exact && rm package.json
 
 USER nextjs
 
