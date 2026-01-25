@@ -1,7 +1,7 @@
 services:
   app:
     image: ${GHCR_IMAGE:-ghcr.io/loicbacci/books-manager:latest}
-    command: sh -c "node ./node_modules/prisma/build/index.js migrate deploy && node server.js"
+    command: sh -c "npx --no-update-notifier prisma migrate deploy && node server.js"
     ports:
       - "3000:3000"
     environment:
