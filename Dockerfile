@@ -15,6 +15,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Ensure public folder exists for runtime image copy
+RUN mkdir -p /app/public
+
 # Generate Prisma client
 RUN npx prisma generate
 
