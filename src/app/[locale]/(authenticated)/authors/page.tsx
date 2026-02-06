@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import NextLink from "next/link";
+import { Link } from "@/i18n/routing";
 import {
   Box,
   Button,
@@ -17,9 +17,9 @@ import {
   PopoverTrigger,
   PopoverContent,
   PopoverBody,
+  Icon,
 } from "@chakra-ui/react";
-import { FiArrowRight } from "react-icons/fi";
-import { MdFilterList } from "react-icons/md";
+import { FiArrowRight, FiFilter, FiFeather } from "react-icons/fi";
 import {
   SelectRoot,
   SelectTrigger,
@@ -76,11 +76,12 @@ export default function AuthorsPage() {
   const controlBorder = { base: "border.default", _dark: "border.default" };
   const cardBg = { base: "bg.panel", _dark: "bg.card" };
 
-  const fetchAuthors = useCallback(async () => {
+  const fetchAuthors = useCallback(async (signal?: AbortSignal) => {
     try {
       setLoading(true);
       const response = await fetch(
-        `/api/authors?page=${page}&pageSize=${pageSize}`
+        `/api/authors?page=${page}&pageSize=${pageSize}`,
+        signal ? { signal } : undefined
       );
       if (response.ok) {
         const data = (await response.json()) as PageResult<Author>;
@@ -96,83 +97,125 @@ export default function AuthorsPage() {
   }, [page, pageSize]);
 
   useEffect(() => {
-    fetchAuthors();
+    const controller = new AbortController();
+    let isActive = true;
+    fetchAuthors(controller.signal).catch((error) => {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
+      if (isActive) {
+        console.error("Failed to fetch authors:", error);
+      }
+    });
+    return () => {
+      isActive = false;
+      controller.abort();
+    };
   }, [fetchAuthors]);
 
-  const genderNames = Array.from(
-    new Set(authors.map((author) => author.gender?.name).filter(Boolean))
-  ) as string[];
-  const nationalityNames = Array.from(
-    new Set(
-      authors.flatMap((author) =>
-        author.nationalities.map((entry) => entry.nationality.name)
-      )
-    )
+  const genderNames = useMemo(
+    () =>
+      Array.from(
+        new Set(authors.map((author) => author.gender?.name).filter(Boolean))
+      ) as string[],
+    [authors]
+  );
+  const nationalityNames = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          authors.flatMap((author) =>
+            author.nationalities.map((entry) => entry.nationality.name)
+          )
+        )
+      ),
+    [authors]
   );
 
-  const genderFilterCollection = createListCollection({
-    items: [
-      { value: "all", label: t("filterAll") },
-      ...genderNames.map((gender) => ({ value: gender, label: gender })),
-    ],
-  });
+  const genderFilterCollection = useMemo(
+    () =>
+      createListCollection({
+        items: [
+          { value: "all", label: t("filterAll") },
+          ...genderNames.map((gender) => ({ value: gender, label: gender })),
+        ],
+      }),
+    [genderNames, t]
+  );
 
-  const nationalityFilterCollection = createListCollection({
-    items: [
-      { value: "all", label: t("filterAll") },
-      ...nationalityNames.map((nat) => ({ value: nat, label: nat })),
-    ],
-  });
+  const nationalityFilterCollection = useMemo(
+    () =>
+      createListCollection({
+        items: [
+          { value: "all", label: t("filterAll") },
+          ...nationalityNames.map((nat) => ({ value: nat, label: nat })),
+        ],
+      }),
+    [nationalityNames, t]
+  );
 
-  const sortCollection = createListCollection({
-    items: [
-      { value: "name-asc", label: t("sortNameAsc") },
-      { value: "name-desc", label: t("sortNameDesc") },
-      { value: "count-desc", label: t("sortBooksDesc") },
-      { value: "count-asc", label: t("sortBooksAsc") },
-    ],
-  });
+  const sortCollection = useMemo(
+    () =>
+      createListCollection({
+        items: [
+          { value: "name-asc", label: t("sortNameAsc") },
+          { value: "name-desc", label: t("sortNameDesc") },
+          { value: "count-desc", label: t("sortBooksDesc") },
+          { value: "count-asc", label: t("sortBooksAsc") },
+        ],
+      }),
+    [t]
+  );
 
-  const groupCollection = createListCollection({
-    items: [
-      { value: "none", label: t("groupNone") },
-      { value: "gender", label: t("groupGender") },
-      { value: "nationality", label: t("groupNationality") },
-    ],
-  });
+  const groupCollection = useMemo(
+    () =>
+      createListCollection({
+        items: [
+          { value: "none", label: t("groupNone") },
+          { value: "gender", label: t("groupGender") },
+          { value: "nationality", label: t("groupNationality") },
+        ],
+      }),
+    [t]
+  );
 
-  const filteredAuthors = authors.filter((author) => {
+  const filteredAuthors = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (query && !author.name.toLowerCase().includes(query)) return false;
-    if (genderFilter !== "all" && author.gender?.name !== genderFilter)
-      return false;
-    if (nationalityFilter !== "all") {
-      const authorNationalities = author.nationalities.map(
-        (entry) => entry.nationality.name
-      );
-      if (!authorNationalities.includes(nationalityFilter)) {
+    return authors.filter((author) => {
+      if (query && !author.name.toLowerCase().includes(query)) return false;
+      if (genderFilter !== "all" && author.gender?.name !== genderFilter)
         return false;
+      if (nationalityFilter !== "all") {
+        const authorNationalities = author.nationalities.map(
+          (entry) => entry.nationality.name
+        );
+        if (!authorNationalities.includes(nationalityFilter)) {
+          return false;
+        }
       }
-    }
-    return true;
-  });
+      return true;
+    });
+  }, [authors, genderFilter, nationalityFilter, search]);
 
-  const sortedAuthors = [...filteredAuthors].sort((a, b) => {
-    switch (sort) {
-      case "name-asc":
-        return a.name.localeCompare(b.name);
-      case "name-desc":
-        return b.name.localeCompare(a.name);
-      case "count-asc":
-        return a._count.books - b._count.books;
-      case "count-desc":
-        return b._count.books - a._count.books;
-      default:
-        return 0;
-    }
-  });
+  const sortedAuthors = useMemo(() => {
+    const list = [...filteredAuthors];
+    return list.sort((a, b) => {
+      switch (sort) {
+        case "name-asc":
+          return a.name.localeCompare(b.name);
+        case "name-desc":
+          return b.name.localeCompare(a.name);
+        case "count-asc":
+          return a._count.books - b._count.books;
+        case "count-desc":
+          return b._count.books - a._count.books;
+        default:
+          return 0;
+      }
+    });
+  }, [filteredAuthors, sort]);
 
-  const groupedAuthors = (() => {
+  const groupedAuthors = useMemo(() => {
     if (groupBy === "none") {
       return [{ key: "all", label: "", authors: sortedAuthors }];
     }
@@ -196,7 +239,10 @@ export default function AuthorsPage() {
       );
       if (authorNationalities.length === 0) {
         if (!groups.has(unknownNationality)) {
-          groups.set(unknownNationality, { label: unknownNationality, authors: [] });
+          groups.set(unknownNationality, {
+            label: unknownNationality,
+            authors: [],
+          });
         }
         groups.get(unknownNationality)!.authors.push(author);
         continue;
@@ -216,7 +262,7 @@ export default function AuthorsPage() {
         authors: value.authors,
       }))
       .sort((a, b) => a.label.localeCompare(b.label));
-  })();
+  }, [groupBy, sortedAuthors, t]);
 
   const toggleGroup = (key: string) => {
     setCollapsedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -243,6 +289,8 @@ export default function AuthorsPage() {
         {/* Search + filter controls */}
         <Stack gap={4}>
           <Input
+            type="search"
+            aria-label={tCommon("search")}
             placeholder={tCommon("search")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -266,7 +314,7 @@ export default function AuthorsPage() {
                     <Flex align="center" gap={2}>
                       <Text as="span">{t("filtersButton")}</Text>
                       <Box display="flex" alignItems="center">
-                        <MdFilterList />
+                        <FiFilter />
                       </Box>
                     </Flex>
                   </Button>
@@ -432,7 +480,7 @@ export default function AuthorsPage() {
           <Card.Root>
             <Card.Body>
               <Stack align="center" py={10}>
-                <Text fontSize="4xl">🖋️</Text>
+                <Icon as={FiFeather} boxSize={8} color="brand.fg" />
                 <Text color="fg.muted">{t("empty")}</Text>
               </Stack>
             </Card.Body>
@@ -454,7 +502,7 @@ export default function AuthorsPage() {
                   {!collapsedGroups[group.key] &&
                     group.authors.map((author) => (
                       <Card.Root key={author.id} asChild>
-                        <NextLink href={`/authors/${author.id}`}>
+                        <Link href={`/authors/${author.id}`}>
                           <Card.Body>
                             <Flex justify="space-between" align="center" gap={4}>
                               <Box>
@@ -480,7 +528,7 @@ export default function AuthorsPage() {
                               <FiArrowRight color="var(--chakra-colors-fg-muted)" />
                             </Flex>
                           </Card.Body>
-                        </NextLink>
+                        </Link>
                       </Card.Root>
                     ))}
                 </Stack>
@@ -509,7 +557,9 @@ export default function AuthorsPage() {
       <CreateAuthorDialog
         open={isCreateOpen}
         onOpenChange={setIsCreateOpen}
-        onCreated={fetchAuthors}
+        onCreated={() => {
+          fetchAuthors();
+        }}
       />
     </Container>
   );

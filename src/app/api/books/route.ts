@@ -10,25 +10,94 @@ import { generateUniqueSlug } from "@/lib/slugify";
  * Dates arrive as ISO strings and are converted to `Date` before persistence.
  * Optional relation arrays allow attaching authors/genres in a single request.
  */
-const createBookSchema = z.object({
-  title: z.string().min(1).max(500),
-  coverUrl: z.string().url().optional().nullable(),
-  status: z.enum(["TO_READ", "READING", "READ", "DROPPED"]).default("TO_READ"),
-  totalPages: z.number().int().positive().optional().nullable(),
-  currentPage: z.number().int().min(0).default(0),
-  rating: z.number().int().min(1).max(10).optional().nullable(),
-  summary: z.string().max(5000).optional().nullable(),
-  favoriteQuote: z.string().max(2000).optional().nullable(),
-  favoriteMoment: z.string().max(2000).optional().nullable(),
-  startDate: z.string().datetime().optional().nullable(),
-  endDate: z.string().datetime().optional().nullable(),
-  isWishlist: z.boolean().default(false),
-  formatId: z.string().optional().nullable(),
-  seriesId: z.string().optional().nullable(),
-  seriesOrder: z.number().min(0).optional().nullable(),
-  authorIds: z.array(z.string()).optional(),
-  genreIds: z.array(z.string()).optional(),
-});
+const createBookSchema = z
+  .object({
+    title: z.string().min(1).max(500),
+    coverUrl: z.string().url().optional().nullable(),
+    status: z.enum(["TO_READ", "READING", "READ", "DROPPED"]).default("TO_READ"),
+    totalPages: z.number().int().positive().optional().nullable(),
+    currentPage: z.number().int().min(0).default(0),
+    rating: z.number().int().min(1).max(5).optional().nullable(),
+    summary: z.string().max(5000).optional().nullable(),
+    favoriteQuote: z.string().max(2000).optional().nullable(),
+    favoriteMoment: z.string().max(2000).optional().nullable(),
+    startDate: z.string().datetime().optional().nullable(),
+    endDate: z.string().datetime().optional().nullable(),
+    isWishlist: z.boolean().default(false),
+    formatId: z.string().optional().nullable(),
+    seriesId: z.string().optional().nullable(),
+    seriesOrder: z.number().min(0).optional().nullable(),
+    authorIds: z.array(z.string()).optional(),
+    genreIds: z.array(z.string()).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (
+      value.totalPages !== null &&
+      value.totalPages !== undefined &&
+      value.currentPage > value.totalPages
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "currentPage cannot exceed totalPages",
+        path: ["currentPage"],
+      });
+    }
+  });
+
+async function validateBookRelations(
+  userId: string,
+  payload: {
+    authorIds?: string[];
+    genreIds?: string[];
+    formatId?: string | null;
+    seriesId?: string | null;
+  }
+) {
+  const uniqueAuthorIds = payload.authorIds
+    ? Array.from(new Set(payload.authorIds))
+    : [];
+  const uniqueGenreIds = payload.genreIds
+    ? Array.from(new Set(payload.genreIds))
+    : [];
+
+  if (uniqueAuthorIds.length) {
+    const count = await db.author.count({
+      where: { id: { in: uniqueAuthorIds }, userId },
+    });
+    if (count !== uniqueAuthorIds.length) {
+      throw new Error("Invalid authorIds");
+    }
+  }
+
+  if (uniqueGenreIds.length) {
+    const count = await db.genre.count({
+      where: { id: { in: uniqueGenreIds }, userId },
+    });
+    if (count !== uniqueGenreIds.length) {
+      throw new Error("Invalid genreIds");
+    }
+  }
+
+  if (payload.formatId) {
+    const format = await db.format.findFirst({
+      where: { id: payload.formatId, userId },
+      select: { id: true },
+    });
+    if (!format) {
+      throw new Error("Invalid formatId");
+    }
+  }
+
+  if (payload.seriesId) {
+    const series = await db.series.findFirst({
+      where: { id: payload.seriesId, userId },
+      select: { id: true },
+    });
+    if (!series) {
+      throw new Error("Invalid seriesId");
+    }
+  }
+}
 
 /**
  * List books for the authenticated user.
@@ -161,6 +230,13 @@ export async function POST(request: NextRequest) {
       }
     );
 
+    await validateBookRelations(session.user.id, {
+      authorIds,
+      genreIds,
+      formatId: validatedData.formatId ?? null,
+      seriesId: validatedData.seriesId ?? null,
+    });
+
     const book = await db.book.create({
       data: {
         ...bookData,
@@ -206,6 +282,9 @@ export async function POST(request: NextRequest) {
         { error: "Invalid input", details: error.errors },
         { status: 400 }
       );
+    }
+    if (error instanceof Error && error.message.startsWith("Invalid ")) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
     console.error("Error creating book:", error);

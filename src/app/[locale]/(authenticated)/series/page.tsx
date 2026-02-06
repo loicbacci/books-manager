@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import NextLink from "next/link";
+import { Link } from "@/i18n/routing";
 import {
   Box,
   Button,
@@ -13,8 +13,10 @@ import {
   Input,
   Stack,
   Text,
+  Field,
+  Icon,
 } from "@chakra-ui/react";
-import { FiArrowRight } from "react-icons/fi";
+import { FiArrowRight, FiBookOpen } from "react-icons/fi";
 import { BookCover } from "@/components/ui/book-cover";
 import {
   PaginationRoot,
@@ -47,11 +49,12 @@ export default function SeriesPage() {
   const [totalPages, setTotalPages] = useState(1);
   const pageSize = 24;
 
-  const fetchSeries = useCallback(async () => {
+  const fetchSeries = useCallback(async (signal?: AbortSignal) => {
     try {
       setLoading(true);
       const response = await fetch(
-        `/api/series?page=${page}&pageSize=${pageSize}`
+        `/api/series?page=${page}&pageSize=${pageSize}`,
+        signal ? { signal } : undefined
       );
       if (response.ok) {
         const data = (await response.json()) as PageResult<Series>;
@@ -67,7 +70,20 @@ export default function SeriesPage() {
   }, [page, pageSize]);
 
   useEffect(() => {
-    fetchSeries();
+    const controller = new AbortController();
+    let isActive = true;
+    fetchSeries(controller.signal).catch((error) => {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
+      if (isActive) {
+        console.error("Failed to fetch series:", error);
+      }
+    });
+    return () => {
+      isActive = false;
+      controller.abort();
+    };
   }, [fetchSeries]);
 
   const handleCreate = async () => {
@@ -104,12 +120,14 @@ export default function SeriesPage() {
             <Stack gap={3}>
               <Text fontWeight="semibold">{t("createTitle")}</Text>
               <Flex gap={3} wrap="wrap">
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder={t("namePlaceholder")}
-                  maxW="400px"
-                />
+                <Field.Root maxW="400px">
+                  <Field.Label>{t("namePlaceholder")}</Field.Label>
+                  <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder={t("namePlaceholder")}
+                  />
+                </Field.Root>
                 <Button
                   colorPalette="brand"
                   onClick={handleCreate}
@@ -130,7 +148,7 @@ export default function SeriesPage() {
           <Card.Root>
             <Card.Body>
               <Stack align="center" py={10}>
-                <Text fontSize="4xl">📖</Text>
+                <Icon as={FiBookOpen} boxSize={8} color="brand.fg" />
                 <Text color="fg.muted">{t("empty")}</Text>
               </Stack>
             </Card.Body>
@@ -141,7 +159,7 @@ export default function SeriesPage() {
             <Stack gap={3}>
               {series.map((item) => (
                 <Card.Root key={item.id} asChild>
-                  <NextLink href={`/series/${item.slug}`}>
+                  <Link href={`/series/${item.slug}`}>
                     <Card.Body>
                       <Flex justify="space-between" align="center" gap={4}>
                         <Box flex="1">
@@ -168,7 +186,7 @@ export default function SeriesPage() {
                         </Flex>
                       </Flex>
                     </Card.Body>
-                  </NextLink>
+                  </Link>
                 </Card.Root>
               ))}
             </Stack>

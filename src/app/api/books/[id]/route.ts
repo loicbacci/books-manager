@@ -17,7 +17,7 @@ const updateBookSchema = z.object({
   status: z.enum(["TO_READ", "READING", "READ", "DROPPED"]).optional(),
   totalPages: z.number().int().positive().optional().nullable(),
   currentPage: z.number().int().min(0).optional(),
-  rating: z.number().int().min(1).max(10).optional().nullable(),
+  rating: z.number().int().min(1).max(5).optional().nullable(),
   summary: z.string().max(5000).optional().nullable(),
   favoriteQuote: z.string().max(2000).optional().nullable(),
   favoriteMoment: z.string().max(2000).optional().nullable(),
@@ -43,6 +43,61 @@ const bookAuthorInclude = {
 type RouteParams = {
   params: Promise<{ id: string }>;
 };
+
+async function validateBookRelations(
+  userId: string,
+  payload: {
+    authorIds?: string[];
+    genreIds?: string[];
+    formatId?: string | null;
+    seriesId?: string | null;
+  }
+) {
+  const uniqueAuthorIds = payload.authorIds
+    ? Array.from(new Set(payload.authorIds))
+    : [];
+  const uniqueGenreIds = payload.genreIds
+    ? Array.from(new Set(payload.genreIds))
+    : [];
+
+  if (uniqueAuthorIds.length) {
+    const count = await db.author.count({
+      where: { id: { in: uniqueAuthorIds }, userId },
+    });
+    if (count !== uniqueAuthorIds.length) {
+      throw new Error("Invalid authorIds");
+    }
+  }
+
+  if (uniqueGenreIds.length) {
+    const count = await db.genre.count({
+      where: { id: { in: uniqueGenreIds }, userId },
+    });
+    if (count !== uniqueGenreIds.length) {
+      throw new Error("Invalid genreIds");
+    }
+  }
+
+  if (payload.formatId) {
+    const format = await db.format.findFirst({
+      where: { id: payload.formatId, userId },
+      select: { id: true },
+    });
+    if (!format) {
+      throw new Error("Invalid formatId");
+    }
+  }
+
+  if (payload.seriesId) {
+    const series = await db.series.findFirst({
+      where: { id: payload.seriesId, userId },
+      select: { id: true },
+    });
+    if (!series) {
+      throw new Error("Invalid seriesId");
+    }
+  }
+}
 
 /**
  * Fetch a single book by slug or id (user-scoped).
@@ -147,45 +202,77 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       updateData.endDate = endDate ? new Date(endDate) : null;
     }
 
-    // Replace author relations when provided.
-    if (authorIds !== undefined) {
-      await db.bookAuthor.deleteMany({ where: { bookId: existingBook.id } });
-      if (authorIds.length > 0) {
-        await db.bookAuthor.createMany({
-          data: authorIds.map((authorId) => ({
-            bookId: existingBook.id,
-            authorId,
-          })),
-        });
-      }
+    const resolvedCurrentPage =
+      validatedData.currentPage !== undefined
+        ? validatedData.currentPage
+        : existingBook.currentPage;
+    const resolvedTotalPages =
+      validatedData.totalPages !== undefined
+        ? validatedData.totalPages
+        : existingBook.totalPages;
+    if (
+      resolvedTotalPages !== null &&
+      resolvedTotalPages !== undefined &&
+      resolvedCurrentPage > resolvedTotalPages
+    ) {
+      return NextResponse.json(
+        { error: "currentPage cannot exceed totalPages" },
+        { status: 400 }
+      );
     }
 
-    // Replace genre relations when provided.
-    if (genreIds !== undefined) {
-      await db.bookGenre.deleteMany({ where: { bookId: existingBook.id } });
-      if (genreIds.length > 0) {
-        await db.bookGenre.createMany({
-          data: genreIds.map((genreId) => ({
-            bookId: existingBook.id,
-            genreId,
-          })),
-        });
-      }
-    }
+    await validateBookRelations(session.user.id, {
+      authorIds,
+      genreIds,
+      formatId: validatedData.formatId ?? null,
+      seriesId: validatedData.seriesId ?? null,
+    });
 
-    const book = await db.book.update({
-      where: { id: existingBook.id },
-      data: updateData,
-      include: {
-        authors: {
-          include: bookAuthorInclude,
+    const book = await db.$transaction(async (tx) => {
+      // Replace author relations when provided.
+      if (authorIds !== undefined) {
+        await tx.bookAuthor.deleteMany({
+          where: { bookId: existingBook.id },
+        });
+        if (authorIds.length > 0) {
+          await tx.bookAuthor.createMany({
+            data: authorIds.map((authorId) => ({
+              bookId: existingBook.id,
+              authorId,
+            })),
+          });
+        }
+      }
+
+      // Replace genre relations when provided.
+      if (genreIds !== undefined) {
+        await tx.bookGenre.deleteMany({
+          where: { bookId: existingBook.id },
+        });
+        if (genreIds.length > 0) {
+          await tx.bookGenre.createMany({
+            data: genreIds.map((genreId) => ({
+              bookId: existingBook.id,
+              genreId,
+            })),
+          });
+        }
+      }
+
+      return tx.book.update({
+        where: { id: existingBook.id },
+        data: updateData,
+        include: {
+          authors: {
+            include: bookAuthorInclude,
+          },
+          genres: {
+            include: { genre: true },
+          },
+          format: true,
+          series: true,
         },
-        genres: {
-          include: { genre: true },
-        },
-        format: true,
-        series: true,
-      },
+      });
     });
 
     return NextResponse.json(book);
@@ -195,6 +282,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         { error: "Invalid input", details: error.errors },
         { status: 400 }
       );
+    }
+    if (error instanceof Error && error.message.startsWith("Invalid ")) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
     console.error("Error updating book:", error);

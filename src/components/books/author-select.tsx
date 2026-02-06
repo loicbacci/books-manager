@@ -136,7 +136,7 @@ export function AuthorSelect({
             <Tag
               key={author.id}
               size="sm"
-              colorPalette="gray"
+              colorPalette="ink"
               closable
               onClose={() =>
                 onChange(value.filter((authorId) => authorId !== author.id))
@@ -161,4 +161,3 @@ export function AuthorSelect({
     </Stack>
   );
 }
-

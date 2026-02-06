@@ -1,13 +1,23 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname } from "@/i18n/routing";
 import { useState } from "react";
-import { useTranslations } from "next-intl";
-import NextLink from "next/link";
-import { Box, Flex, Stack, Text, IconButton, Button } from "@chakra-ui/react";
-import { FiMenu } from "react-icons/fi";
+import { useLocale, useTranslations } from "next-intl";
+import { Link } from "@/i18n/routing";
+import { Box, Flex, Stack, Text, IconButton, Button, HStack, Icon } from "@chakra-ui/react";
+import {
+  FiMenu,
+  FiGrid,
+  FiBookOpen,
+  FiUsers,
+  FiLayers,
+  FiBarChart2,
+  FiSettings,
+  FiLogOut,
+} from "react-icons/fi";
 import { signOut } from "next-auth/react";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { ColorModeButton } from "@/components/ui/color-mode";
 import { Drawer, Portal, CloseButton } from "@chakra-ui/react";
 
 type NavItem = {
@@ -19,19 +29,19 @@ type NavItem = {
     | "series"
     | "statistics"
     | "settings";
-  icon: string;
+  icon: "FiGrid" | "FiBookOpen" | "FiUsers" | "FiLayers" | "FiBarChart2" | "FiSettings";
 };
 
 /**
  * Primary navigation entries for authenticated users.
  */
 const navItems: NavItem[] = [
-  { href: "/dashboard", labelKey: "dashboard", icon: "📊" },
-  { href: "/library", labelKey: "library", icon: "📚" },
-  { href: "/authors", labelKey: "authors", icon: "🖋️" },
-  { href: "/series", labelKey: "series", icon: "📖" },
-  { href: "/statistics", labelKey: "statistics", icon: "📈" },
-  { href: "/settings", labelKey: "settings", icon: "⚙️" },
+  { href: "/dashboard", labelKey: "dashboard", icon: "FiGrid" },
+  { href: "/library", labelKey: "library", icon: "FiBookOpen" },
+  { href: "/authors", labelKey: "authors", icon: "FiUsers" },
+  { href: "/series", labelKey: "series", icon: "FiLayers" },
+  { href: "/statistics", labelKey: "statistics", icon: "FiBarChart2" },
+  { href: "/settings", labelKey: "settings", icon: "FiSettings" },
 ];
 
 /**
@@ -40,6 +50,8 @@ const navItems: NavItem[] = [
 export function Sidebar() {
   const t = useTranslations("nav");
   const tAuth = useTranslations("auth");
+  const tCommon = useTranslations("common");
+  const locale = useLocale();
   const pathname = usePathname();
 
   // Active if the current path matches or is a child route.
@@ -65,9 +77,12 @@ export function Sidebar() {
     >
       <Flex direction="column" height="100%">
         <Box px={6} mb={8}>
-          <Text fontSize="xl" fontWeight="bold" color="brand.fg">
-            📖 Books Manager
-          </Text>
+          <HStack gap={2}>
+            <Icon as={FiBookOpen} color="brand.fg" />
+            <Text fontSize="xl" fontWeight="bold" color="brand.fg">
+              {tCommon("appName")}
+            </Text>
+          </HStack>
         </Box>
 
         <Stack gap={1} px={3} flex={1}>
@@ -81,12 +96,25 @@ export function Sidebar() {
               size="lg"
               px={4}
             >
-              <NextLink href={item.href}>
-                <Text as="span" mr={3}>
-                  {item.icon}
-                </Text>
+              <Link href={item.href}>
+                <Icon
+                  as={
+                    item.icon === "FiGrid"
+                      ? FiGrid
+                      : item.icon === "FiBookOpen"
+                        ? FiBookOpen
+                        : item.icon === "FiUsers"
+                          ? FiUsers
+                          : item.icon === "FiLayers"
+                            ? FiLayers
+                            : item.icon === "FiBarChart2"
+                              ? FiBarChart2
+                              : FiSettings
+                  }
+                  mr={3}
+                />
                 {t(item.labelKey)}
-              </NextLink>
+              </Link>
             </Button>
           ))}
         </Stack>
@@ -102,11 +130,9 @@ export function Sidebar() {
             size="lg"
             px={4}
             // Sign out and return to the public login page.
-            onClick={() => signOut({ callbackUrl: "/login" })}
+            onClick={() => signOut({ callbackUrl: `/${locale}/login` })}
           >
-            <Text as="span" mr={3}>
-              🚪
-            </Text>
+            <Icon as={FiLogOut} mr={3} />
             {tAuth("logout")}
           </Button>
         </Box>
@@ -122,6 +148,7 @@ export function MobileNav() {
   const t = useTranslations("nav");
   const tAuth = useTranslations("auth");
   const tCommon = useTranslations("common");
+  const locale = useLocale();
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -148,9 +175,12 @@ export function MobileNav() {
       zIndex={50}
     >
       <Flex align="center" justify="space-between">
-        <Text fontSize="lg" fontWeight="bold" color="brand.fg">
-          📖 {tCommon("appName")}
-        </Text>
+        <HStack gap={2}>
+          <Icon as={FiBookOpen} color="brand.fg" />
+          <Text fontSize="lg" fontWeight="bold" color="brand.fg">
+            {tCommon("appName")}
+          </Text>
+        </HStack>
         <Drawer.Root
           placement="end"
           open={isOpen}
@@ -165,19 +195,28 @@ export function MobileNav() {
           <Portal>
             <Drawer.Backdrop />
             <Drawer.Positioner>
-              <Drawer.Content
+            <Drawer.Content
               // width="80vw"
               // maxW="360px"
               height="100vh"
               // borderRadius={0}
-              // borderLeftWidth="1px"
+              borderLeftWidth="1px"
               display="flex"
               flexDirection="column"
-              bg="bg.panel"
+              bg="surface.base"
+              bgGradient="linear(to-b, surface.raised, surface.base)"
+              borderLeftColor="border.muted"
+              boxShadow="elevated"
               >
-                <Drawer.Header>
+                <Drawer.Header
+                  bg="surface.raised"
+                  borderBottomWidth="1px"
+                  borderBottomColor="border.muted"
+                >
                   <Drawer.Title>
-                    <Text fontWeight="semibold">{tCommon("appName")}</Text>
+                    <Text fontWeight="semibold" color="brand.fg">
+                      {tCommon("appName")}
+                    </Text>
                   </Drawer.Title>
                 </Drawer.Header>
 
@@ -198,38 +237,61 @@ export function MobileNav() {
                           key={item.href}
                           onClick={() => setIsOpen(false)}
                         >
-                          <NextLink href={item.href}>
-                            <Text as="span" mr={3}>
-                              {item.icon}
-                            </Text>
+                          <Link href={item.href}>
+                            <Icon
+                              as={
+                                item.icon === "FiGrid"
+                                  ? FiGrid
+                                  : item.icon === "FiBookOpen"
+                                    ? FiBookOpen
+                                    : item.icon === "FiUsers"
+                                      ? FiUsers
+                                      : item.icon === "FiLayers"
+                                        ? FiLayers
+                                        : item.icon === "FiBarChart2"
+                                          ? FiBarChart2
+                                          : FiSettings
+                              }
+                              mr={3}
+                            />
                             {t(item.labelKey)}
-                          </NextLink>
+                          </Link>
                         </Button>
                       ))}
                     </Stack>
 
-                  <Box pt={4} mt="auto" borderTopWidth="1px">
-                    <Box mb={3}>
-                      <LanguageSwitcher
-                        align="flex-start"
-                        labelAlign="left"
-                        size="sm"
-                      />
-                    </Box>
+                  <Box pt={4} mt="auto">
+                    <Box
+                      bg="surface.raised"
+                      borderRadius="md"
+                      borderWidth="1px"
+                      borderColor="border.muted"
+                      p={3}
+                    >
+                      <HStack justify="space-between" mb={3}>
+                        <LanguageSwitcher
+                          align="center"
+                          direction="row"
+                          showLabel={false}
+                          size="sm"
+                        />
+                        <ColorModeButton />
+                      </HStack>
                       <Button
                         variant="ghost"
                         width="full"
                         justifyContent="flex-start"
                         size="lg"
                         px={4}
-                        onClick={() => signOut({ callbackUrl: "/login" })}
+                        onClick={() =>
+                          signOut({ callbackUrl: `/${locale}/login` })
+                        }
                       >
-                        <Text as="span" mr={3}>
-                          🚪
-                        </Text>
+                        <Icon as={FiLogOut} mr={3} />
                         {tAuth("logout")}
                       </Button>
                     </Box>
+                  </Box>
                   </Box>
                 </Drawer.Body>
 

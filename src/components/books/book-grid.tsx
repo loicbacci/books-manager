@@ -2,10 +2,9 @@
 
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
-import NextLink from "next/link";
+import { Link } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
-import { GoStarFill } from "react-icons/go";
-import { MdFilterList } from "react-icons/md";
+import { FiFilter, FiStar } from "react-icons/fi";
 import {
   Box,
   Grid,
@@ -17,10 +16,14 @@ import {
   Button,
   Input,
   type ListCollection,
+  Spinner,
+  Icon,
 } from "@chakra-ui/react";
+import { FiBookOpen } from "react-icons/fi";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { BookCover } from "@/components/ui/book-cover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { resolvePalette } from "@/lib/color-palettes";
 import {
   SelectRoot,
@@ -31,6 +34,12 @@ import {
 } from "@/components/ui/select";
 import { createListCollection } from "@chakra-ui/react";
 import { GroupToggle } from "@/components/ui/group-toggle";
+import {
+  PopoverBody,
+  PopoverContent,
+  PopoverRoot,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 /**
  * Normalized book shape required by the grid.
@@ -171,7 +180,7 @@ function BookGridControls({
 }: BookGridControlsProps) {
   const t = useTranslations("book");
   const tCommon = useTranslations("common");
-  const controlBg = { base: "white", _dark: "bg.muted" };
+  const controlBg = "bg.input";
   const controlBorder = { base: "border.default", _dark: "border.default" };
   const cardBg = { base: "bg.panel", _dark: "bg.card" };
 
@@ -194,7 +203,7 @@ function BookGridControls({
               <Flex align="center" gap={2}>
                 <Text as="span">{t("filtersButton")}</Text>
                 <Box display="flex" alignItems="center">
-                  <MdFilterList />
+                  <FiFilter />
                 </Box>
               </Flex>
             </Button>
@@ -212,29 +221,22 @@ function BookGridControls({
               direction={{ base: "column", md: "row" }}
               align={{ base: "stretch", md: "center" }}
             >
-              <Box position="relative">
-                <Button
-                  variant="outline"
-                  onClick={onToggleDisplay}
-                  width={{ base: "full", md: "auto" }}
-                >
-                  {t("cardDisplay")}
-                </Button>
-                {isDisplayOpen && (
-                  <Box
-                    position="absolute"
-                    mt={2}
-                    right={{ base: "auto", md: 0 }}
-                    left={{ base: 0, md: "auto" }}
-                    zIndex={10}
-                    bg="bg.panel"
-                    borderWidth="1px"
-                    borderRadius="md"
-                    boxShadow="md"
-                    p={3}
-                    minW={{ base: "full", md: "220px" }}
-                    maxW="90vw"
-                  >
+              <PopoverRoot
+                open={isDisplayOpen}
+                onOpenChange={(details) => {
+                  if (details.open !== isDisplayOpen) {
+                    onToggleDisplay();
+                  }
+                }}
+                positioning={{ placement: "bottom-start" }}
+              >
+                <PopoverTrigger asChild>
+                  <Button variant="outline" width={{ base: "full", md: "auto" }}>
+                    {t("cardDisplay")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent>
+                  <PopoverBody>
                     <Stack gap={2}>
                       {[
                         { key: "cover", label: t("cardDisplayCover") },
@@ -245,21 +247,20 @@ function BookGridControls({
                         { key: "status", label: t("cardDisplayStatus") },
                         { key: "format", label: t("cardDisplayFormat") },
                       ].map((item) => (
-                        <Flex key={item.key} align="center" gap={2}>
-                          <input
-                            type="checkbox"
-                            checked={cardFields[item.key as keyof BookCardFields]}
-                            onChange={() =>
-                              onToggleCardField(item.key as keyof BookCardFields)
-                            }
-                          />
-                          <Text fontSize="sm">{item.label}</Text>
-                        </Flex>
+                        <Checkbox
+                          key={item.key}
+                          checked={cardFields[item.key as keyof BookCardFields]}
+                          onCheckedChange={() =>
+                            onToggleCardField(item.key as keyof BookCardFields)
+                          }
+                        >
+                          {item.label}
+                        </Checkbox>
                       ))}
                     </Stack>
-                  </Box>
-                )}
-              </Box>
+                  </PopoverBody>
+                </PopoverContent>
+              </PopoverRoot>
               <SelectRoot
                 collection={sortCollection}
                 value={[sort]}
@@ -369,6 +370,7 @@ type BookGridViewProps = {
   cookieKey?: string;
   emptyAction?: ReactNode;
   emptyText?: string;
+  isLoading?: boolean;
 };
 
 /**
@@ -382,6 +384,7 @@ export function BookGridView({
   cookieKey,
   emptyAction,
   emptyText,
+  isLoading = false,
 }: BookGridViewProps) {
   const t = useTranslations("book");
   const tStatus = useTranslations("status");
@@ -445,61 +448,85 @@ export function BookGridView({
     );
   }, [cookieKey, filter, sort, groupBy, cardFields]);
 
-  const filterOptions: { value: FilterStatus; label: string }[] = [
-    { value: "ALL", label: t("filterAllBooks") },
-    { value: "TO_READ", label: t("filterStatusToRead") },
-    { value: "READING", label: t("filterStatusReading") },
-    { value: "READ", label: t("filterStatusRead") },
-    { value: "DROPPED", label: t("filterStatusDropped") },
-    { value: "WISHLIST", label: t("filterWishlist") },
-  ];
+  const filterOptions = useMemo(
+    () =>
+      [
+        { value: "ALL", label: t("filterAllBooks") },
+        { value: "TO_READ", label: t("filterStatusToRead") },
+        { value: "READING", label: t("filterStatusReading") },
+        { value: "READ", label: t("filterStatusRead") },
+        { value: "DROPPED", label: t("filterStatusDropped") },
+        { value: "WISHLIST", label: t("filterWishlist") },
+      ] as const,
+    [t]
+  );
 
-  const sortOptions = [
-    { value: "title-asc", label: t("sortTitleAsc") },
-    { value: "title-desc", label: t("sortTitleDesc") },
-    { value: "author-asc", label: t("sortAuthorAsc") },
-    { value: "author-desc", label: t("sortAuthorDesc") },
-    { value: "created-asc", label: t("sortCreatedAsc") },
-    { value: "created-desc", label: t("sortCreatedDesc") },
-    { value: "start-asc", label: t("sortStartAsc") },
-    { value: "start-desc", label: t("sortStartDesc") },
-    { value: "end-asc", label: t("sortEndAsc") },
-    { value: "end-desc", label: t("sortEndDesc") },
-    { value: "updated-asc", label: t("sortUpdatedAsc") },
-    { value: "updated-desc", label: t("sortUpdatedDesc") },
-    { value: "progress-asc", label: t("sortProgressAsc") },
-    { value: "progress-desc", label: t("sortProgressDesc") },
-  ] as const;
+  const sortOptions = useMemo(
+    () =>
+      [
+        { value: "title-asc", label: t("sortTitleAsc") },
+        { value: "title-desc", label: t("sortTitleDesc") },
+        { value: "author-asc", label: t("sortAuthorAsc") },
+        { value: "author-desc", label: t("sortAuthorDesc") },
+        { value: "created-asc", label: t("sortCreatedAsc") },
+        { value: "created-desc", label: t("sortCreatedDesc") },
+        { value: "start-asc", label: t("sortStartAsc") },
+        { value: "start-desc", label: t("sortStartDesc") },
+        { value: "end-asc", label: t("sortEndAsc") },
+        { value: "end-desc", label: t("sortEndDesc") },
+        { value: "updated-asc", label: t("sortUpdatedAsc") },
+        { value: "updated-desc", label: t("sortUpdatedDesc") },
+        { value: "progress-asc", label: t("sortProgressAsc") },
+        { value: "progress-desc", label: t("sortProgressDesc") },
+      ] as const,
+    [t]
+  );
 
-  const sortCollection = createListCollection<SortOptionItem>({
-    items: sortOptions.map((option) => ({
-      value: option.value,
-      label: option.label,
-    })),
-  });
+  const sortCollection = useMemo(
+    () =>
+      createListCollection<SortOptionItem>({
+        items: sortOptions.map((option) => ({
+          value: option.value,
+          label: option.label,
+        })),
+      }),
+    [sortOptions]
+  );
 
-  const groupOptions = [
-    { value: "none", label: t("groupNone") },
-    { value: "series", label: t("groupSeries") },
-    { value: "author", label: t("groupAuthor") },
-    { value: "status", label: t("groupStatus") },
-    { value: "rating", label: t("groupRating") },
-    { value: "format", label: t("groupFormat") },
-  ] as const;
+  const groupOptions = useMemo(
+    () =>
+      [
+        { value: "none", label: t("groupNone") },
+        { value: "series", label: t("groupSeries") },
+        { value: "author", label: t("groupAuthor") },
+        { value: "status", label: t("groupStatus") },
+        { value: "rating", label: t("groupRating") },
+        { value: "format", label: t("groupFormat") },
+      ] as const,
+    [t]
+  );
 
-  const groupCollection = createListCollection<GroupOptionItem>({
-    items: groupOptions.map((option) => ({
-      value: option.value,
-      label: option.label,
-    })),
-  });
+  const groupCollection = useMemo(
+    () =>
+      createListCollection<GroupOptionItem>({
+        items: groupOptions.map((option) => ({
+          value: option.value,
+          label: option.label,
+        })),
+      }),
+    [groupOptions]
+  );
 
-  const filterCollection = createListCollection<FilterOptionItem>({
-    items: filterOptions.map((option) => ({
-      value: option.value,
-      label: option.label,
-    })),
-  });
+  const filterCollection = useMemo(
+    () =>
+      createListCollection<FilterOptionItem>({
+        items: filterOptions.map((option) => ({
+          value: option.value,
+          label: option.label,
+        })),
+      }),
+    [filterOptions]
+  );
 
   // Apply search and status/wishlist filters.
   const filteredBooks = useMemo(() => {
@@ -638,7 +665,7 @@ export function BookGridView({
           if (!book.rating) {
             return { key: "no-rating", label: t("groupNoRating"), order: 999 };
           }
-          const stars = Math.min(5, Math.round(book.rating / 2));
+          const stars = Math.min(5, Math.round(book.rating));
           return {
             key: `rating-${stars}`,
             label: t("groupRatingStars", { stars }),
@@ -695,6 +722,8 @@ export function BookGridView({
     <Stack gap={4}>
       <Stack gap={4}>
         <Input
+          type="search"
+          aria-label={tCommon("search")}
           placeholder={tCommon("search")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -730,11 +759,22 @@ export function BookGridView({
         />
       </Stack>
 
-      {sortedBooks.length === 0 ? (
+      {isLoading ? (
         <Card.Root>
           <Card.Body>
             <Stack align="center" py={12}>
-              <Text fontSize="5xl">📚</Text>
+              <Spinner size="lg" color="brand.500" />
+              <Text color="fg.muted" fontSize="lg">
+                {tCommon("loading")}
+              </Text>
+            </Stack>
+          </Card.Body>
+        </Card.Root>
+      ) : sortedBooks.length === 0 ? (
+        <Card.Root>
+          <Card.Body>
+            <Stack align="center" py={12}>
+              <Icon as={FiBookOpen} boxSize={10} color="brand.fg" />
               <Text color="fg.muted" fontSize="lg">
                 {emptyText ?? t("noBooks")}
               </Text>
@@ -795,7 +835,7 @@ function BookCard({
 
   return (
     <Card.Root asChild>
-      <NextLink href={`/books/${book.slug}`}>
+      <Link href={`/books/${book.slug}`}>
         <Card.Body p={3}>
           <Stack gap={2}>
             {fields.cover && (
@@ -806,12 +846,13 @@ function BookCard({
                     position="absolute"
                     top={1}
                     right={1}
-                    bg="yellow.400"
+                    bg="gold.400"
                     borderRadius="full"
                     p={1}
                     fontSize="sm"
+                    color="white"
                   >
-                    ⭐
+                    <FiStar />
                   </Box>
                 )}
               </Box>
@@ -860,17 +901,21 @@ function BookCard({
               <Flex gap={1}>
                 {Array.from({ length: 5 }).map((_, index) => {
                   const rating = book.rating ?? 0;
-                  const filledCount = Math.min(5, Math.round(rating / 2));
+                  const filledCount = Math.min(5, Math.round(rating));
                   const fillColor =
                     index < filledCount
-                      ? "var(--chakra-colors-yellow-400)"
-                      : "var(--chakra-colors-gray-300)";
+                      ? "var(--chakra-colors-gold-500)"
+                      : "var(--chakra-colors-fg-muted)";
                   return (
-                    <GoStarFill
+                    <FiStar
                       key={index}
                       size={14}
                       color={fillColor}
-                      style={{ stroke: "black", strokeWidth: 1.75 }}
+                      style={{
+                        stroke: "currentColor",
+                        strokeWidth: 1.5,
+                        fill: index < filledCount ? "currentColor" : "none",
+                      }}
                     />
                   );
                 })}
@@ -879,7 +924,7 @@ function BookCard({
             {fields.status && <StatusBadge status={book.status} size="sm" />}
           </Stack>
         </Card.Body>
-      </NextLink>
+      </Link>
     </Card.Root>
   );
 }

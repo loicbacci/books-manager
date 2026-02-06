@@ -19,7 +19,9 @@ describe("BookCover", () => {
   it("renders a fallback icon when coverUrl is missing", () => {
     render(<BookCover coverUrl={null} title="Book" size="sm" />);
 
-    expect(screen.getByText("📕")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Book cover placeholder")
+    ).toBeInTheDocument();
   });
 });
 

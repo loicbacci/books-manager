@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useRouter } from "@/i18n/routing";
 import { useLocale, useTranslations } from "next-intl";
-import NextLink from "next/link";
-import { GoStarFill } from "react-icons/go";
-import { FiArrowLeft } from "react-icons/fi";
+import { FiArrowLeft, FiBookmark, FiSearch, FiStar } from "react-icons/fi";
 import {
   Box,
   Container,
@@ -23,6 +21,7 @@ import {
   Field,
   Badge,
   createListCollection,
+  Icon,
 } from "@chakra-ui/react";
 import { Tag } from "@/components/ui/tag";
 import { ProgressBar } from "@/components/ui/progress-bar";
@@ -106,9 +105,9 @@ type Author = {
 export default function BookDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
-  const { id } = use(params);
+  const { id } = params;
   const router = useRouter();
   const t = useTranslations("book");
   const tAuthor = useTranslations("author");
@@ -137,6 +136,8 @@ export default function BookDetailPage({
   const [isCreateAuthorOpen, setIsCreateAuthorOpen] = useState(false);
 
   useEffect(() => {
+    const controller = new AbortController();
+    let isActive = true;
     async function fetchBook() {
       setIsAuthorsLoading(true);
       setIsSeriesLoading(true);
@@ -148,32 +149,42 @@ export default function BookDetailPage({
           genresRes,
           authorsRes,
         ] = await Promise.all([
-          fetch(`/api/books/${id}`),
-          fetch("/api/formats"),
-          fetch("/api/series?page=1&pageSize=200"),
-          fetch("/api/genres"),
-          fetch("/api/authors?page=1&pageSize=200"),
+          fetch(`/api/books/${id}`, { signal: controller.signal }),
+          fetch("/api/formats", { signal: controller.signal }),
+          fetch("/api/series?page=1&pageSize=200", {
+            signal: controller.signal,
+          }),
+          fetch("/api/genres", { signal: controller.signal }),
+          fetch("/api/authors?page=1&pageSize=200", {
+            signal: controller.signal,
+          }),
         ]);
 
         if (bookRes.ok) {
           const bookData = await bookRes.json();
-          setBook(bookData);
-          setEditData(bookData);
-          setEditAuthorIds(
-            bookData.authors.map((entry: { author: { id: string } }) => entry.author.id)
-          );
-          setEditGenreIds(
-            bookData.genres.map(
-              (g: { genre: { id: string } }) => g.genre.id
-            )
-          );
+          if (isActive) {
+            setBook(bookData);
+            setEditData(bookData);
+            setEditAuthorIds(
+              bookData.authors.map(
+                (entry: { author: { id: string } }) => entry.author.id
+              )
+            );
+            setEditGenreIds(
+              bookData.genres.map(
+                (g: { genre: { id: string } }) => g.genre.id
+              )
+            );
+          }
         } else if (bookRes.status === 404) {
           router.push("/library");
         }
 
         if (formatsRes.ok) {
           const formatsData = await formatsRes.json();
-          setFormats(formatsData);
+          if (isActive) {
+            setFormats(formatsData);
+          }
         }
 
         if (seriesRes.ok) {
@@ -181,7 +192,9 @@ export default function BookDetailPage({
           const seriesItems = Array.isArray(seriesData)
             ? seriesData
             : (seriesData as PageResult<Series>).items;
-          setSeries(seriesItems ?? []);
+          if (isActive) {
+            setSeries(seriesItems ?? []);
+          }
         }
 
         if (authorsRes.ok) {
@@ -189,22 +202,35 @@ export default function BookDetailPage({
           const authorItems = Array.isArray(authorsData)
             ? authorsData
             : (authorsData as PageResult<Author>).items;
-          setAuthors(authorItems ?? []);
+          if (isActive) {
+            setAuthors(authorItems ?? []);
+          }
         }
 
         if (genresRes.ok) {
           const genresData = await genresRes.json();
-          setGenres(genresData);
+          if (isActive) {
+            setGenres(genresData);
+          }
         }
       } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
         console.error("Failed to fetch book:", error);
       } finally {
-        setIsSeriesLoading(false);
-        setIsAuthorsLoading(false);
-        setLoading(false);
+        if (isActive) {
+          setIsSeriesLoading(false);
+          setIsAuthorsLoading(false);
+          setLoading(false);
+        }
       }
     }
     fetchBook();
+    return () => {
+      isActive = false;
+      controller.abort();
+    };
   }, [id, router]);
 
   const handleSave = async () => {
@@ -260,6 +286,9 @@ export default function BookDetailPage({
           )
         );
         setIsEditing(false);
+        if (updatedBook.slug && updatedBook.slug !== id) {
+          router.replace(`/books/${updatedBook.slug}`);
+        }
         toaster.create({ title: tCommon("changesSaved"), type: "success" });
       } else {
         toaster.create({ title: tCommon("saveFailed"), type: "error" });
@@ -324,6 +353,58 @@ export default function BookDetailPage({
     }
   };
 
+  const statusCollection = useMemo(
+    () =>
+      createListCollection({
+        items: [
+          { value: "TO_READ", label: tStatus("toRead") },
+          { value: "READING", label: tStatus("reading") },
+          { value: "READ", label: tStatus("read") },
+          { value: "DROPPED", label: tStatus("dropped") },
+        ],
+      }),
+    [tStatus]
+  );
+  const ratingCollection = useMemo(
+    () =>
+      createListCollection({
+        items: Array.from({ length: 5 }, (_, index) => ({
+          value: String(index + 1),
+          label: "★".repeat(index + 1),
+        })),
+      }),
+    []
+  );
+
+  const filteredGenres = useMemo(() => {
+    const query = genreQuery.trim().toLowerCase();
+    return genres.filter((genre) =>
+      genre.name.toLowerCase().includes(query)
+    );
+  }, [genreQuery, genres]);
+  const genreCollection = useMemo(
+    () =>
+      createListCollection({
+        items: filteredGenres.map((genre) => ({
+          value: genre.id,
+          label: genre.name,
+        })),
+      }),
+    [filteredGenres]
+  );
+  const selectedGenres = useMemo(
+    () => genres.filter((genre) => editGenreIds.includes(genre.id)),
+    [editGenreIds, genres]
+  );
+
+  // Create search query from book title and authors for pre-filling search modal
+  const searchQuery = useMemo(() => {
+    if (!book) return "";
+    return `${book.title} ${book.authors
+      .map((a) => a.author.name)
+      .join(" ")}`;
+  }, [book]);
+
   // Loading state
   if (loading) {
     return (
@@ -372,46 +453,20 @@ export default function BookDetailPage({
     ? Math.round((book.currentPage / book.totalPages) * 100)
     : 0;
 
-  const statusCollection = createListCollection({
-    items: [
-      { value: "TO_READ", label: tStatus("toRead") },
-      { value: "READING", label: tStatus("reading") },
-      { value: "READ", label: tStatus("read") },
-      { value: "DROPPED", label: tStatus("dropped") },
-    ],
-  });
-
   const paletteForGenre = (name: string, storedColor: string | null) => {
     return resolvePalette(name, storedColor);
   };
 
-  const filteredGenres = genres.filter((genre) =>
-    genre.name.toLowerCase().includes(genreQuery.trim().toLowerCase())
-  );
-  const genreCollection = createListCollection({
-    items: filteredGenres.map((genre) => ({
-      value: genre.id,
-      label: genre.name,
-    })),
-  });
-  const selectedGenres = genres.filter((genre) =>
-    editGenreIds.includes(genre.id)
-  );
-
   const handleBookSelect = (searchBook: SearchResult) => {
-    setEditData({
-      ...editData,
+    setEditData((prev) => ({
+      ...prev,
       title: searchBook.title,
-      coverUrl: searchBook.coverUrl || editData.coverUrl,
-      totalPages: searchBook.totalPages || editData.totalPages,
-      summary: searchBook.description || editData.summary,
-    });
+      coverUrl: searchBook.coverUrl || prev.coverUrl,
+      totalPages: searchBook.totalPages || prev.totalPages,
+      summary: searchBook.description || prev.summary,
+    }));
   };
 
-  // Create search query from book title and authors for pre-filling search modal
-  const searchQuery = book
-    ? `${book.title} ${book.authors.map((a) => a.author.name).join(" ")}`
-    : "";
 
   return (
     <>
@@ -505,8 +560,9 @@ export default function BookDetailPage({
                 />
               </Box>
               {book.isWishlist && (
-                <Badge colorPalette="yellow" mt={2}>
-                  ⭐ {t("wishlist")}
+                  <Badge colorPalette="gold" mt={2} display="inline-flex" gap={2} alignItems="center">
+                  <FiBookmark />
+                  {t("wishlist")}
                 </Badge>
               )}
             </Box>
@@ -529,7 +585,10 @@ export default function BookDetailPage({
                     variant="outline"
                     onClick={() => setIsSearchModalOpen(true)}
                   >
-                    🔍 {t("searchOnline")}
+                    <Flex align="center" gap={2}>
+                      <Icon as={FiSearch} />
+                      <Text as="span">{t("searchOnline")}</Text>
+                    </Flex>
                   </Button>
                 </Flex>
               )}
@@ -571,7 +630,7 @@ export default function BookDetailPage({
                           transition="background-color 0.2s ease"
                           _hover={{ bg: "bg.muted" }}
                         >
-                          <NextLink href={`/series/${book.series.slug}`}>
+                          <Link href={`/series/${book.series.slug}`}>
                             <Card.Body py={2} px={3}>
                               <Flex align="center" gap={3}>
                                 <Text fontWeight="semibold">
@@ -586,7 +645,7 @@ export default function BookDetailPage({
                                 )}
                               </Flex>
                             </Card.Body>
-                          </NextLink>
+                          </Link>
                         </Card.Root>
                       )}
                     </Flex>
@@ -619,7 +678,7 @@ export default function BookDetailPage({
                   <StatusBadge status={book.status} size="lg" />
                 )}
                 {book.format && (
-                  <Badge colorPalette="purple" size="lg">
+                  <Badge colorPalette="gold" size="lg">
                     {book.format.name}
                   </Badge>
                 )}
@@ -653,9 +712,9 @@ export default function BookDetailPage({
                       return (
                         <Flex key={author.id} align="center" gap={2} wrap="wrap">
                           <ChakraLink variant="underline" asChild>
-                            <NextLink href={`/authors/${author.id}`}>
+                            <Link href={`/authors/${author.id}`}>
                               {author.name}
-                            </NextLink>
+                            </Link>
                           </ChakraLink>
                           <Text color="fg.muted" fontSize="sm">
                             ({gender} · {nationalityLabel})
@@ -832,33 +891,64 @@ export default function BookDetailPage({
                   <Flex justify="space-between" align="center">
                     <Text fontWeight="semibold">{t("rating")}</Text>
                     {isEditing ? (
-                      <Input
-                        type="number"
-                        min={1}
-                        max={5}
-                        value={editData.rating || ""}
-                        onChange={(e) =>
-                          setEditData({
-                            ...editData,
-                            rating: parseInt(e.target.value) || null,
-                          })
-                        }
-                        width="80px"
-                      />
+                      <Flex align="center" gap={2}>
+                        <SelectRoot
+                          collection={ratingCollection}
+                          value={
+                            editData.rating ? [String(editData.rating)] : []
+                          }
+                          onValueChange={(e) =>
+                            setEditData({
+                              ...editData,
+                              rating: e.value[0]
+                                ? Number.parseInt(e.value[0], 10)
+                                : null,
+                            })
+                          }
+                        >
+                          <SelectTrigger width="120px">
+                            <SelectValueText placeholder={t("notRated")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ratingCollection.items.map((item) => (
+                              <SelectItem key={item.value} item={item}>
+                                {item.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </SelectRoot>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() =>
+                            setEditData({
+                              ...editData,
+                              rating: null,
+                            })
+                          }
+                        >
+                          {tCommon("clear")}
+                        </Button>
+                      </Flex>
                     ) : book.rating !== null ? (
                       <Flex gap={1}>
                         {Array.from({ length: 5 }).map((_, index) => {
                           const rating = book.rating ?? 0;
+                          const isFilled = index < rating;
                           return (
-                            <GoStarFill
+                            <FiStar
                               key={index}
                               size={22}
                               color={
-                                index < rating
-                                  ? "var(--chakra-colors-yellow-400)"
-                                  : "var(--chakra-colors-gray-300)"
+                                isFilled
+                                  ? "var(--chakra-colors-gold-500)"
+                                  : "var(--chakra-colors-fg-muted)"
                               }
-                              style={{ stroke: "black", strokeWidth: 1.75 }}
+                              style={{
+                                stroke: "currentColor",
+                                strokeWidth: 1.5,
+                                fill: isFilled ? "currentColor" : "none",
+                              }}
                             />
                           );
                         })}

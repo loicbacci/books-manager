@@ -25,7 +25,8 @@ The UI is intended to feel literary, warm, and refined rather than techy.
 - Palette: Deep burgundy (`brand`) as the primary, warm gold (`gold`) as the accent, cream (`cream`) for surfaces, and ink (`ink`) for text.
 - Surfaces: Soft, light backgrounds with raised cards; rounded corners (`md` to `xl`) and gentle shadows (`card`, `elevated`).
 - Layout: Clean grids and stacks, lots of whitespace, and card-based sections for dashboards and lists.
-- Navigation: Desktop uses a fixed left sidebar; mobile uses a bottom icon bar; emoji icons are used sparingly to add warmth.
+- Navigation: Desktop uses a fixed left sidebar; mobile uses a top nav with a drawer; emoji icons are used sparingly to add warmth.
+- Icons: Prefer Feather icons (`react-icons/fi`) and avoid mixing icon families within the same view.
 - Charts: Recharts are used for stats; prefer brand/neutral colors over default bright palettes.
 - Components: Prefer Chakra primitives; Tailwind `tw-` utilities only for layout/spacing.
 - Practicality: Some parts can be intentionally utilitarian; do not sacrifice UX just to force the theme.

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { searchBooks } from "@/lib/book-metadata";
+import { auth } from "@/lib/auth";
 
 /**
  * Search external book metadata sources by query string.
@@ -9,6 +10,11 @@ import { searchBooks } from "@/lib/book-metadata";
  */
 export async function GET(request: Request) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q");
 

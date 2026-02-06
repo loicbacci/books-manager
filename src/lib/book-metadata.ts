@@ -83,6 +83,18 @@ type OpenLibraryAuthor = {
   name?: string;
 };
 
+const DEFAULT_TIMEOUT_MS = 8000;
+
+async function fetchWithTimeout(url: string, timeoutMs = DEFAULT_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 /**
  * Search for books using Google Books API
  */
@@ -93,7 +105,7 @@ async function searchGoogleBooks(query: string): Promise<SearchResult[]> {
     url.searchParams.append("maxResults", "10");
     url.searchParams.append("printType", "books");
 
-    const response = await fetch(url.toString());
+    const response = await fetchWithTimeout(url.toString());
     if (!response.ok) {
       throw new Error("Google Books API request failed");
     }
@@ -136,7 +148,7 @@ async function searchOpenLibrary(query: string): Promise<SearchResult[]> {
     url.searchParams.append("q", query);
     url.searchParams.append("limit", "10");
 
-    const response = await fetch(url.toString());
+    const response = await fetchWithTimeout(url.toString());
     if (!response.ok) {
       throw new Error("Open Library API request failed");
     }
@@ -182,7 +194,7 @@ export async function getBookByISBN(
     const url = new URL("https://www.googleapis.com/books/v1/volumes");
     url.searchParams.append("q", `isbn:${isbn}`);
 
-    const response = await fetch(url.toString());
+    const response = await fetchWithTimeout(url.toString());
     if (!response.ok) {
       throw new Error("Google Books API request failed");
     }
@@ -217,7 +229,9 @@ async function getBookByISBNOpenLibrary(
   isbn: string
 ): Promise<BookMetadata | null> {
   try {
-    const response = await fetch(`https://openlibrary.org/isbn/${isbn}.json`);
+    const response = await fetchWithTimeout(
+      `https://openlibrary.org/isbn/${isbn}.json`
+    );
     if (!response.ok) {
       return null;
     }
@@ -229,9 +243,12 @@ async function getBookByISBNOpenLibrary(
     let authors: string[] = [];
     if (data.authors && data.authors.length > 0) {
       const authorPromises = data.authors.map(async (author) => {
-        const authorResponse = await fetch(
+        const authorResponse = await fetchWithTimeout(
           `https://openlibrary.org${author.key}.json`
         );
+        if (!authorResponse.ok) {
+          return "Unknown";
+        }
         const authorData = (await authorResponse.json()) as OpenLibraryAuthor;
         return authorData.name || "Unknown";
       });

@@ -29,6 +29,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { email, password, name, inviteCode } = registerSchema.parse(body);
+    const normalizedEmail = email.trim().toLowerCase();
 
     // Enforce invite-only signup.
     const validInviteCode = process.env.REGISTRATION_INVITE_CODE;
@@ -41,7 +42,7 @@ export async function POST(req: Request) {
 
     // Prevent duplicate accounts by email.
     const existingUser = await db.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     });
 
     if (existingUser) {
@@ -56,7 +57,7 @@ export async function POST(req: Request) {
 
     const user = await db.user.create({
       data: {
-        email,
+        email: normalizedEmail,
         hashedPassword,
         name,
       },

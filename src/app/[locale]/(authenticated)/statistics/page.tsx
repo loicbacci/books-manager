@@ -12,7 +12,16 @@ import {
   Card,
   Flex,
   Spinner,
+  Icon,
 } from "@chakra-ui/react";
+import {
+  FiBookOpen,
+  FiFileText,
+  FiStar,
+  FiBook,
+  FiFeather,
+  FiTag,
+} from "react-icons/fi";
 import {
   BarChart,
   Bar,
@@ -69,20 +78,35 @@ export default function StatisticsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const controller = new AbortController();
+    let isActive = true;
     async function fetchStats() {
       try {
-        const response = await fetch("/api/stats/detailed");
+        const response = await fetch("/api/stats/detailed", {
+          signal: controller.signal,
+        });
         if (response.ok) {
           const data = await response.json();
-          setStats(data);
+          if (isActive) {
+            setStats(data);
+          }
         }
       } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
         console.error("Failed to fetch stats:", error);
       } finally {
-        setLoading(false);
+        if (isActive) {
+          setLoading(false);
+        }
       }
     }
     fetchStats();
+    return () => {
+      isActive = false;
+      controller.abort();
+    };
   }, []);
 
   // Loading state
@@ -125,32 +149,32 @@ export default function StatisticsPage() {
           <StatCard
             label={t("booksRead")}
             value={stats.summary.totalBooksRead}
-            icon="📚"
+            icon={FiBookOpen}
           />
           <StatCard
             label={t("pagesRead")}
             value={stats.summary.totalPagesRead.toLocaleString()}
-            icon="📄"
+            icon={FiFileText}
           />
           <StatCard
             label={t("avgRating")}
             value={stats.summary.averageRating.toFixed(1)}
-            icon="⭐"
+            icon={FiStar}
           />
           <StatCard
             label={t("avgPages")}
             value={stats.summary.averagePages}
-            icon="📖"
+            icon={FiBook}
           />
           <StatCard
             label={t("authorsCount")}
             value={stats.summary.uniqueAuthors}
-            icon="✍️"
+            icon={FiFeather}
           />
           <StatCard
             label={t("genresCount")}
             value={stats.summary.uniqueGenres}
-            icon="🏷️"
+            icon={FiTag}
           />
         </Grid>
 
@@ -374,13 +398,14 @@ function StatCard({
 }: {
   label: string;
   value: string | number;
-  icon: string;
+  icon: React.ComponentType<{ size?: number }>;
 }) {
+  const StatIcon = icon;
   return (
     <Card.Root>
       <Card.Body p={4}>
         <Flex direction="column" align="center" textAlign="center" gap={1}>
-          <Text fontSize="2xl">{icon}</Text>
+          <Icon as={StatIcon} boxSize={6} color="brand.fg" />
           <Text fontSize="xl" fontWeight="bold">
             {value}
           </Text>

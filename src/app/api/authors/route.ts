@@ -90,6 +90,29 @@ export async function POST(request: NextRequest) {
     const { name, genderId, nationalityIds = [] } =
       createAuthorSchema.parse(body);
 
+    if (genderId) {
+      const gender = await db.gender.findFirst({
+        where: { id: genderId, userId: session.user.id },
+        select: { id: true },
+      });
+      if (!gender) {
+        return NextResponse.json({ error: "Invalid genderId" }, { status: 400 });
+      }
+    }
+
+    const uniqueNationalityIds = Array.from(new Set(nationalityIds));
+    if (uniqueNationalityIds.length) {
+      const count = await db.nationality.count({
+        where: { id: { in: uniqueNationalityIds }, userId: session.user.id },
+      });
+      if (count !== uniqueNationalityIds.length) {
+        return NextResponse.json(
+          { error: "Invalid nationalityIds" },
+          { status: 400 }
+        );
+      }
+    }
+
     const author = await db.author.create({
       data: {
         name,

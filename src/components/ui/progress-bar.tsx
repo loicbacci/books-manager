@@ -17,7 +17,7 @@ export function ProgressBar({
   total,
   showLabel = false,
   size = "md",
-  colorScheme = "blue",
+  colorScheme = "brand",
 }: ProgressBarProps) {
   const percentage =
     value ??
@@ -34,7 +34,7 @@ export function ProgressBar({
     <Box width="100%">
       <Box
         height={heights[size]}
-        bg="gray.200"
+        bg="bg.muted"
         borderRadius="full"
         overflow="hidden"
         role="progressbar"
@@ -54,7 +54,7 @@ export function ProgressBar({
       </Box>
       {showLabel && (
         <HStack justify="space-between" mt={1}>
-          <Text fontSize="sm" color="gray.600">
+          <Text fontSize="sm" color="fg.muted">
             {current} / {total ?? "?"} pages
           </Text>
           <Text fontSize="sm" fontWeight="medium" color={`${colorScheme}.600`}>

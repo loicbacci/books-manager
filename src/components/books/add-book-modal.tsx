@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { Link } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
 import {
   Box,
@@ -12,8 +13,12 @@ import {
   Flex,
   createListCollection,
   Text,
+  HStack,
+  Icon,
 } from "@chakra-ui/react";
+import { FiFileText, FiSearch } from "react-icons/fi";
 import { Tag } from "@/components/ui/tag";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DialogRoot,
   DialogContent,
@@ -121,14 +126,24 @@ export function AddBookModal({
 
   useEffect(() => {
     if (isOpen) {
+      const controller = new AbortController();
+      let isActive = true;
       setIsAuthorsLoading(true);
       setIsSeriesLoading(true);
       // Load reference data needed by select controls.
       Promise.all([
-        fetch("/api/authors?page=1&pageSize=200").then((r) => r.json()),
-        fetch("/api/genres").then((r) => r.json()),
-        fetch("/api/formats").then((r) => r.json()),
-        fetch("/api/series?page=1&pageSize=200").then((r) => r.json()),
+        fetch("/api/authors?page=1&pageSize=200", {
+          signal: controller.signal,
+        }).then((r) => r.json()),
+        fetch("/api/genres", { signal: controller.signal }).then((r) =>
+          r.json()
+        ),
+        fetch("/api/formats", { signal: controller.signal }).then((r) =>
+          r.json()
+        ),
+        fetch("/api/series?page=1&pageSize=200", {
+          signal: controller.signal,
+        }).then((r) => r.json()),
       ])
         .then(
           ([
@@ -137,6 +152,7 @@ export function AddBookModal({
             formatsData,
             seriesData,
           ]) => {
+            if (!isActive) return;
             const authorsItems = Array.isArray(authorsData)
               ? authorsData
               : (authorsData as PageResult<Author>).items;
@@ -150,13 +166,22 @@ export function AddBookModal({
           }
         )
         .catch((error) => {
+          if (error instanceof DOMException && error.name === "AbortError") {
+            return;
+          }
           console.error("Failed to load metadata:", error);
         })
         .finally(() => {
+          if (!isActive) return;
           setIsAuthorsLoading(false);
           setIsSeriesLoading(false);
         });
+      return () => {
+        isActive = false;
+        controller.abort();
+      };
     }
+    return undefined;
   }, [isOpen]);
 
   /**
@@ -229,37 +254,62 @@ export function AddBookModal({
     }
   };
 
-  const statusCollection = createListCollection({
-    items: statusOptions.map((value) => ({
-      value,
-      label: tStatus(
-        value === "TO_READ"
-          ? "toRead"
-          : value === "READING"
-            ? "reading"
-            : value === "READ"
-              ? "read"
-              : "dropped"
-      ),
-    })),
-  });
-
-  const formatCollection = createListCollection({
-    items: formats.map((f) => ({ value: f.id, label: f.name })),
-  });
-
-  const filteredGenres = genres.filter((genre) =>
-    genre.name.toLowerCase().includes(genreQuery.trim().toLowerCase())
+  const statusCollection = useMemo(
+    () =>
+      createListCollection({
+        items: statusOptions.map((value) => ({
+          value,
+          label: tStatus(
+            value === "TO_READ"
+              ? "toRead"
+              : value === "READING"
+                ? "reading"
+                : value === "READ"
+                  ? "read"
+                  : "dropped"
+          ),
+        })),
+      }),
+    [tStatus]
   );
-  const genreCollection = createListCollection({
-    items: filteredGenres.map((genre) => ({
-      value: genre.id,
-      label: genre.name,
-      color: genre.color ?? null,
-    })),
-  });
-  const selectedGenres = genres.filter((genre) =>
-    formData.genreIds.includes(genre.id)
+
+  const formatCollection = useMemo(
+    () =>
+      createListCollection({
+        items: formats.map((f) => ({ value: f.id, label: f.name })),
+      }),
+    [formats]
+  );
+  const ratingCollection = useMemo(
+    () =>
+      createListCollection({
+        items: Array.from({ length: 5 }, (_, index) => {
+          const value = String(index + 1);
+          const label = "★".repeat(index + 1);
+          return { value, label };
+        }),
+      }),
+    []
+  );
+
+  const filteredGenres = useMemo(() => {
+    const query = genreQuery.trim().toLowerCase();
+    return genres.filter((genre) => genre.name.toLowerCase().includes(query));
+  }, [genreQuery, genres]);
+  const genreCollection = useMemo(
+    () =>
+      createListCollection({
+        items: filteredGenres.map((genre) => ({
+          value: genre.id,
+          label: genre.name,
+          color: genre.color ?? null,
+        })),
+      }),
+    [filteredGenres]
+  );
+  const selectedGenres = useMemo(
+    () => genres.filter((genre) => formData.genreIds.includes(genre.id)),
+    [formData.genreIds, genres]
   );
 
   const paletteForGenre = (name: string, storedColor: string | null) => {
@@ -270,13 +320,13 @@ export function AddBookModal({
    * Fill in fields from the external book search modal.
    */
   const handleBookSelect = (book: SearchResult) => {
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       title: book.title,
       coverUrl: book.coverUrl || "",
       totalPages: book.totalPages?.toString() || "",
-      summary: book.description || formData.summary,
-    });
+      summary: book.description || prev.summary,
+    }));
   };
 
   return (
@@ -335,13 +385,26 @@ export function AddBookModal({
                   <Text fontSize="sm" color="fg.muted">
                     {t("addManually")}
                   </Text>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setIsSearchModalOpen(true)}
-                  >
-                    🔍 {t("searchOnline")}
-                  </Button>
+                  <Flex gap={2} wrap="wrap" justify="flex-end">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setIsSearchModalOpen(true)}
+                    >
+                      <HStack gap={2}>
+                        <Icon as={FiSearch} />
+                        <Text as="span">{t("searchOnline")}</Text>
+                      </HStack>
+                    </Button>
+                    <Button size="sm" variant="ghost" asChild>
+                      <Link href="/sheet-import">
+                        <HStack gap={2}>
+                          <Icon as={FiFileText} />
+                          <Text as="span">{t("importFromSheet")}</Text>
+                        </HStack>
+                      </Link>
+                    </Button>
+                  </Flex>
                 </Flex>
 
                 <Field.Root required>
@@ -370,9 +433,9 @@ export function AddBookModal({
 
                 <Field.Root>
                   <Field.Label>{t("authors")}</Field.Label>
-                  <AuthorSelect
-                    authors={authors}
-                    value={formData.authorIds}
+                    <AuthorSelect
+                      authors={authors}
+                      value={formData.authorIds}
                     onChange={(authorIds) =>
                       setFormData({
                         ...formData,
@@ -383,7 +446,7 @@ export function AddBookModal({
                     isLoading={isAuthorsLoading}
                     onOpenCreateDialog={() => setIsCreateAuthorOpen(true)}
                     triggerProps={{
-                      bg: { base: "white", _dark: "bg.muted" },
+                      bg: "bg.input",
                     }}
                   />
                 </Field.Root>
@@ -463,7 +526,7 @@ export function AddBookModal({
                         setFormData({ ...formData, status: e.value[0] })
                       }
                     >
-                      <SelectTrigger bg={{ base: "white", _dark: "bg.muted" }}>
+                      <SelectTrigger bg="bg.input">
                         <SelectValueText placeholder={t("statusPlaceholder")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -489,7 +552,7 @@ export function AddBookModal({
                           })
                         }
                       >
-                      <SelectTrigger bg={{ base: "white", _dark: "bg.muted" }}>
+                      <SelectTrigger bg="bg.input">
                         <SelectValueText placeholder={t("formatPlaceholder")} />
                       </SelectTrigger>
                         <SelectContent>
@@ -528,10 +591,10 @@ export function AddBookModal({
                       isLoading={isSeriesLoading}
                       placeholder={t("seriesPlaceholder")}
                       triggerProps={{
-                        bg: { base: "white", _dark: "bg.muted" },
+                        bg: "bg.input",
                       }}
                       inputProps={{
-                        bg: { base: "white", _dark: "bg.muted" },
+                        bg: "bg.input",
                       }}
                     />
                   </Field.Root>
@@ -643,16 +706,27 @@ export function AddBookModal({
 
                   <Field.Root flex={1}>
                     <Field.Label>{t("rating")} (1-5)</Field.Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={5}
-                      value={formData.rating}
-                      onChange={(e) =>
-                        setFormData({ ...formData, rating: e.target.value })
+                    <SelectRoot
+                      collection={ratingCollection}
+                      value={formData.rating ? [formData.rating] : []}
+                      onValueChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          rating: e.value[0] || "",
+                        })
                       }
-                      placeholder="1-5"
-                    />
+                    >
+                      <SelectTrigger bg="bg.input">
+                        <SelectValueText placeholder={t("notRated")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ratingCollection.items.map((item) => (
+                          <SelectItem key={item.value} item={item}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </SelectRoot>
                   </Field.Root>
                 </Flex>
 
@@ -675,18 +749,17 @@ export function AddBookModal({
 
                 <Field.Root>
                   <Flex align="center" gap={2}>
-                    <input
-                      type="checkbox"
-                      id="isWishlist"
+                    <Checkbox
                       checked={formData.isWishlist}
-                      onChange={(e) =>
+                      onCheckedChange={(details) =>
                         setFormData({
                           ...formData,
-                          isWishlist: e.target.checked,
+                          isWishlist: Boolean(details.checked),
                         })
                       }
-                    />
-                    <label htmlFor="isWishlist">{t("wishlist")}</label>
+                    >
+                      {t("wishlist")}
+                    </Checkbox>
                   </Flex>
                 </Field.Root>
               </Stack>

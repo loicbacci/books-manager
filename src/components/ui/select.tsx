@@ -1,6 +1,6 @@
 "use client";
 
-import { Select as ChakraSelect, Portal } from "@chakra-ui/react";
+import { Select as ChakraSelect, Portal, Text, type TextProps } from "@chakra-ui/react";
 import { forwardRef } from "react";
 
 export const SelectRoot = ChakraSelect.Root;
@@ -43,5 +43,15 @@ export const SelectItem = forwardRef<HTMLDivElement, ChakraSelect.ItemProps>(
     );
   }
 );
+
+export const SelectItemText = ChakraSelect.ItemText;
+export const SelectItemDescription = forwardRef<
+  HTMLParagraphElement,
+  TextProps
+>(function SelectItemDescription(props, ref) {
+  return (
+    <Text ref={ref} fontSize="xs" color="fg.muted" {...props} />
+  );
+});
 
 

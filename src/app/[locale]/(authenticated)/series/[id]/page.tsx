@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
 import {
   Box,
@@ -12,8 +12,9 @@ import {
   Heading,
   Stack,
   Text,
+  Icon,
 } from "@chakra-ui/react";
-import { FiArrowLeft } from "react-icons/fi";
+import { FiArrowLeft, FiBookOpen } from "react-icons/fi";
 import { BookGridView, BookGridBook } from "@/components/books/book-grid";
 
 type Series = {
@@ -25,9 +26,9 @@ type Series = {
 export default function SeriesDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
-  const { id } = use(params);
+  const { id } = params;
   const router = useRouter();
   const t = useTranslations("series");
   const tCommon = useTranslations("common");
@@ -37,22 +38,38 @@ export default function SeriesDetailPage({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const controller = new AbortController();
+    let isActive = true;
     async function fetchSeries() {
       try {
-        const response = await fetch(`/api/series/${id}`);
+        const response = await fetch(`/api/series/${id}`, {
+          signal: controller.signal,
+        });
         if (response.ok) {
-          setSeries(await response.json());
+          const data = await response.json();
+          if (isActive) {
+            setSeries(data);
+          }
         } else if (response.status === 404) {
           router.push("/series");
         }
       } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
         console.error("Failed to fetch series:", error);
       } finally {
-        setLoading(false);
+        if (isActive) {
+          setLoading(false);
+        }
       }
     }
 
     fetchSeries();
+    return () => {
+      isActive = false;
+      controller.abort();
+    };
   }, [id, router]);
 
   // Loading state
@@ -93,7 +110,7 @@ export default function SeriesDetailPage({
           <Card.Root>
             <Card.Body>
               <Stack align="center" py={10}>
-                <Text fontSize="4xl">📖</Text>
+                <Icon as={FiBookOpen} boxSize={8} color="brand.fg" />
                 <Text color="fg.muted">{t("emptyBooks")}</Text>
               </Stack>
             </Card.Body>

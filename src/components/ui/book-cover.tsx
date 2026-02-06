@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { Box, Text } from "@chakra-ui/react";
+import { Box, Icon } from "@chakra-ui/react";
+import { FiBook } from "react-icons/fi";
 
 type BookCoverProps = {
   coverUrl: string | null;
@@ -38,7 +39,13 @@ export function BookCover({ coverUrl, title, size = "md" }: BookCoverProps) {
           unoptimized
         />
       ) : (
-        <Text fontSize={sizes[size].iconSize}>📕</Text>
+        <Icon
+          as={FiBook}
+          fontSize={sizes[size].iconSize}
+          color="fg.muted"
+          aria-label={`${title} cover placeholder`}
+          role="img"
+        />
       )}
     </Box>
   );

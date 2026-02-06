@@ -86,7 +86,7 @@ export async function GET() {
         WHERE b."userId" = ${userId}
           AND b."status" = 'READ'
           AND b."isWishlist" = false
-        GROUP BY name
+        GROUP BY COALESCE(g."name", 'Unknown')
         ORDER BY count DESC
       `),
       db.$queryRaw<DistributionRow[]>(Prisma.sql`
@@ -101,7 +101,7 @@ export async function GET() {
         WHERE b."userId" = ${userId}
           AND b."status" = 'READ'
           AND b."isWishlist" = false
-        GROUP BY name
+        GROUP BY COALESCE(n."name", 'Unknown')
         ORDER BY count DESC
         LIMIT 10
       `),

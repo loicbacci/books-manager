@@ -31,6 +31,21 @@ jest.mock("@/lib/db", () => ({
       deleteMany: jest.fn(),
       createMany: jest.fn(),
     },
+    author: {
+      count: jest.fn(),
+    },
+    genre: {
+      count: jest.fn(),
+    },
+    format: {
+      findFirst: jest.fn(),
+    },
+    series: {
+      findFirst: jest.fn(),
+    },
+    $transaction: jest.fn((callback: (db: unknown) => unknown) =>
+      callback((jest.requireMock("@/lib/db") as { db: unknown }).db)
+    ),
   },
 }));
 
@@ -49,6 +64,11 @@ const getDb = () =>
       };
       bookAuthor: { deleteMany: jest.Mock; createMany: jest.Mock };
       bookGenre: { deleteMany: jest.Mock; createMany: jest.Mock };
+      author: { count: jest.Mock };
+      genre: { count: jest.Mock };
+      format: { findFirst: jest.Mock };
+      series: { findFirst: jest.Mock };
+      $transaction: jest.Mock;
     };
   }).db;
 
@@ -128,6 +148,8 @@ describe("books/[id] routes", () => {
     const db = getDb();
     db.book.findFirst.mockResolvedValue({ id: "book-1" });
     db.book.update.mockResolvedValue({ id: "book-1" });
+    db.author.count.mockResolvedValue(2);
+    db.genre.count.mockResolvedValue(1);
     getSlugifyMock().mockResolvedValue("new-slug");
 
     const response = await PATCH(

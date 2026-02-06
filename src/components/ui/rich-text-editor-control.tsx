@@ -18,32 +18,28 @@ import { useRichTextEditorContext } from "./rich-text-editor-context"
 import { Tooltip } from "./tooltip"
 import * as React from "react"
 import {
-  LuAlignCenter,
-  LuAlignJustify,
-  LuAlignLeft,
-  LuAlignRight,
-  LuBold,
-  LuCode,
-  LuHeading1,
-  LuHeading2,
-  LuHeading3,
-  LuHeading4,
-  LuHighlighter,
-  LuItalic,
-  LuLink,
-  LuLink2,
-  LuList,
-  LuListOrdered,
-  LuMinus,
-  LuQuote,
-  LuRotateCcw,
-  LuRotateCw,
-  LuStrikethrough,
-  LuSubscript,
-  LuSuperscript,
-  LuType,
-  LuUnderline,
-} from "react-icons/lu"
+  FiAlignCenter,
+  FiAlignJustify,
+  FiAlignLeft,
+  FiAlignRight,
+  FiArrowDown,
+  FiArrowUp,
+  FiBold,
+  FiCode,
+  FiEdit3,
+  FiHash,
+  FiItalic,
+  FiLink,
+  FiLink2,
+  FiList,
+  FiMessageSquare,
+  FiMinus,
+  FiRotateCcw,
+  FiRotateCw,
+  FiSlash,
+  FiType,
+  FiUnderline,
+} from "react-icons/fi"
 
 export interface BaseControlConfig {
   label: string
@@ -356,56 +352,56 @@ export const FontSize = createSelectControl({
 
 export const Bold = createBooleanControl({
   label: "Bold",
-  icon: LuBold,
+  icon: FiBold,
   command: (editor) => editor.chain().focus().toggleBold().run(),
   getVariant: (editor) => (editor.isActive("bold") ? "subtle" : "ghost"),
 })
 
 export const Italic = createBooleanControl({
   label: "Italic",
-  icon: LuItalic,
+  icon: FiItalic,
   command: (editor) => editor.chain().focus().toggleItalic().run(),
   getVariant: (editor) => (editor.isActive("italic") ? "subtle" : "ghost"),
 })
 
 export const Underline = createBooleanControl({
   label: "Underline",
-  icon: LuUnderline,
+  icon: FiUnderline,
   command: (editor) => editor.chain().focus().toggleUnderline().run(),
   getVariant: (editor) => (editor.isActive("underline") ? "subtle" : "ghost"),
 })
 
 export const Strikethrough = createBooleanControl({
   label: "Strikethrough",
-  icon: LuStrikethrough,
+  icon: FiSlash,
   command: (editor) => editor.chain().focus().toggleStrike().run(),
   getVariant: (editor) => (editor.isActive("strike") ? "subtle" : "ghost"),
 })
 
 export const Code = createBooleanControl({
   label: "Code",
-  icon: LuCode,
+  icon: FiCode,
   command: (editor) => editor.chain().focus().toggleCode().run(),
   getVariant: (editor) => (editor.isActive("code") ? "subtle" : "ghost"),
 })
 
 export const Subscript = createBooleanControl({
   label: "Subscript",
-  icon: LuSubscript,
+  icon: FiArrowDown,
   command: (editor) => editor.chain().focus().toggleSubscript().run(),
   getVariant: (editor) => (editor.isActive("subscript") ? "subtle" : "ghost"),
 })
 
 export const Superscript = createBooleanControl({
   label: "Superscript",
-  icon: LuSuperscript,
+  icon: FiArrowUp,
   command: (editor) => editor.chain().focus().toggleSuperscript().run(),
   getVariant: (editor) => (editor.isActive("superscript") ? "subtle" : "ghost"),
 })
 
 export const H1 = createBooleanControl({
   label: "H1",
-  icon: LuHeading1,
+  icon: FiHash,
   command: (editor) => editor.chain().focus().toggleHeading({ level: 1 }).run(),
   getVariant: (editor) =>
     editor.isActive("heading", { level: 1 }) ? "subtle" : "ghost",
@@ -413,7 +409,7 @@ export const H1 = createBooleanControl({
 
 export const H2 = createBooleanControl({
   label: "H2",
-  icon: LuHeading2,
+  icon: FiHash,
   command: (editor) => editor.chain().focus().toggleHeading({ level: 2 }).run(),
   getVariant: (editor) =>
     editor.isActive("heading", { level: 2 }) ? "subtle" : "ghost",
@@ -421,7 +417,7 @@ export const H2 = createBooleanControl({
 
 export const H3 = createBooleanControl({
   label: "H3",
-  icon: LuHeading3,
+  icon: FiHash,
   command: (editor) => editor.chain().focus().toggleHeading({ level: 3 }).run(),
   getVariant: (editor) =>
     editor.isActive("heading", { level: 3 }) ? "subtle" : "ghost",
@@ -429,7 +425,7 @@ export const H3 = createBooleanControl({
 
 export const H4 = createBooleanControl({
   label: "H4",
-  icon: LuHeading4,
+  icon: FiHash,
   command: (editor) => editor.chain().focus().toggleHeading({ level: 4 }).run(),
   getVariant: (editor) =>
     editor.isActive("heading", { level: 4 }) ? "subtle" : "ghost",
@@ -437,35 +433,35 @@ export const H4 = createBooleanControl({
 
 export const BulletList = createBooleanControl({
   label: "Bullet List",
-  icon: LuList,
+  icon: FiList,
   command: (editor) => editor.chain().focus().toggleBulletList().run(),
   getVariant: (editor) => (editor.isActive("bulletList") ? "subtle" : "ghost"),
 })
 
 export const OrderedList = createBooleanControl({
   label: "Ordered List",
-  icon: LuListOrdered,
+  icon: FiHash,
   command: (editor) => editor.chain().focus().toggleOrderedList().run(),
   getVariant: (editor) => (editor.isActive("orderedList") ? "subtle" : "ghost"),
 })
 
 export const Blockquote = createBooleanControl({
   label: "Blockquote",
-  icon: LuQuote,
+  icon: FiMessageSquare,
   command: (editor) => editor.chain().focus().toggleBlockquote().run(),
   getVariant: (editor) => (editor.isActive("blockquote") ? "subtle" : "ghost"),
 })
 
 export const Hr = createBooleanControl({
   label: "Horizontal Rule",
-  icon: LuMinus,
+  icon: FiMinus,
   command: (editor) => editor.chain().focus().setHorizontalRule().run(),
   getVariant: (editor) => (editor.isActive("blockquote") ? "subtle" : "ghost"),
 })
 
 export const Link = createBooleanControl({
   label: "Link",
-  icon: LuLink,
+  icon: FiLink,
   command: (editor) => {
     const url = window.prompt("Enter URL")
     if (url)
@@ -481,14 +477,14 @@ export const Link = createBooleanControl({
 
 export const Unlink = createBooleanControl({
   label: "Unlink",
-  icon: LuLink2,
+  icon: FiLink2,
   command: (editor) => editor.chain().focus().unsetLink().run(),
   getVariant: (editor) => (editor.isActive("link") ? "subtle" : "ghost"),
 })
 
 export const AlignLeft = createBooleanControl({
   label: "Align Left",
-  icon: LuAlignLeft,
+  icon: FiAlignLeft,
   command: (editor) => editor.chain().focus().setTextAlign("left").run(),
   getVariant: (editor) =>
     editor.isActive({ textAlign: "left" }) ? "subtle" : "ghost",
@@ -496,7 +492,7 @@ export const AlignLeft = createBooleanControl({
 
 export const AlignCenter = createBooleanControl({
   label: "Align Center",
-  icon: LuAlignCenter,
+  icon: FiAlignCenter,
   command: (editor) => editor.chain().focus().setTextAlign("center").run(),
   getVariant: (editor) =>
     editor.isActive({ textAlign: "center" }) ? "subtle" : "ghost",
@@ -504,7 +500,7 @@ export const AlignCenter = createBooleanControl({
 
 export const AlignJustify = createBooleanControl({
   label: "Align Justify",
-  icon: LuAlignJustify,
+  icon: FiAlignJustify,
   command: (editor) => editor.chain().focus().setTextAlign("justify").run(),
   getVariant: (editor) =>
     editor.isActive({ textAlign: "justify" }) ? "subtle" : "ghost",
@@ -512,7 +508,7 @@ export const AlignJustify = createBooleanControl({
 
 export const AlignRight = createBooleanControl({
   label: "Align Right",
-  icon: LuAlignRight,
+  icon: FiAlignRight,
   command: (editor) => editor.chain().focus().setTextAlign("right").run(),
   getVariant: (editor) =>
     editor.isActive({ textAlign: "right" }) ? "subtle" : "ghost",
@@ -520,7 +516,7 @@ export const AlignRight = createBooleanControl({
 
 export const Undo = createBooleanControl({
   label: "Undo",
-  icon: LuRotateCcw,
+  icon: FiRotateCcw,
   command: (editor) => editor.chain().focus().undo().run(),
   isDisabled: (editor) => !editor.can().undo(),
   getVariant: (editor) => (editor.isActive("link") ? "subtle" : "ghost"),
@@ -528,7 +524,7 @@ export const Undo = createBooleanControl({
 
 export const Redo = createBooleanControl({
   label: "Redo",
-  icon: LuRotateCw,
+  icon: FiRotateCw,
   command: (editor) => editor.chain().focus().redo().run(),
   isDisabled: (editor) => !editor.can().redo(),
   getVariant: (editor) => (editor.isActive("link") ? "subtle" : "ghost"),
@@ -556,7 +552,7 @@ export const TextColor = createSwatchControl({
   }),
   command: (editor, color) =>
     editor.chain().focus().setMark("textStyle", { color }).run(),
-  icon: LuType,
+  icon: FiType,
   onRemove: (editor) => editor.chain().focus().unsetMark("textStyle").run(),
 })
 
@@ -581,7 +577,7 @@ export const Highlight = createSwatchControl({
   }),
   command: (editor, color) =>
     editor.chain().focus().toggleHighlight({ color }).run(),
-  icon: LuHighlighter,
+  icon: FiEdit3,
   showRemove: true,
   onRemove: (editor) => editor.chain().focus().unsetHighlight().run(),
 })
@@ -592,7 +588,7 @@ const TEXT_STYLE_OPTIONS = [
   { value: "heading2", label: "Heading 2" },
   { value: "heading3", label: "Heading 3" },
   { value: "blockquote", label: "Quote" },
-  { value: "horizontalRule", label: "Divider", icon: <LuMinus /> },
+  { value: "horizontalRule", label: "Divider", icon: <FiMinus /> },
 ]
 
 export const TextStyle = createSelectControl({

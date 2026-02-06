@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import NextLink from "next/link";
+import { Link } from "@/i18n/routing";
 import {
   Box,
   Container,
@@ -14,10 +14,19 @@ import {
   Flex,
   Spinner,
   Button,
+  Icon,
 } from "@chakra-ui/react";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { BookCover } from "@/components/ui/book-cover";
+import {
+  FiBookOpen,
+  FiCalendar,
+  FiBook,
+  FiFileText,
+  FiEdit3,
+  FiBookmark,
+} from "react-icons/fi";
 
 type Stats = {
   totalBooks: number;
@@ -68,20 +77,35 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const controller = new AbortController();
+    let isActive = true;
     async function fetchStats() {
       try {
-        const response = await fetch("/api/stats");
+        const response = await fetch("/api/stats", {
+          signal: controller.signal,
+        });
         if (response.ok) {
           const data = await response.json();
-          setStats(data);
+          if (isActive) {
+            setStats(data);
+          }
         }
       } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
         console.error("Failed to fetch stats:", error);
       } finally {
-        setLoading(false);
+        if (isActive) {
+          setLoading(false);
+        }
       }
     }
     fetchStats();
+    return () => {
+      isActive = false;
+      controller.abort();
+    };
   }, []);
 
   // Loading state
@@ -116,30 +140,30 @@ export default function DashboardPage() {
             label={tStats("booksRead")}
             subLabel={tStats("thisYear")}
             value={stats?.booksReadThisYear ?? 0}
-            icon="📚"
+            icon={FiBookOpen}
           />
           <StatCard
             label={tStats("booksRead")}
             subLabel={tStats("thisMonth")}
             value={stats?.booksReadThisMonth ?? 0}
-            icon="🗓️"
+            icon={FiCalendar}
           />
           <StatCard
             label={tStats("booksReading")}
             value={stats?.booksReading ?? 0}
-            icon="📖"
+            icon={FiBook}
           />
           <StatCard
             label={tStats("pagesRead")}
             subLabel={tStats("thisYear")}
             value={stats?.pagesReadThisYear ?? 0}
-            icon="📄"
+            icon={FiFileText}
           />
           <StatCard
             label={tStats("pagesRead")}
             subLabel={tStats("thisMonth")}
             value={stats?.pagesReadThisMonth ?? 0}
-            icon="📝"
+            icon={FiEdit3}
           />
         </Grid>
 
@@ -219,7 +243,7 @@ export default function DashboardPage() {
                 {tBook("wishlist")}
               </Heading>
               <Button asChild variant="ghost" size="sm">
-                <NextLink href="/library">{tCommon("viewAll")}</NextLink>
+                <Link href="/library">{tCommon("viewAll")}</Link>
               </Button>
             </Flex>
 
@@ -234,7 +258,7 @@ export default function DashboardPage() {
               >
                 {stats.wishlistBooks.map((book) => (
                   <Card.Root key={book.id} asChild>
-                    <NextLink href={`/books/${book.slug}`}>
+                    <Link href={`/books/${book.slug}`}>
                       <Card.Body p={3}>
                         <Stack gap={2}>
                           <BookCover
@@ -258,7 +282,7 @@ export default function DashboardPage() {
                           <StatusBadge status={book.status} />
                         </Stack>
                       </Card.Body>
-                    </NextLink>
+                    </Link>
                   </Card.Root>
                 ))}
               </Grid>
@@ -266,10 +290,10 @@ export default function DashboardPage() {
               <Card.Root>
                 <Card.Body>
                   <Stack align="center" py={8}>
-                    <Text fontSize="4xl">✨</Text>
+                    <Icon as={FiBookmark} boxSize={8} color="brand.fg" />
                     <Text color="fg.muted">{tBook("noBooks")}</Text>
                     <Button asChild colorPalette="brand" mt={2}>
-                      <NextLink href="/library">{tBook("addBook")}</NextLink>
+                      <Link href="/library">{tBook("addBook")}</Link>
                     </Button>
                   </Stack>
                 </Card.Body>
@@ -286,7 +310,7 @@ export default function DashboardPage() {
               {tStats("recentFinished")}
             </Heading>
             <Button asChild variant="ghost" size="sm">
-              <NextLink href="/library">{tCommon("viewAll")}</NextLink>
+              <Link href="/library">{tCommon("viewAll")}</Link>
             </Button>
             </Flex>
 
@@ -302,7 +326,7 @@ export default function DashboardPage() {
               >
                 {stats.recentFinishedBooks.map((book) => (
                   <Card.Root key={book.id} asChild>
-                    <NextLink href={`/books/${book.slug}`}>
+                    <Link href={`/books/${book.slug}`}>
                       <Card.Body p={3}>
                         <Stack gap={2}>
                           <BookCover
@@ -326,7 +350,7 @@ export default function DashboardPage() {
                           <StatusBadge status={book.status} />
                         </Stack>
                       </Card.Body>
-                    </NextLink>
+                    </Link>
                   </Card.Root>
                 ))}
               </Grid>
@@ -335,10 +359,10 @@ export default function DashboardPage() {
               <Card.Root>
                 <Card.Body>
                   <Stack align="center" py={8}>
-                    <Text fontSize="4xl">📚</Text>
+                    <Icon as={FiBookOpen} boxSize={8} color="brand.fg" />
                     <Text color="fg.muted">{tBook("noBooks")}</Text>
                     <Button asChild colorPalette="brand" mt={2}>
-                      <NextLink href="/library">{tBook("addBook")}</NextLink>
+                      <Link href="/library">{tBook("addBook")}</Link>
                     </Button>
                   </Stack>
                 </Card.Body>
@@ -360,14 +384,17 @@ function StatCard({
   label: string;
   subLabel?: string;
   value: number;
-  icon: string;
+  icon: React.ComponentType<{ size?: number }>;
 }) {
+  const StatIcon = icon;
   return (
     // Small stat card used in the KPI grid
     <Card.Root>
       <Card.Body p={{ base: 3, md: 4 }}>
         <Flex align="center" gap={{ base: 2, md: 3 }}>
-          <Text fontSize={{ base: "lg", md: "2xl" }}>{icon}</Text>
+          <Box color="brand.fg">
+            <StatIcon size={22} />
+          </Box>
           <Box>
             <Text fontSize={{ base: "xl", md: "2xl" }} fontWeight="bold">
               {value.toLocaleString()}

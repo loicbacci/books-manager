@@ -54,6 +54,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma/client ./nod
 COPY --from=builder /app/package.json ./package.json
 RUN npm install prisma --save-exact && rm package.json
 
+# Ensure node_modules/.bin is in PATH for Prisma CLI
+ENV PATH="/app/node_modules/.bin:$PATH"
+
 USER nextjs
 
 EXPOSE 3000

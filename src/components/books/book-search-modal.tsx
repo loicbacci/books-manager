@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Box,
@@ -64,11 +64,15 @@ export function BookSearchModal({
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const activeController = useRef<AbortController | null>(null);
 
   // Auto-populate query and search when modal opens with initialQuery.
   useEffect(() => {
     if (open && initialQuery) {
       setQuery(initialQuery);
+      activeController.current?.abort();
+      const controller = new AbortController();
+      activeController.current = controller;
       // Trigger search automatically.
       const searchWithInitialQuery = async () => {
         setLoading(true);
@@ -76,7 +80,8 @@ export function BookSearchModal({
 
         try {
           const response = await fetch(
-            `/api/books/search?q=${encodeURIComponent(initialQuery)}`
+            `/api/books/search?q=${encodeURIComponent(initialQuery)}`,
+            { signal: controller.signal }
           );
           if (response.ok) {
             const data = await response.json();
@@ -85,6 +90,9 @@ export function BookSearchModal({
             setResults([]);
           }
         } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") {
+            return;
+          }
           console.error("Failed to search books:", error);
           setResults([]);
         } finally {
@@ -94,11 +102,15 @@ export function BookSearchModal({
 
       searchWithInitialQuery();
     } else if (!open) {
+      activeController.current?.abort();
       // Reset local state when the dialog closes.
       setQuery("");
       setResults([]);
       setSearched(false);
     }
+    return () => {
+      activeController.current?.abort();
+    };
   }, [open, initialQuery]);
 
   /**
@@ -107,12 +119,16 @@ export function BookSearchModal({
   const handleSearch = async () => {
     if (!query.trim()) return;
 
+    activeController.current?.abort();
+    const controller = new AbortController();
+    activeController.current = controller;
     setLoading(true);
     setSearched(true);
 
     try {
       const response = await fetch(
-        `/api/books/search?q=${encodeURIComponent(query)}`
+        `/api/books/search?q=${encodeURIComponent(query)}`,
+        { signal: controller.signal }
       );
       if (response.ok) {
         const data = await response.json();
@@ -121,6 +137,9 @@ export function BookSearchModal({
         setResults([]);
       }
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
       console.error("Failed to search books:", error);
       setResults([]);
     } finally {
@@ -128,7 +147,7 @@ export function BookSearchModal({
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       handleSearch();
     }
@@ -161,10 +180,12 @@ export function BookSearchModal({
           <Stack gap={4}>
             <Flex gap={2}>
               <Input
+                type="search"
+                aria-label={tCommon("search")}
                 placeholder={t("searchPlaceholder")}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                onKeyPress={handleKeyPress}
+                onKeyDown={handleKeyDown}
                 size="lg"
                 flex={1}
               />
@@ -198,6 +219,15 @@ export function BookSearchModal({
                     cursor="pointer"
                     _hover={{ bg: "bg.muted" }}
                     onClick={() => handleSelect(book)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={book.title}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        handleSelect(book);
+                      }
+                    }}
                   >
                     <Card.Body p={4}>
                       <Flex gap={4}>
@@ -227,17 +257,17 @@ export function BookSearchModal({
 
                           <Flex gap={2} flexWrap="wrap">
                             {book.publishedDate && (
-                              <Badge size="sm" colorPalette="gray">
+                              <Badge size="sm" colorPalette="ink">
                                 {book.publishedDate}
                               </Badge>
                             )}
                             {book.totalPages && (
-                              <Badge size="sm" colorPalette="blue">
+                              <Badge size="sm" colorPalette="accent">
                                 {book.totalPages} {t("pages")}
                               </Badge>
                             )}
                             {book.publisher && (
-                              <Badge size="sm" colorPalette="gray">
+                              <Badge size="sm" colorPalette="ink">
                                 {book.publisher}
                               </Badge>
                             )}

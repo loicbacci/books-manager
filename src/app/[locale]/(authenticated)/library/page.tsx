@@ -2,14 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import {
-  Container,
-  Heading,
-  Stack,
-  Flex,
-  Button,
-  Spinner,
-} from "@chakra-ui/react";
+import { Container, Heading, Stack, Flex, Button } from "@chakra-ui/react";
 import { AddBookModal } from "@/components/books/add-book-modal";
 import { BookGridView, BookGridBook } from "@/components/books/book-grid";
 import {
@@ -41,11 +34,12 @@ export default function LibraryPage() {
   const [totalPages, setTotalPages] = useState(1);
   const pageSize = 48;
 
-  const fetchBooks = useCallback(async () => {
+  const fetchBooks = useCallback(async (signal?: AbortSignal) => {
     try {
       setLoading(true);
       const response = await fetch(
-        `/api/books?page=${page}&pageSize=${pageSize}`
+        `/api/books?page=${page}&pageSize=${pageSize}`,
+        signal ? { signal } : undefined
       );
       if (response.ok) {
         const data = (await response.json()) as PageResult<Book>;
@@ -61,7 +55,20 @@ export default function LibraryPage() {
   }, [page, pageSize]);
 
   useEffect(() => {
-    fetchBooks();
+    const controller = new AbortController();
+    let isActive = true;
+    fetchBooks(controller.signal).catch((error) => {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
+      if (isActive) {
+        console.error("Failed to fetch books:", error);
+      }
+    });
+    return () => {
+      isActive = false;
+      controller.abort();
+    };
   }, [fetchBooks]);
 
   return (
@@ -77,45 +84,39 @@ export default function LibraryPage() {
           </Button>
         </Flex>
 
-        {/* Loading or content */}
-        {loading ? (
-          <Flex justify="center" align="center" minH="400px">
-            <Spinner size="xl" color="brand.500" />
-          </Flex>
-        ) : (
-          <Stack gap={4}>
-            {/* Book grid with filters and display controls */}
-            <BookGridView
-              books={books}
-              cookieKey="libraryViewPrefs"
-              emptyAction={
-                <Button
-                  colorPalette="brand"
-                  mt={4}
-                  onClick={() => setIsAddModalOpen(true)}
-                >
-                  {t("addBook")}
-                </Button>
-              }
-            />
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <Flex justify="center">
-                <PaginationRoot
-                  count={totalBooks}
-                  pageSize={pageSize}
-                  page={page}
-                  onPageChange={(e) => setPage(e.page)}
-                >
-                  <PaginationPrevTrigger />
-                  <PaginationItems />
-                  <PaginationNextTrigger />
-                  <PaginationPageText />
-                </PaginationRoot>
-              </Flex>
-            )}
-          </Stack>
-        )}
+        <Stack gap={4}>
+          {/* Book grid with filters and display controls */}
+          <BookGridView
+            books={books}
+            cookieKey="libraryViewPrefs"
+            isLoading={loading}
+            emptyAction={
+              <Button
+                colorPalette="brand"
+                mt={4}
+                onClick={() => setIsAddModalOpen(true)}
+              >
+                {t("addBook")}
+              </Button>
+            }
+          />
+          {/* Pagination */}
+          {!loading && totalPages > 1 && (
+            <Flex justify="center">
+              <PaginationRoot
+                count={totalBooks}
+                pageSize={pageSize}
+                page={page}
+                onPageChange={(e) => setPage(e.page)}
+              >
+                <PaginationPrevTrigger />
+                <PaginationItems />
+                <PaginationNextTrigger />
+                <PaginationPageText />
+              </PaginationRoot>
+            </Flex>
+          )}
+        </Stack>
       </Stack>
 
       {/* Create book modal */}

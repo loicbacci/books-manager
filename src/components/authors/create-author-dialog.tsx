@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Button,
@@ -79,41 +79,73 @@ export function CreateAuthorDialog({
 
   useEffect(() => {
     if (!open) return;
+    const controller = new AbortController();
+    let isActive = true;
     setIsMetaLoading(true);
     Promise.all([
-      fetch("/api/genders").then((r) => r.json()),
-      fetch("/api/nationalities").then((r) => r.json()),
+      fetch("/api/genders", { signal: controller.signal }).then((r) =>
+        r.json()
+      ),
+      fetch("/api/nationalities", { signal: controller.signal }).then((r) =>
+        r.json()
+      ),
     ])
       .then(([gendersData, nationalitiesData]) => {
+        if (!isActive) return;
         setGenders(gendersData);
         setNationalities(nationalitiesData);
       })
       .catch((error) => {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
         console.error("Failed to fetch metadata:", error);
       })
-      .finally(() => setIsMetaLoading(false));
+      .finally(() => {
+        if (!isActive) return;
+        setIsMetaLoading(false);
+      });
+    return () => {
+      isActive = false;
+      controller.abort();
+    };
   }, [open]);
 
-  const genderCollection = createListCollection({
-    items: [
-      { value: "none", label: t("unknownGender") },
-      ...genders.map((gender) => ({ value: gender.id, label: gender.name })),
-    ],
-  });
-
-  const filteredNationalities = nationalities.filter((nat) =>
-    nat.name.toLowerCase().includes(nationalityQuery.trim().toLowerCase())
+  const genderCollection = useMemo(
+    () =>
+      createListCollection({
+        items: [
+          { value: "none", label: t("unknownGender") },
+          ...genders.map((gender) => ({
+            value: gender.id,
+            label: gender.name,
+          })),
+        ],
+      }),
+    [genders, t]
   );
 
-  const nationalityCollection = createListCollection({
-    items: filteredNationalities.map((nat) => ({
-      value: nat.id,
-      label: nat.name,
-    })),
-  });
+  const filteredNationalities = useMemo(() => {
+    const query = nationalityQuery.trim().toLowerCase();
+    return nationalities.filter((nat) =>
+      nat.name.toLowerCase().includes(query)
+    );
+  }, [nationalities, nationalityQuery]);
 
-  const selectedNationalities = nationalities.filter((nat) =>
-    nationalityIds.includes(nat.id)
+  const nationalityCollection = useMemo(
+    () =>
+      createListCollection({
+        items: filteredNationalities.map((nat) => ({
+          value: nat.id,
+          label: nat.name,
+        })),
+      }),
+    [filteredNationalities]
+  );
+
+  const selectedNationalities = useMemo(
+    () => nationalities.filter((nat) => nationalityIds.includes(nat.id)),
+    [nationalities, nationalityIds]
   );
 
   const handleCreate = async () => {
@@ -214,6 +246,7 @@ export function CreateAuthorDialog({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={t("namePlaceholder")}
+              aria-label={t("namePlaceholder")}
             />
             {/* Gender selection + inline add */}
             {/* Nationality selection + inline add */}
@@ -257,6 +290,7 @@ export function CreateAuthorDialog({
                     value={newGenderName}
                     onChange={(e) => setNewGenderName(e.target.value)}
                     placeholder={tSettings("addGender")}
+                    aria-label={tSettings("addGender")}
                     flex={1}
                     minW="200px"
                   />
@@ -316,7 +350,7 @@ export function CreateAuthorDialog({
                     <Tag
                       key={nat.id}
                       size="sm"
-                      colorPalette="gray"
+                      colorPalette="ink"
                       closable
                       onClose={() =>
                         setNationalityIds((prev) =>
@@ -349,6 +383,7 @@ export function CreateAuthorDialog({
                     value={newNationalityName}
                     onChange={(e) => setNewNationalityName(e.target.value)}
                     placeholder={tSettings("addNationality")}
+                    aria-label={tSettings("addNationality")}
                     flex={1}
                     minW="200px"
                   />

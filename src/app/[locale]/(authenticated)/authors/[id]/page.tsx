@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
 import {
   Badge,
@@ -13,8 +13,9 @@ import {
   Heading,
   Stack,
   Text,
+  Icon,
 } from "@chakra-ui/react";
-import { FiArrowLeft } from "react-icons/fi";
+import { FiArrowLeft, FiBookOpen } from "react-icons/fi";
 import { BookGridView, BookGridBook } from "@/components/books/book-grid";
 
 type Author = {
@@ -28,9 +29,9 @@ type Author = {
 export default function AuthorDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
-  const { id } = use(params);
+  const { id } = params;
   const router = useRouter();
   const t = useTranslations("author");
   const tNav = useTranslations("nav");
@@ -40,22 +41,38 @@ export default function AuthorDetailPage({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const controller = new AbortController();
+    let isActive = true;
     async function fetchAuthor() {
       try {
-        const response = await fetch(`/api/authors/${id}`);
+        const response = await fetch(`/api/authors/${id}`, {
+          signal: controller.signal,
+        });
         if (response.ok) {
-          setAuthor(await response.json());
+          const data = await response.json();
+          if (isActive) {
+            setAuthor(data);
+          }
         } else if (response.status === 404) {
           router.push("/authors");
         }
       } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
         console.error("Failed to fetch author:", error);
       } finally {
-        setLoading(false);
+        if (isActive) {
+          setLoading(false);
+        }
       }
     }
 
     fetchAuthor();
+    return () => {
+      isActive = false;
+      controller.abort();
+    };
   }, [id, router]);
 
   // Loading state
@@ -109,7 +126,7 @@ export default function AuthorDetailPage({
           <Card.Root>
             <Card.Body>
               <Stack align="center" py={10}>
-                <Text fontSize="4xl">📚</Text>
+                <Icon as={FiBookOpen} boxSize={8} color="brand.fg" />
                 <Text color="fg.muted">{t("emptyBooks")}</Text>
               </Stack>
             </Card.Body>

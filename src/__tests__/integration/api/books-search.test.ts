@@ -4,7 +4,12 @@
 
 import { GET } from "@/app/api/books/search/route";
 
+const mockAuth = jest.fn();
 const mockSearchBooks = jest.fn();
+
+jest.mock("@/lib/auth", () => ({
+  auth: () => mockAuth(),
+}));
 
 jest.mock("@/lib/book-metadata", () => ({
   searchBooks: (...args: unknown[]) => mockSearchBooks(...args),
@@ -13,6 +18,7 @@ jest.mock("@/lib/book-metadata", () => ({
 describe("GET /api/books/search", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockAuth.mockResolvedValue({ user: { id: "user-1" } });
   });
 
   it("returns 400 when query is missing", async () => {

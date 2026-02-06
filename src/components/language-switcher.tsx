@@ -19,14 +19,18 @@ import {
 
 type LanguageSwitcherProps = {
   align?: StackProps["align"];
+  direction?: StackProps["direction"];
   labelAlign?: TextProps["textAlign"];
   size?: "xs" | "sm" | "md" | "lg";
+  showLabel?: boolean;
 };
 
 export function LanguageSwitcher({
   align = "center",
+  direction = "column",
   labelAlign,
   size = "sm",
+  showLabel = true,
 }: LanguageSwitcherProps) {
   const tSettings = useTranslations("settings");
   const pathname = usePathname();
@@ -47,10 +51,12 @@ export function LanguageSwitcher({
   });
 
   return (
-    <Stack gap={2} align={align}>
-      <Text fontSize="sm" color="text.secondary" textAlign={labelAlign}>
-        {tSettings("language")}
-      </Text>
+    <Stack gap={2} align={align} direction={direction}>
+      {showLabel && (
+        <Text fontSize="sm" color="fg.muted" textAlign={labelAlign}>
+          {tSettings("language")}
+        </Text>
+      )}
       <SelectRoot
         size={size}
         collection={localeCollection}

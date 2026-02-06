@@ -1,42 +1,75 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const baseURL = process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3000";
-const databaseUrl =
-  process.env.PLAYWRIGHT_DATABASE_URL ||
+const PORT = process.env.PLAYWRIGHT_PORT ?? "3001";
+const BASE_URL =
+  process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${PORT}`;
+const DB_URL =
+  process.env.PLAYWRIGHT_DB_URL ??
   "postgresql://postgres:postgres@localhost:5433/booksmanager_test";
-const inviteCode = process.env.PLAYWRIGHT_INVITE_CODE || "e2e-invite-code";
 
 export default defineConfig({
   testDir: "./e2e",
-  fullyParallel: true,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  timeout: 30 * 1000,
-  reporter: process.env.CI ? "dot" : "list",
-  globalSetup: "./e2e/global-setup.ts",
-  globalTeardown: "./e2e/global-teardown.ts",
+  timeout: 60_000,
+  expect: { timeout: 10_000 },
+  fullyParallel: false,
+  workers: 1,
+  reporter: [
+    ["list"],
+    ["html", { outputFolder: "test-results/playwright-report", open: "never" }],
+  ],
+  outputDir: "test-results/playwright",
   use: {
-    baseURL,
-    trace: "on-first-retry",
+    baseURL: BASE_URL,
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
+    video: "retain-on-failure",
   },
   webServer: {
-    command: "npm run dev",
-    url: baseURL,
-    reuseExistingServer: false,
-    timeout: 120 * 1000,
+    command: `npm run dev -- --port ${PORT}`,
+    url: BASE_URL,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
     env: {
-      PORT: "3000",
-      DATABASE_URL: databaseUrl,
-      NEXTAUTH_URL: baseURL,
-      NEXTAUTH_SECRET:
-        process.env.NEXTAUTH_SECRET || "playwright-test-secret",
-      REGISTRATION_INVITE_CODE: inviteCode,
+      ...process.env,
+      NODE_ENV: "test",
+      DATABASE_URL: DB_URL,
+      NEXTAUTH_URL: BASE_URL,
+      NEXTAUTH_SECRET: "playwright-test-secret",
+      REGISTRATION_INVITE_CODE: "playwright-invite",
+      E2E_USER_EMAIL: process.env.E2E_USER_EMAIL ?? "demo@example.com",
+      E2E_USER_PASSWORD: process.env.E2E_USER_PASSWORD ?? "password123",
     },
   },
+  globalSetup: "./scripts/e2e/global-setup.ts",
+  globalTeardown: "./scripts/e2e/global-teardown.ts",
   projects: [
     {
+      name: "setup",
+      testMatch: /.*\.setup\.ts/,
+    },
+    {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      dependencies: ["setup"],
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: "test-results/auth.json",
+      },
+    },
+    {
+      name: "iphone",
+      dependencies: ["setup"],
+      use: {
+        ...devices["iPhone 13"],
+        storageState: "test-results/auth.json",
+      },
+    },
+    {
+      name: "ipad",
+      dependencies: ["setup"],
+      use: {
+        ...devices["iPad Pro 11"],
+        storageState: "test-results/auth.json",
+      },
     },
   ],
 });

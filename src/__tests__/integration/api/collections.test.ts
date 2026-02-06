@@ -36,10 +36,12 @@ jest.mock("@/lib/db", () => ({
     },
     gender: {
       findMany: jest.fn(),
+      findFirst: jest.fn(),
       create: jest.fn(),
     },
     nationality: {
       findMany: jest.fn(),
+      count: jest.fn(),
       create: jest.fn(),
     },
     series: {
@@ -60,8 +62,8 @@ const getDb = () =>
       author: { findMany: jest.Mock; count: jest.Mock; create: jest.Mock };
       format: { findMany: jest.Mock; create: jest.Mock };
       genre: { findMany: jest.Mock; create: jest.Mock };
-      gender: { findMany: jest.Mock; create: jest.Mock };
-      nationality: { findMany: jest.Mock; create: jest.Mock };
+      gender: { findMany: jest.Mock; findFirst: jest.Mock; create: jest.Mock };
+      nationality: { findMany: jest.Mock; count: jest.Mock; create: jest.Mock };
       series: { findMany: jest.Mock; count: jest.Mock; create: jest.Mock };
     };
   }).db;
@@ -118,6 +120,8 @@ describe("collection routes", () => {
 
   it("creates an author and validates input", async () => {
     mockAuth.mockResolvedValue({ user: { id: "user-1" } });
+    getDb().gender.findFirst.mockResolvedValue({ id: "gender-1" });
+    getDb().nationality.count.mockResolvedValue(1);
     getDb().author.create.mockResolvedValue({ id: "a1" });
 
     const okResponse = await postAuthors(

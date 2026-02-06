@@ -16,6 +16,10 @@ const mockFindMany = jest.fn();
 const mockCreate = jest.fn();
 const mockCount = jest.fn();
 const mockFindUnique = jest.fn();
+const mockAuthorCount = jest.fn();
+const mockGenreCount = jest.fn();
+const mockFormatFindFirst = jest.fn();
+const mockSeriesFindFirst = jest.fn();
 
 jest.mock("@/lib/db", () => ({
   db: {
@@ -25,6 +29,18 @@ jest.mock("@/lib/db", () => ({
       count: (...args: unknown[]) => mockCount(...args),
       create: (...args: unknown[]) => mockCreate(...args),
     },
+    author: {
+      count: (...args: unknown[]) => mockAuthorCount(...args),
+    },
+    genre: {
+      count: (...args: unknown[]) => mockGenreCount(...args),
+    },
+    format: {
+      findFirst: (...args: unknown[]) => mockFormatFindFirst(...args),
+    },
+    series: {
+      findFirst: (...args: unknown[]) => mockSeriesFindFirst(...args),
+    },
   },
 }));
 
@@ -33,6 +49,10 @@ describe("GET /api/books", () => {
     jest.clearAllMocks();
     mockFindUnique.mockResolvedValue(null);
     mockCount.mockResolvedValue(0);
+    mockAuthorCount.mockResolvedValue(0);
+    mockGenreCount.mockResolvedValue(0);
+    mockFormatFindFirst.mockResolvedValue(null);
+    mockSeriesFindFirst.mockResolvedValue(null);
   });
 
   const createRequest = (params: Record<string, string> = {}) => {
@@ -197,6 +217,8 @@ describe("POST /api/books", () => {
 
   it("creates a new book with minimal data", async () => {
     mockAuth.mockResolvedValue({ user: { id: "user-123" } });
+    mockAuthorCount.mockResolvedValue(0);
+    mockGenreCount.mockResolvedValue(0);
 
     const mockBook = {
       id: "new-book-id",
@@ -227,6 +249,8 @@ describe("POST /api/books", () => {
 
   it("creates a book with all optional fields", async () => {
     mockAuth.mockResolvedValue({ user: { id: "user-123" } });
+    mockAuthorCount.mockResolvedValue(0);
+    mockGenreCount.mockResolvedValue(0);
 
     const mockBook = {
       id: "new-book-id",
@@ -241,7 +265,7 @@ describe("POST /api/books", () => {
         status: "READING",
         totalPages: 300,
         currentPage: 50,
-        rating: 8,
+        rating: 5,
         summary: "A great book",
         favoriteQuote: "To be or not to be",
         favoriteMoment: "The ending",
@@ -258,7 +282,7 @@ describe("POST /api/books", () => {
           status: "READING",
           totalPages: 300,
           currentPage: 50,
-          rating: 8,
+          rating: 5,
           summary: "A great book",
           favoriteQuote: "To be or not to be",
           favoriteMoment: "The ending",
@@ -366,6 +390,8 @@ describe("POST /api/books", () => {
 
   it("creates book with author and genre relations", async () => {
     mockAuth.mockResolvedValue({ user: { id: "user-123" } });
+    mockAuthorCount.mockResolvedValue(2);
+    mockGenreCount.mockResolvedValue(1);
     mockCreate.mockResolvedValue({ id: "book-id", title: "Book" });
 
     await POST(

@@ -2,6 +2,7 @@
 
 import { Box, Container, HStack, Text } from "@chakra-ui/react";
 import { useTranslations } from "next-intl";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 /**
  * Public navigation bar shown on unauthenticated pages.
@@ -28,6 +29,12 @@ export function Navigation({ isAuthenticated }: { isAuthenticated: boolean }) {
           <Text fontSize="xl" fontWeight="bold" color="brand.fg">
             {tCommon("appName")}
           </Text>
+          <LanguageSwitcher
+            align="center"
+            direction="row"
+            showLabel={false}
+            size="sm"
+          />
         </HStack>
       </Container>
     </Box>

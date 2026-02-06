@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Box,
@@ -68,7 +68,9 @@ const ColorSelectValue = ({ placeholder }: { placeholder?: string }) => {
   }>;
   const selected = items[0];
   const label = selected?.label ?? placeholder ?? "";
-  const swatchColor = selected?.value ? `${selected.value}.solid` : "gray.300";
+  const swatchColor = selected?.value
+    ? `${selected.value}.solid`
+    : "border.muted";
 
   return (
     <SelectValueText placeholder={placeholder}>
@@ -144,92 +146,123 @@ export default function SettingsPage() {
     colorPalettes[0]
   );
 
-  const colorCollection = createListCollection({
-    items: colorPalettes.map((color) => ({
-      value: color,
-      label: color.charAt(0).toUpperCase() + color.slice(1),
-    })),
-  });
+  const colorCollection = useMemo(
+    () =>
+      createListCollection({
+        items: colorPalettes.map((color) => ({
+          value: color,
+          label: color.charAt(0).toUpperCase() + color.slice(1),
+        })),
+      }),
+    []
+  );
 
   useEffect(() => {
+    const controller = new AbortController();
+    let isActive = true;
     async function fetchData() {
       try {
         const [userRes, genresRes, formatsRes, gendersRes, natsRes] =
           await Promise.all([
-            fetch("/api/user"),
-            fetch("/api/genres"),
-            fetch("/api/formats"),
-            fetch("/api/genders"),
-            fetch("/api/nationalities"),
+            fetch("/api/user", { signal: controller.signal }),
+            fetch("/api/genres", { signal: controller.signal }),
+            fetch("/api/formats", { signal: controller.signal }),
+            fetch("/api/genders", { signal: controller.signal }),
+            fetch("/api/nationalities", { signal: controller.signal }),
           ]);
 
         if (userRes.ok) {
           const userData = await userRes.json();
-          setUser(userData);
-          setName(userData.name || "");
+          if (isActive) {
+            setUser(userData);
+            setName(userData.name || "");
+          }
         }
 
         if (genresRes.ok) {
           const data = await genresRes.json();
-          setGenres(data);
-          setGenreDrafts(
-            Object.fromEntries(data.map((item: Genre) => [item.id, item.name]))
-          );
-          setGenreColorDrafts(
-            Object.fromEntries(
-              data.map((item: Genre) => [
-                item.id,
-                resolvePalette(item.name, item.color),
-              ])
-            )
-          );
+          if (isActive) {
+            setGenres(data);
+            setGenreDrafts(
+              Object.fromEntries(
+                data.map((item: Genre) => [item.id, item.name])
+              )
+            );
+            setGenreColorDrafts(
+              Object.fromEntries(
+                data.map((item: Genre) => [
+                  item.id,
+                  resolvePalette(item.name, item.color),
+                ])
+              )
+            );
+          }
         }
         if (formatsRes.ok) {
           const data = await formatsRes.json();
-          setFormats(data);
-          setFormatDrafts(
-            Object.fromEntries(data.map((item: Format) => [item.id, item.name]))
-          );
+          if (isActive) {
+            setFormats(data);
+            setFormatDrafts(
+              Object.fromEntries(
+                data.map((item: Format) => [item.id, item.name])
+              )
+            );
+          }
         }
         if (gendersRes.ok) {
           const data = await gendersRes.json();
-          setGenders(data);
-          setGenderDrafts(
-            Object.fromEntries(data.map((item: Gender) => [item.id, item.name]))
-          );
-          setGenderColorDrafts(
-            Object.fromEntries(
-              data.map((item: Gender) => [
-                item.id,
-                resolvePalette(item.name, item.color),
-              ])
-            )
-          );
+          if (isActive) {
+            setGenders(data);
+            setGenderDrafts(
+              Object.fromEntries(
+                data.map((item: Gender) => [item.id, item.name])
+              )
+            );
+            setGenderColorDrafts(
+              Object.fromEntries(
+                data.map((item: Gender) => [
+                  item.id,
+                  resolvePalette(item.name, item.color),
+                ])
+              )
+            );
+          }
         }
         if (natsRes.ok) {
           const data = await natsRes.json();
-          setNationalities(data);
-          setNationalityDrafts(
-            Object.fromEntries(
-              data.map((item: Nationality) => [item.id, item.name])
-            )
-          );
-          setNationalityColorDrafts(
-            Object.fromEntries(
-              data.map((item: Nationality) => [
-                item.id,
-                resolvePalette(item.name, item.color),
-              ])
-            )
-          );
+          if (isActive) {
+            setNationalities(data);
+            setNationalityDrafts(
+              Object.fromEntries(
+                data.map((item: Nationality) => [item.id, item.name])
+              )
+            );
+            setNationalityColorDrafts(
+              Object.fromEntries(
+                data.map((item: Nationality) => [
+                  item.id,
+                  resolvePalette(item.name, item.color),
+                ])
+              )
+            );
+          }
         }
       } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
         console.error("Failed to fetch data:", error);
       } finally {
-        setLoading(false);
+        if (isActive) {
+          setLoading(false);
+        }
       }
     }
     fetchData();
+    return () => {
+      isActive = false;
+      controller.abort();
+    };
   }, []);
 
   const handleSaveProfile = async () => {
@@ -429,8 +462,8 @@ export default function SettingsPage() {
         {message && (
           <Box
             p={3}
-            bg={message.type === "success" ? "green.100" : "red.100"}
-            color={message.type === "success" ? "green.800" : "red.800"}
+            bg={message.type === "success" ? "success.100" : "error.100"}
+            color={message.type === "success" ? "success.800" : "error.800"}
             borderRadius="md"
           >
             {message.text}
