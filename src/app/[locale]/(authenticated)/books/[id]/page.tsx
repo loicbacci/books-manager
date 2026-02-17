@@ -1,67 +1,67 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Link, useRouter } from "@/i18n/routing";
-import { useLocale, useTranslations } from "next-intl";
-import { FiArrowLeft, FiBookmark, FiSearch, FiStar } from "react-icons/fi";
-import {
-  Box,
-  Container,
-  Grid,
-  Heading,
-  Text,
-  Stack,
-  Card,
-  Flex,
-  Button,
-  Link as ChakraLink,
-  Input,
-  Textarea,
-  Spinner,
-  Field,
-  Badge,
-  createListCollection,
-  Icon,
-} from "@chakra-ui/react";
-import { Tag } from "@/components/ui/tag";
-import { ProgressBar } from "@/components/ui/progress-bar";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { BookCover } from "@/components/ui/book-cover";
-import { resolvePalette } from "@/lib/color-palettes";
-import { SeriesSelect } from "@/components/books/series-select";
+import { CreateAuthorDialog } from "@/components/authors/create-author-dialog";
 import { AuthorSelect } from "@/components/books/author-select";
-import {
-  ComboboxRoot,
-  ComboboxControl,
-  ComboboxInput,
-  ComboboxContent,
-  ComboboxItem,
-  ComboboxItemText,
-} from "@/components/ui/combobox";
-import {
-  SelectRoot,
-  SelectTrigger,
-  SelectValueText,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import {
-  DialogRoot,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogBody,
-  DialogFooter,
-  DialogCloseTrigger,
-} from "@/components/ui/dialog";
 import {
   BookSearchModal,
   type SearchResult,
 } from "@/components/books/book-search-modal";
+import { SeriesSelect } from "@/components/books/series-select";
 import { CreateGenreDialog } from "@/components/genres/create-genre-dialog";
-import { CreateAuthorDialog } from "@/components/authors/create-author-dialog";
+import { BookCover } from "@/components/ui/book-cover";
+import {
+  ComboboxContent,
+  ComboboxControl,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxItemText,
+  ComboboxRoot,
+} from "@/components/ui/combobox";
+import {
+  DialogBody,
+  DialogCloseTrigger,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogRoot,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ProgressBar } from "@/components/ui/progress-bar";
+import {
+  SelectContent,
+  SelectItem,
+  SelectRoot,
+  SelectTrigger,
+  SelectValueText,
+} from "@/components/ui/select";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { Tag } from "@/components/ui/tag";
 import { toaster } from "@/components/ui/toaster";
+import { Link, useRouter } from "@/i18n/routing";
+import { resolvePalette } from "@/lib/color-palettes";
 import type { PageResult } from "@/types/pagination";
+import {
+  Badge,
+  Box,
+  Button,
+  Card,
+  Link as ChakraLink,
+  Container,
+  createListCollection,
+  Field,
+  Flex,
+  Grid,
+  Heading,
+  Icon,
+  Input,
+  Spinner,
+  Stack,
+  Text,
+  Textarea,
+} from "@chakra-ui/react";
+import { useLocale, useTranslations } from "next-intl";
+import { use, useEffect, useMemo, useState } from "react";
+import { FiArrowLeft, FiBookmark, FiSearch, FiStar } from "react-icons/fi";
 
 type Book = {
   id: string;
@@ -105,9 +105,9 @@ type Author = {
 export default function BookDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const { id } = params;
+  const { id } = use(params);
   const router = useRouter();
   const t = useTranslations("book");
   const tAuthor = useTranslations("author");
@@ -142,23 +142,18 @@ export default function BookDetailPage({
       setIsAuthorsLoading(true);
       setIsSeriesLoading(true);
       try {
-        const [
-          bookRes,
-          formatsRes,
-          seriesRes,
-          genresRes,
-          authorsRes,
-        ] = await Promise.all([
-          fetch(`/api/books/${id}`, { signal: controller.signal }),
-          fetch("/api/formats", { signal: controller.signal }),
-          fetch("/api/series?page=1&pageSize=200", {
-            signal: controller.signal,
-          }),
-          fetch("/api/genres", { signal: controller.signal }),
-          fetch("/api/authors?page=1&pageSize=200", {
-            signal: controller.signal,
-          }),
-        ]);
+        const [bookRes, formatsRes, seriesRes, genresRes, authorsRes] =
+          await Promise.all([
+            fetch(`/api/books/${id}`, { signal: controller.signal }),
+            fetch("/api/formats", { signal: controller.signal }),
+            fetch("/api/series?page=1&pageSize=200", {
+              signal: controller.signal,
+            }),
+            fetch("/api/genres", { signal: controller.signal }),
+            fetch("/api/authors?page=1&pageSize=200", {
+              signal: controller.signal,
+            }),
+          ]);
 
         if (bookRes.ok) {
           const bookData = await bookRes.json();
@@ -171,9 +166,7 @@ export default function BookDetailPage({
               )
             );
             setEditGenreIds(
-              bookData.genres.map(
-                (g: { genre: { id: string } }) => g.genre.id
-              )
+              bookData.genres.map((g: { genre: { id: string } }) => g.genre.id)
             );
           }
         } else if (bookRes.status === 404) {
@@ -278,12 +271,12 @@ export default function BookDetailPage({
         setBook(updatedBook);
         setEditData(updatedBook);
         setEditAuthorIds(
-          updatedBook.authors.map((entry: { author: { id: string } }) => entry.author.id)
+          updatedBook.authors.map(
+            (entry: { author: { id: string } }) => entry.author.id
+          )
         );
         setEditGenreIds(
-          updatedBook.genres.map(
-            (g: { genre: { id: string } }) => g.genre.id
-          )
+          updatedBook.genres.map((g: { genre: { id: string } }) => g.genre.id)
         );
         setIsEditing(false);
         if (updatedBook.slug && updatedBook.slug !== id) {
@@ -378,9 +371,7 @@ export default function BookDetailPage({
 
   const filteredGenres = useMemo(() => {
     const query = genreQuery.trim().toLowerCase();
-    return genres.filter((genre) =>
-      genre.name.toLowerCase().includes(query)
-    );
+    return genres.filter((genre) => genre.name.toLowerCase().includes(query));
   }, [genreQuery, genres]);
   const genreCollection = useMemo(
     () =>
@@ -400,9 +391,7 @@ export default function BookDetailPage({
   // Create search query from book title and authors for pre-filling search modal
   const searchQuery = useMemo(() => {
     if (!book) return "";
-    return `${book.title} ${book.authors
-      .map((a) => a.author.name)
-      .join(" ")}`;
+    return `${book.title} ${book.authors.map((a) => a.author.name).join(" ")}`;
   }, [book]);
 
   // Loading state
@@ -467,7 +456,6 @@ export default function BookDetailPage({
     }));
   };
 
-
   return (
     <>
       {/* External book search modal */}
@@ -484,9 +472,7 @@ export default function BookDetailPage({
           setGenres((prev) =>
             [...prev, created].sort((a, b) => a.name.localeCompare(b.name))
           );
-          setEditGenreIds((prev) =>
-            Array.from(new Set([...prev, created.id]))
-          );
+          setEditGenreIds((prev) => Array.from(new Set([...prev, created.id])));
         }}
       />
       <CreateAuthorDialog
@@ -560,7 +546,13 @@ export default function BookDetailPage({
                 />
               </Box>
               {book.isWishlist && (
-                  <Badge colorPalette="gold" mt={2} display="inline-flex" gap={2} alignItems="center">
+                <Badge
+                  colorPalette="gold"
+                  mt={2}
+                  display="inline-flex"
+                  gap={2}
+                  alignItems="center"
+                >
                   <FiBookmark />
                   {t("wishlist")}
                 </Badge>
@@ -596,25 +588,25 @@ export default function BookDetailPage({
               {isEditing ? (
                 <>
                   <Field.Root>
-                  <Field.Label>{t("title")}</Field.Label>
-                  <Input
-                    value={editData.title || ""}
-                    onChange={(e) =>
-                      setEditData({ ...editData, title: e.target.value })
-                    }
-                    size="lg"
-                  />
+                    <Field.Label>{t("title")}</Field.Label>
+                    <Input
+                      value={editData.title || ""}
+                      onChange={(e) =>
+                        setEditData({ ...editData, title: e.target.value })
+                      }
+                      size="lg"
+                    />
                   </Field.Root>
 
                   <Field.Root>
-                  <Field.Label>{t("cover")} URL</Field.Label>
-                  <Input
-                    value={editData.coverUrl || ""}
-                    onChange={(e) =>
-                      setEditData({ ...editData, coverUrl: e.target.value })
-                    }
-                    placeholder={t("coverUrlPlaceholder")}
-                  />
+                    <Field.Label>{t("cover")} URL</Field.Label>
+                    <Input
+                      value={editData.coverUrl || ""}
+                      onChange={(e) =>
+                        setEditData({ ...editData, coverUrl: e.target.value })
+                      }
+                      placeholder={t("coverUrlPlaceholder")}
+                    />
                   </Field.Root>
                 </>
               ) : (
@@ -710,7 +702,12 @@ export default function BookDetailPage({
                           : tAuthor("unknownNationality");
 
                       return (
-                        <Flex key={author.id} align="center" gap={2} wrap="wrap">
+                        <Flex
+                          key={author.id}
+                          align="center"
+                          gap={2}
+                          wrap="wrap"
+                        >
                           <ChakraLink variant="underline" asChild>
                             <Link href={`/authors/${author.id}`}>
                               {author.name}
@@ -1144,4 +1141,3 @@ export default function BookDetailPage({
     </>
   );
 }
-

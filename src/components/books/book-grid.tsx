@@ -1,45 +1,32 @@
 "use client";
 
+import {
+  Card,
+  Grid,
+  Icon,
+  Input,
+  Stack,
+  Text,
+  createListCollection,
+} from "@chakra-ui/react";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "@/i18n/routing";
-import { useTranslations } from "next-intl";
-import { FiFilter, FiStar } from "react-icons/fi";
-import {
-  Box,
-  Grid,
-  Text,
-  Stack,
-  Card,
-  Flex,
-  Badge,
-  Button,
-  Input,
-  type ListCollection,
-  Spinner,
-  Icon,
-} from "@chakra-ui/react";
 import { FiBookOpen } from "react-icons/fi";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { ProgressBar } from "@/components/ui/progress-bar";
-import { BookCover } from "@/components/ui/book-cover";
-import { Checkbox } from "@/components/ui/checkbox";
-import { resolvePalette } from "@/lib/color-palettes";
+
+import { BookCard } from "@/components/books/book-card";
 import {
-  SelectRoot,
-  SelectTrigger,
-  SelectValueText,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import { createListCollection } from "@chakra-ui/react";
+  BookCardFields,
+  BookGridControls,
+  FilterOptionItem,
+  FilterStatus,
+  GroupOption,
+  GroupOptionItem,
+  SortOption,
+  SortOptionItem,
+} from "@/components/books/book-grid-controls";
+import { BookGridSkeleton } from "@/components/books/book-grid-skeleton";
 import { GroupToggle } from "@/components/ui/group-toggle";
-import {
-  PopoverBody,
-  PopoverContent,
-  PopoverRoot,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 
 /**
  * Normalized book shape required by the grid.
@@ -67,19 +54,6 @@ export type BookGridBook = {
 };
 
 /**
- * Card layout toggles for the book grid.
- */
-export type BookCardFields = {
-  cover: boolean;
-  title: boolean;
-  author: boolean;
-  genres: boolean;
-  rating: boolean;
-  status: boolean;
-  format: boolean;
-};
-
-/**
  * Defaults for the card display toggles.
  */
 const defaultFields: BookCardFields = {
@@ -91,278 +65,6 @@ const defaultFields: BookCardFields = {
   status: true,
   format: false,
 };
-
-/**
- * Reading status filters exposed in the UI.
- */
-type FilterStatus =
-  | "ALL"
-  | "TO_READ"
-  | "READING"
-  | "READ"
-  | "DROPPED"
-  | "WISHLIST";
-type SortOption =
-  | "title-asc"
-  | "title-desc"
-  | "author-asc"
-  | "author-desc"
-  | "created-asc"
-  | "created-desc"
-  | "start-asc"
-  | "start-desc"
-  | "end-asc"
-  | "end-desc"
-  | "updated-asc"
-  | "updated-desc"
-  | "progress-asc"
-  | "progress-desc";
-/**
- * Group-by options for segmented sections in the grid.
- */
-type GroupOption =
-  | "none"
-  | "series"
-  | "author"
-  | "status"
-  | "rating"
-  | "format";
-
-type SortOptionItem = { value: SortOption; label: string };
-type GroupOptionItem = { value: GroupOption; label: string };
-type FilterOptionItem = { value: FilterStatus; label: string };
-
-type BookGridControlsProps = {
-  areControlsOpen: boolean;
-  onToggleControls: () => void;
-  isDisplayOpen: boolean;
-  onToggleDisplay: () => void;
-  cardFields: BookCardFields;
-  onToggleCardField: (field: keyof BookCardFields) => void;
-  sort: SortOption;
-  onSortChange: (value: SortOption) => void;
-  sortCollection: ListCollection<SortOptionItem>;
-  groupBy: GroupOption;
-  onGroupByChange: (value: GroupOption) => void;
-  groupCollection: ListCollection<GroupOptionItem>;
-  filter: FilterStatus;
-  onFilterChange: (value: FilterStatus) => void;
-  filterCollection: ListCollection<FilterOptionItem>;
-  showGroupActions: boolean;
-  onCollapseAll: () => void;
-  onExpandAll: () => void;
-};
-
-/**
- * Controls for sorting, grouping, filtering, and card-field toggles.
- *
- * Collapses on mobile behind a "Filters & display" button.
- */
-function BookGridControls({
-  areControlsOpen,
-  onToggleControls,
-  isDisplayOpen,
-  onToggleDisplay,
-  cardFields,
-  onToggleCardField,
-  sort,
-  onSortChange,
-  sortCollection,
-  groupBy,
-  onGroupByChange,
-  groupCollection,
-  filter,
-  onFilterChange,
-  filterCollection,
-  showGroupActions,
-  onCollapseAll,
-  onExpandAll,
-}: BookGridControlsProps) {
-  const t = useTranslations("book");
-  const tCommon = useTranslations("common");
-  const controlBg = "bg.input";
-  const controlBorder = { base: "border.default", _dark: "border.default" };
-  const cardBg = { base: "bg.panel", _dark: "bg.card" };
-
-  return (
-    <Card.Root bg={cardBg}>
-      <Card.Body>
-        <Stack gap={4}>
-          <Flex
-            gap={4}
-            wrap="wrap"
-            direction={{ base: "column", md: "row" }}
-            align={{ base: "stretch", md: "center" }}
-          >
-            <Button
-              variant="outline"
-              width={{ base: "full", md: "auto" }}
-              onClick={onToggleControls}
-              display={{ base: "inline-flex", md: "none" }}
-            >
-              <Flex align="center" gap={2}>
-                <Text as="span">{t("filtersButton")}</Text>
-                <Box display="flex" alignItems="center">
-                  <FiFilter />
-                </Box>
-              </Flex>
-            </Button>
-          </Flex>
-
-          <Box
-            display={{
-              base: areControlsOpen ? "block" : "none",
-              md: "block",
-            }}
-          >
-            <Flex
-              gap={4}
-              wrap="wrap"
-              direction={{ base: "column", md: "row" }}
-              align={{ base: "stretch", md: "center" }}
-            >
-              <PopoverRoot
-                open={isDisplayOpen}
-                onOpenChange={(details) => {
-                  if (details.open !== isDisplayOpen) {
-                    onToggleDisplay();
-                  }
-                }}
-                positioning={{ placement: "bottom-start" }}
-              >
-                <PopoverTrigger asChild>
-                  <Button variant="outline" width={{ base: "full", md: "auto" }}>
-                    {t("cardDisplay")}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent>
-                  <PopoverBody>
-                    <Stack gap={2}>
-                      {[
-                        { key: "cover", label: t("cardDisplayCover") },
-                        { key: "title", label: t("cardDisplayTitle") },
-                        { key: "author", label: t("cardDisplayAuthor") },
-                        { key: "genres", label: t("cardDisplayGenres") },
-                        { key: "rating", label: t("cardDisplayRating") },
-                        { key: "status", label: t("cardDisplayStatus") },
-                        { key: "format", label: t("cardDisplayFormat") },
-                      ].map((item) => (
-                        <Checkbox
-                          key={item.key}
-                          checked={cardFields[item.key as keyof BookCardFields]}
-                          onCheckedChange={() =>
-                            onToggleCardField(item.key as keyof BookCardFields)
-                          }
-                        >
-                          {item.label}
-                        </Checkbox>
-                      ))}
-                    </Stack>
-                  </PopoverBody>
-                </PopoverContent>
-              </PopoverRoot>
-              <SelectRoot
-                collection={sortCollection}
-                value={[sort]}
-                onValueChange={(e) => onSortChange(e.value[0] as SortOption)}
-                width={{ base: "full", md: "220px" }}
-              >
-                <SelectTrigger bg={controlBg} borderColor={controlBorder}>
-                  <SelectValueText placeholder={tCommon("sort")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {sortCollection.items.map((item) => (
-                    <SelectItem key={item.value} item={item}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </SelectRoot>
-              <Flex
-                align={{ base: "stretch", md: "center" }}
-                gap={2}
-                direction={{ base: "column", md: "row" }}
-                width={{ base: "full", md: "auto" }}
-              >
-                <Text fontSize="sm" color="fg.muted">
-                  {t("groupingLabel")}
-                </Text>
-                <SelectRoot
-                  collection={groupCollection}
-                  value={[groupBy]}
-                  onValueChange={(e) =>
-                    onGroupByChange(e.value[0] as GroupOption)
-                  }
-                  width={{ base: "full", md: "220px" }}
-                >
-                  <SelectTrigger bg={controlBg} borderColor={controlBorder}>
-                    <SelectValueText placeholder={t("groupBy")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {groupCollection.items.map((item) => (
-                      <SelectItem key={item.value} item={item}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </SelectRoot>
-              </Flex>
-              <Flex
-                align={{ base: "stretch", md: "center" }}
-                gap={2}
-                direction={{ base: "column", md: "row" }}
-                width={{ base: "full", md: "auto" }}
-              >
-                <Text fontSize="sm" color="fg.muted">
-                  {t("filteringLabel")}
-                </Text>
-                <SelectRoot
-                  collection={filterCollection}
-                  value={[filter]}
-                  onValueChange={(e) =>
-                    onFilterChange(e.value[0] as FilterStatus)
-                  }
-                  width={{ base: "full", md: "220px" }}
-                >
-                  <SelectTrigger bg={controlBg} borderColor={controlBorder}>
-                    <SelectValueText placeholder={t("filterBy")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filterCollection.items.map((item) => (
-                      <SelectItem key={item.value} item={item}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </SelectRoot>
-              </Flex>
-              {showGroupActions && (
-                <Flex gap={2} width={{ base: "full", md: "auto" }}>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    width={{ base: "full", md: "auto" }}
-                    onClick={onCollapseAll}
-                  >
-                    {t("groupCollapseAll")}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    width={{ base: "full", md: "auto" }}
-                    onClick={onExpandAll}
-                  >
-                    {t("groupExpandAll")}
-                  </Button>
-                </Flex>
-              )}
-            </Flex>
-          </Box>
-        </Stack>
-      </Card.Body>
-    </Card.Root>
-  );
-}
 
 type BookGridViewProps = {
   books: BookGridBook[];
@@ -760,16 +462,7 @@ export function BookGridView({
       </Stack>
 
       {isLoading ? (
-        <Card.Root>
-          <Card.Body>
-            <Stack align="center" py={12}>
-              <Spinner size="lg" color="brand.500" />
-              <Text color="fg.muted" fontSize="lg">
-                {tCommon("loading")}
-              </Text>
-            </Stack>
-          </Card.Body>
-        </Card.Root>
+        <BookGridSkeleton />
       ) : sortedBooks.length === 0 ? (
         <Card.Root>
           <Card.Body>
@@ -817,116 +510,3 @@ export function BookGridView({
     </Stack>
   );
 }
-
-function BookCard({
-  book,
-  fields,
-}: {
-  book: BookGridBook;
-  fields: BookCardFields;
-}) {
-  const t = useTranslations("book");
-  /**
-   * Reading progress percentage for the progress bar.
-   */
-  const progress = book.totalPages
-    ? Math.round((book.currentPage / book.totalPages) * 100)
-    : 0;
-
-  return (
-    <Card.Root asChild>
-      <Link href={`/books/${book.slug}`}>
-        <Card.Body p={3}>
-          <Stack gap={2}>
-            {fields.cover && (
-              <Box position="relative">
-                <BookCover coverUrl={book.coverUrl} title={book.title} />
-                {book.isWishlist && (
-                  <Box
-                    position="absolute"
-                    top={1}
-                    right={1}
-                    bg="gold.400"
-                    borderRadius="full"
-                    p={1}
-                    fontSize="sm"
-                    color="white"
-                  >
-                    <FiStar />
-                  </Box>
-                )}
-              </Box>
-            )}
-            <Box>
-              {fields.title && (
-                <Text fontSize="sm" fontWeight="semibold" lineClamp={2}>
-                  {book.title}
-                </Text>
-              )}
-              {fields.author && (
-                <Text fontSize="xs" color="fg.muted" lineClamp={1}>
-                  {book.authors.map((a) => a.author.name).join(", ") ||
-                    t("unknownAuthor")}
-                </Text>
-              )}
-              {fields.genres && book.genres.length > 0 && (
-                <Flex gap={1} wrap="wrap">
-                  {book.genres.map(({ genre }) => (
-                    <Badge
-                      key={genre.id}
-                      colorPalette={resolvePalette(genre.name, genre.color)}
-                      variant="subtle"
-                      size="sm"
-                    >
-                      {genre.name}
-                    </Badge>
-                  ))}
-                </Flex>
-              )}
-              {fields.format && book.format && (
-                <Text fontSize="xs" color="fg.muted" lineClamp={1}>
-                  {book.format.name}
-                </Text>
-              )}
-            </Box>
-            {book.status === "READING" && book.totalPages && (
-              <Box>
-                <ProgressBar value={progress} size="sm" />
-                <Text fontSize="xs" color="fg.muted" mt={1}>
-                  {progress}%
-                </Text>
-              </Box>
-            )}
-            {fields.rating && book.rating !== null && (
-              <Flex gap={1}>
-                {Array.from({ length: 5 }).map((_, index) => {
-                  const rating = book.rating ?? 0;
-                  const filledCount = Math.min(5, Math.round(rating));
-                  const fillColor =
-                    index < filledCount
-                      ? "var(--chakra-colors-gold-500)"
-                      : "var(--chakra-colors-fg-muted)";
-                  return (
-                    <FiStar
-                      key={index}
-                      size={14}
-                      color={fillColor}
-                      style={{
-                        stroke: "currentColor",
-                        strokeWidth: 1.5,
-                        fill: index < filledCount ? "currentColor" : "none",
-                      }}
-                    />
-                  );
-                })}
-              </Flex>
-            )}
-            {fields.status && <StatusBadge status={book.status} size="sm" />}
-          </Stack>
-        </Card.Body>
-      </Link>
-    </Card.Root>
-  );
-}
-
-

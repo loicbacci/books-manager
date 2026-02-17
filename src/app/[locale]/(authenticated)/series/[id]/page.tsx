@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { BookGridBook, BookGridView } from "@/components/books/book-grid";
 import { useRouter } from "@/i18n/routing";
-import { useTranslations } from "next-intl";
 import {
   Box,
   Button,
@@ -10,12 +9,13 @@ import {
   Container,
   Flex,
   Heading,
+  Icon,
   Stack,
   Text,
-  Icon,
 } from "@chakra-ui/react";
+import { useTranslations } from "next-intl";
+import { use, useEffect, useState } from "react";
 import { FiArrowLeft, FiBookOpen } from "react-icons/fi";
-import { BookGridView, BookGridBook } from "@/components/books/book-grid";
 
 type Series = {
   id: string;
@@ -26,9 +26,9 @@ type Series = {
 export default function SeriesDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const { id } = params;
+  const { id } = use(params);
   const router = useRouter();
   const t = useTranslations("series");
   const tCommon = useTranslations("common");
@@ -125,4 +125,3 @@ export default function SeriesDetailPage({
     </Container>
   );
 }
-

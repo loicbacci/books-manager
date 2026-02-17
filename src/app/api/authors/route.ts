@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { Prisma } from "@prisma/client";
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 
 /**
  * Payload for creating a new author.
@@ -28,6 +28,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const pageParam = searchParams.get("page");
     const pageSizeParam = searchParams.get("pageSize");
+    const query = searchParams.get("query");
+    const namesParam = searchParams.get("names");
+
     const parseNumberParam = (value: string | null, fallback: number) => {
       if (!value) return fallback;
       const parsed = Number.parseInt(value, 10);
@@ -40,13 +43,31 @@ export async function GET(request: NextRequest) {
     );
     const skip = (page - 1) * pageSize;
 
-    const where = { userId: session.user.id };
+    const where: Prisma.AuthorWhereInput = { userId: session.user.id };
+
+    if (query) {
+      where.name = { contains: query, mode: "insensitive" };
+    }
+
+    if (namesParam) {
+      const names = namesParam.split(",").map((n) => n.trim()).filter(Boolean);
+      if (names.length > 0) {
+        where.name = { in: names, mode: "insensitive" };
+      }
+    }
+
     const authorInclude =
       {
         gender: true,
         nationalities: { include: { nationality: true } },
         _count: { select: { books: true } },
       } as unknown as Prisma.AuthorInclude;
+
+    // If fetching by names (batch check), we likely want all of them, ignoring pagination if feasible
+    // But for safety let's keep pagination or allow high limit if names are provided?
+    // For now, standard pagination applies. If checking 100 names, requester should handle pagination or we increase limit.
+    // Let's assume the caller handles chunks if >100.
+
     const [authors, total] = await Promise.all([
       db.author.findMany({
         where,

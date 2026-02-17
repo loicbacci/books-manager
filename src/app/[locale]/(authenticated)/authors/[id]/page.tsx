@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { BookGridBook, BookGridView } from "@/components/books/book-grid";
 import { useRouter } from "@/i18n/routing";
-import { useTranslations } from "next-intl";
 import {
   Badge,
   Box,
@@ -11,12 +10,13 @@ import {
   Container,
   Flex,
   Heading,
+  Icon,
   Stack,
   Text,
-  Icon,
 } from "@chakra-ui/react";
+import { useTranslations } from "next-intl";
+import { use, useEffect, useState } from "react";
 import { FiArrowLeft, FiBookOpen } from "react-icons/fi";
-import { BookGridView, BookGridBook } from "@/components/books/book-grid";
 
 type Author = {
   id: string;
@@ -29,9 +29,9 @@ type Author = {
 export default function AuthorDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const { id } = params;
+  const { id } = use(params);
   const router = useRouter();
   const t = useTranslations("author");
   const tNav = useTranslations("nav");
@@ -138,4 +138,3 @@ export default function AuthorDetailPage({
     </Container>
   );
 }
-

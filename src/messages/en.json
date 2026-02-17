@@ -263,7 +263,21 @@
     "createsNew": "Creates a new author",
     "importButton": "Import books",
     "importSuccess": "Import completed",
-    "importFailed": "Import failed"
+    "importSuccessDescription": "Successfully imported {count} books.",
+    "importFailed": "Import failed",
+    "steps": {
+        "upload": { "label": "Upload File" },
+        "mapping": { "label": "Map Columns" },
+        "authors": { "label": "Resolve Authors" },
+        "review": { "label": "Review" }
+    },
+    "authorInFile": "Author in File",
+    "matchWith": "Match with",
+    "autoMatched": "Auto-matched",
+    "willCreate": "Will Create",
+    "searchAuthor": "Search existing author...",
+    "createNewAuthor": "Create new author",
+    "noResults": "No results found"
   },
   "series": {
     "createTitle": "Create a series",
