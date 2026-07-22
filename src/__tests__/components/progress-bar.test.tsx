@@ -59,21 +59,21 @@ describe("ProgressBar", () => {
   it("applies correct size classes", () => {
     const { rerender } = render(<ProgressBar value={50} size="sm" />);
     let progressBar = screen.getByRole("progressbar");
-    expect(progressBar).toHaveStyle({ height: "8px" });
+    expect(progressBar).toHaveClass("h-2");
 
     rerender(<ProgressBar value={50} size="md" />);
     progressBar = screen.getByRole("progressbar");
-    expect(progressBar).toHaveStyle({ height: "12px" });
+    expect(progressBar).toHaveClass("h-3");
 
     rerender(<ProgressBar value={50} size="lg" />);
     progressBar = screen.getByRole("progressbar");
-    expect(progressBar).toHaveStyle({ height: "16px" });
+    expect(progressBar).toHaveClass("h-4");
   });
 
-  it("uses custom color scheme", () => {
-    render(<ProgressBar value={50} colorScheme="red" />);
+  it("uses primary fill color", () => {
+    render(<ProgressBar value={50} />);
     const fill = screen.getByTestId("progress-fill");
-    expect(fill).toHaveStyle({ backgroundColor: "red.500" });
+    expect(fill).toHaveClass("bg-primary");
   });
 
   it("has proper accessibility attributes", () => {

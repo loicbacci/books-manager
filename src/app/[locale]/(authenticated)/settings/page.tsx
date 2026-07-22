@@ -1,32 +1,31 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 import {
-  Box,
-  Container,
-  Heading,
-  Text,
-  Stack,
+  RiBookLine,
+  RiGlobalLine,
+  RiGroupLine,
+  RiLoaderLine,
+  RiLockPasswordLine,
+  RiPriceTag3Line,
+  RiUserLine,
+} from "@remixicon/react";
+
+import {
   Card,
-  Flex,
-  Button,
-  Input,
-  Spinner,
-  Field,
-  createListCollection,
-  useSelectContext,
-  Tooltip,
-} from "@chakra-ui/react";
-import { GroupToggle } from "@/components/ui/group-toggle";
-import { toaster } from "@/components/ui/toaster";
-import {
-  SelectRoot,
-  SelectTrigger,
-  SelectValueText,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import {
   colorPalettes,
   resolvePalette,
@@ -60,27 +59,189 @@ type Nationality = {
   _count?: { authors: number };
 };
 
-const ColorSelectValue = ({ placeholder }: { placeholder?: string }) => {
-  const select = useSelectContext();
-  const items = (select.selectedItems ?? []) as Array<{
-    value: ColorPalette;
-    label: string;
-  }>;
-  const selected = items[0];
-  const label = selected?.label ?? placeholder ?? "";
-  const swatchColor = selected?.value
-    ? `${selected.value}.solid`
-    : "border.muted";
+type EntityWithCount = { id: string; name: string; color?: string | null };
+type EntityType = "genres" | "formats" | "genders" | "nationalities";
+
+const colorSwatchClasses: Record<ColorPalette, string> = {
+  red: "bg-red-500",
+  orange: "bg-orange-500",
+  yellow: "bg-yellow-500",
+  green: "bg-green-500",
+  teal: "bg-teal-500",
+  blue: "bg-blue-500",
+  cyan: "bg-cyan-500",
+  purple: "bg-purple-500",
+  pink: "bg-pink-500",
+};
+
+function ColorSwatchPicker({
+  value,
+  onChange,
+  label,
+}: {
+  value: ColorPalette;
+  onChange: (color: ColorPalette) => void;
+  label: string;
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className="flex flex-wrap items-center gap-1.5"
+    >
+      {colorPalettes.map((color) => (
+        <button
+          key={color}
+          type="button"
+          role="radio"
+          aria-checked={value === color}
+          aria-label={color}
+          onClick={() => onChange(color)}
+          className={cn(
+            "size-6 shrink-0 rounded-full transition-transform",
+            colorSwatchClasses[color],
+            value === color
+              ? "ring-2 ring-foreground ring-offset-2 ring-offset-background"
+              : "opacity-70 hover:opacity-100"
+          )}
+        />
+      ))}
+    </div>
+  );
+}
+
+function EntitySection<T extends EntityWithCount>({
+  items,
+  hasColor,
+  drafts,
+  onDraftChange,
+  colorDrafts,
+  onColorChange,
+  countOf,
+  onSave,
+  onDelete,
+  newValue,
+  onNewValueChange,
+  newColor,
+  onNewColorChange,
+  onAdd,
+  addPlaceholder,
+  helpText,
+  emptyText,
+}: {
+  items: T[];
+  hasColor: boolean;
+  drafts: Record<string, string>;
+  onDraftChange: (id: string, value: string) => void;
+  colorDrafts?: Record<string, ColorPalette>;
+  onColorChange?: (id: string, color: ColorPalette) => void;
+  countOf: (item: T) => number;
+  onSave: (id: string) => void;
+  onDelete: (id: string) => void;
+  newValue: string;
+  onNewValueChange: (value: string) => void;
+  newColor?: ColorPalette;
+  onNewColorChange?: (color: ColorPalette) => void;
+  onAdd: () => void;
+  addPlaceholder: string;
+  helpText?: string;
+  emptyText: string;
+}) {
+  const tCommon = useTranslations("common");
+  const tSettings = useTranslations("settings");
 
   return (
-    <SelectValueText placeholder={placeholder}>
-      <Flex align="center" gap={2}>
-        <Box boxSize="12px" borderRadius="full" bg={swatchColor} />
-        <Text fontSize="sm">{label}</Text>
-      </Flex>
-    </SelectValueText>
+    <Card>
+      <CardContent className="space-y-4">
+        {helpText && <p className="text-sm text-muted-foreground">{helpText}</p>}
+
+        {items.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{emptyText}</p>
+        ) : (
+          <div className="space-y-2">
+            {items.map((item) => {
+              const blocked = countOf(item) > 0;
+              const selectedColor =
+                colorDrafts?.[item.id] ?? resolvePalette(item.name, item.color);
+
+              return (
+                <div
+                  key={item.id}
+                  className="flex flex-col gap-2 rounded-2xl bg-muted/40 p-2.5 sm:flex-row sm:items-center"
+                >
+                  <Input
+                    value={drafts[item.id] ?? ""}
+                    onChange={(e) => onDraftChange(item.id, e.target.value)}
+                    className="sm:flex-1"
+                  />
+                  {hasColor && onColorChange && (
+                    <ColorSwatchPicker
+                      value={selectedColor}
+                      onChange={(color) => onColorChange(item.id, color)}
+                      label={tSettings("colorLabel")}
+                    />
+                  )}
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => onSave(item.id)}>
+                      {tCommon("save")}
+                    </Button>
+                    {blocked ? (
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="opacity-50"
+                              onClick={(e) => e.preventDefault()}
+                            />
+                          }
+                        >
+                          {tCommon("delete")}
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {tSettings("deleteBlocked")}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onDelete(item.id)}
+                      >
+                        {tCommon("delete")}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="flex flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:items-center">
+          <Input
+            placeholder={addPlaceholder}
+            value={newValue}
+            onChange={(e) => onNewValueChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onAdd();
+            }}
+            className="sm:flex-1"
+          />
+          {hasColor && newColor && onNewColorChange && (
+            <ColorSwatchPicker
+              value={newColor}
+              onChange={onNewColorChange}
+              label={tSettings("colorLabel")}
+            />
+          )}
+          <Button onClick={onAdd}>{tCommon("add")}</Button>
+        </div>
+      </CardContent>
+    </Card>
   );
-};
+}
 
 export default function SettingsPage() {
   const t = useTranslations("settings");
@@ -89,10 +250,6 @@ export default function SettingsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
 
   // Profile form
   const [name, setName] = useState("");
@@ -124,13 +281,6 @@ export default function SettingsPage() {
     Record<string, ColorPalette>
   >({});
 
-  const [sectionsOpen, setSectionsOpen] = useState({
-    genres: false,
-    formats: false,
-    genders: false,
-    nationalities: false,
-  });
-
   // New entity forms
   const [newGenre, setNewGenre] = useState("");
   const [newFormat, setNewFormat] = useState("");
@@ -144,17 +294,6 @@ export default function SettingsPage() {
   );
   const [newNationalityColor, setNewNationalityColor] = useState<ColorPalette>(
     colorPalettes[0]
-  );
-
-  const colorCollection = useMemo(
-    () =>
-      createListCollection({
-        items: colorPalettes.map((color) => ({
-          value: color,
-          label: color.charAt(0).toUpperCase() + color.slice(1),
-        })),
-      }),
-    []
   );
 
   useEffect(() => {
@@ -184,9 +323,7 @@ export default function SettingsPage() {
           if (isActive) {
             setGenres(data);
             setGenreDrafts(
-              Object.fromEntries(
-                data.map((item: Genre) => [item.id, item.name])
-              )
+              Object.fromEntries(data.map((item: Genre) => [item.id, item.name]))
             );
             setGenreColorDrafts(
               Object.fromEntries(
@@ -267,8 +404,6 @@ export default function SettingsPage() {
 
   const handleSaveProfile = async () => {
     setSaving(true);
-    setMessage(null);
-
     try {
       const response = await fetch("/api/user", {
         method: "PATCH",
@@ -279,15 +414,12 @@ export default function SettingsPage() {
       if (response.ok) {
         const updatedUser = await response.json();
         setUser(updatedUser);
-        setMessage({ type: "success", text: t("profileUpdatedMessage") });
-        toaster.create({ title: tCommon("profileUpdated"), type: "success" });
+        toast.success(t("profileUpdatedMessage"));
       } else {
-        setMessage({ type: "error", text: t("profileUpdateFailed") });
-        toaster.create({ title: tCommon("saveFailed"), type: "error" });
+        toast.error(t("profileUpdateFailed"));
       }
     } catch {
-      setMessage({ type: "error", text: t("profileUpdateFailed") });
-      toaster.create({ title: tCommon("saveFailed"), type: "error" });
+      toast.error(t("profileUpdateFailed"));
     } finally {
       setSaving(false);
     }
@@ -295,13 +427,11 @@ export default function SettingsPage() {
 
   const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {
-      setMessage({ type: "error", text: t("passwordMismatch") });
+      toast.error(t("passwordMismatch"));
       return;
     }
 
     setSaving(true);
-    setMessage(null);
-
     try {
       const response = await fetch("/api/user", {
         method: "PATCH",
@@ -310,41 +440,36 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        setMessage({ type: "success", text: t("passwordChangedMessage") });
-        toaster.create({ title: tCommon("passwordChanged"), type: "success" });
+        toast.success(t("passwordChangedMessage"));
         setCurrentPassword("");
         setNewPassword("");
         setConfirmPassword("");
       } else {
-        setMessage({ type: "error", text: t("passwordChangeFailed") });
-        toaster.create({ title: tCommon("saveFailed"), type: "error" });
+        toast.error(t("passwordChangeFailed"));
       }
     } catch {
-      setMessage({ type: "error", text: t("passwordChangeFailed") });
-      toaster.create({ title: tCommon("saveFailed"), type: "error" });
+      toast.error(t("passwordChangeFailed"));
     } finally {
       setSaving(false);
     }
   };
 
-  const addEntity = async <
-    T extends { id: string; name: string; color?: string | null },
-  >(
-    type: "genres" | "formats" | "genders" | "nationalities",
-    name: string,
+  const addEntity = async <T extends EntityWithCount>(
+    type: EntityType,
+    entityName: string,
     color: string | null,
     setEntities: React.Dispatch<React.SetStateAction<T[]>>,
     setNewValue: React.Dispatch<React.SetStateAction<string>>,
     defaultCount?: Record<string, number>,
     setNewColor?: React.Dispatch<React.SetStateAction<ColorPalette>>
   ) => {
-    if (!name.trim()) return;
+    if (!entityName.trim()) return;
 
     try {
       const response = await fetch(`/api/${type}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), color }),
+        body: JSON.stringify({ name: entityName.trim(), color }),
       });
 
       if (response.ok) {
@@ -357,18 +482,19 @@ export default function SettingsPage() {
         if (setNewColor) {
           setNewColor(colorPalettes[0]);
         }
+      } else {
+        toast.error(tCommon("saveFailed"));
       }
     } catch (error) {
       console.error(`Failed to add ${type}:`, error);
+      toast.error(tCommon("saveFailed"));
     }
   };
 
-  const updateEntity = async <
-    T extends { id: string; name: string; color?: string | null },
-  >(
-    type: "genres" | "formats" | "genders" | "nationalities",
+  const updateEntity = async <T extends EntityWithCount>(
+    type: EntityType,
     id: string,
-    name: string,
+    entityName: string,
     color: string | null,
     setEntities: React.Dispatch<React.SetStateAction<T[]>>,
     setDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>,
@@ -376,13 +502,13 @@ export default function SettingsPage() {
       React.SetStateAction<Record<string, ColorPalette>>
     >
   ) => {
-    if (!name.trim()) return;
+    if (!entityName.trim()) return;
 
     try {
       const response = await fetch(`/api/${type}/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), color }),
+        body: JSON.stringify({ name: entityName.trim(), color }),
       });
 
       if (response.ok) {
@@ -401,18 +527,18 @@ export default function SettingsPage() {
             [id]: resolvePalette(updated.name, updated.color),
           }));
         }
-        toaster.create({ title: tCommon("changesSaved"), type: "success" });
+        toast.success(tCommon("changesSaved"));
       } else {
-        toaster.create({ title: tCommon("saveFailed"), type: "error" });
+        toast.error(tCommon("saveFailed"));
       }
     } catch (error) {
       console.error(`Failed to update ${type}:`, error);
-      toaster.create({ title: tCommon("saveFailed"), type: "error" });
+      toast.error(tCommon("saveFailed"));
     }
   };
 
-  const deleteEntity = async <T extends { id: string; name: string }>(
-    type: "genres" | "formats" | "genders" | "nationalities",
+  const deleteEntity = async <T extends EntityWithCount>(
+    type: EntityType,
     id: string,
     setEntities: React.Dispatch<React.SetStateAction<T[]>>,
     setDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>
@@ -429,846 +555,324 @@ export default function SettingsPage() {
           delete next[id];
           return next;
         });
-        toaster.create({ title: tCommon("deleteSuccess"), type: "success" });
+        toast.success(tCommon("deleteSuccess"));
       } else {
-        toaster.create({ title: tCommon("deleteFailed"), type: "error" });
+        toast.error(tCommon("deleteFailed"));
       }
     } catch (error) {
       console.error(`Failed to delete ${type}:`, error);
-      toaster.create({ title: tCommon("deleteFailed"), type: "error" });
+      toast.error(tCommon("deleteFailed"));
     }
   };
 
-  // Loading state
   if (loading) {
     return (
-      <Container maxW="container.xl" py={8}>
-        <Flex justify="center" align="center" minH="400px">
-          <Spinner size="xl" color="brand.500" />
-        </Flex>
-      </Container>
+      <div className="flex min-h-[400px] items-center justify-center">
+        <RiLoaderLine className="size-8 animate-spin text-primary" />
+      </div>
     );
   }
 
   return (
-    <Container maxW="container.lg" py={8}>
-      <Stack gap={8}>
-        {/* Page title */}
-        <Heading as="h1" size="2xl">
-          {t("title")}
-        </Heading>
+    <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+      <Tabs defaultValue="profile">
+        <TabsList className="h-auto flex-wrap justify-start">
+          <TabsTrigger value="profile">
+            <RiUserLine />
+            {t("profile")}
+          </TabsTrigger>
+          <TabsTrigger value="password">
+            <RiLockPasswordLine />
+            {t("password")}
+          </TabsTrigger>
+          <TabsTrigger value="genres">
+            <RiPriceTag3Line />
+            {t("genres")}
+          </TabsTrigger>
+          <TabsTrigger value="formats">
+            <RiBookLine />
+            {t("formats")}
+          </TabsTrigger>
+          <TabsTrigger value="genders">
+            <RiGroupLine />
+            {t("genders")}
+          </TabsTrigger>
+          <TabsTrigger value="nationalities">
+            <RiGlobalLine />
+            {t("nationalities")}
+          </TabsTrigger>
+        </TabsList>
 
-        {/* Save feedback */}
-        {message && (
-          <Box
-            p={3}
-            bg={message.type === "success" ? "success.100" : "error.100"}
-            color={message.type === "success" ? "success.800" : "error.800"}
-            borderRadius="md"
-          >
-            {message.text}
-          </Box>
-        )}
-
-        {/* Profile Section */}
-        <Card.Root>
-          <Card.Body>
-            <Stack gap={4}>
-              <Heading as="h2" size="lg">
-                {t("profile")}
-              </Heading>
-              <Text color="fg.muted" fontSize="sm">
+        <TabsContent value="profile" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("profile")}</CardTitle>
+              <CardDescription>
                 {t("emailLabel", { email: user?.email ?? "" })}
-              </Text>
-
-              <Field.Root>
-                <Field.Label>{t("nameLabel")}</Field.Label>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="name">{t("nameLabel")}</Label>
                 <Input
+                  id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder={t("namePlaceholder")}
                 />
-              </Field.Root>
-
-              <Button
-                colorPalette="brand"
-                onClick={handleSaveProfile}
-                loading={saving}
-                alignSelf="flex-start"
-              >
+              </div>
+              <Button onClick={handleSaveProfile} disabled={saving}>
+                {saving && <RiLoaderLine className="animate-spin" />}
                 {tCommon("save")}
               </Button>
-            </Stack>
-          </Card.Body>
-        </Card.Root>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        {/* Password Section */}
-        <Card.Root>
-          <Card.Body>
-            <Stack gap={4}>
-              <Heading as="h2" size="lg">
-                {t("changePassword")}
-              </Heading>
-
-              <Field.Root>
-                <Field.Label>{t("currentPassword")}</Field.Label>
+        <TabsContent value="password" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("changePassword")}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="current-password">
+                  {t("currentPassword")}
+                </Label>
                 <Input
+                  id="current-password"
                   type="password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                 />
-              </Field.Root>
-
-              <Field.Root>
-                <Field.Label>{t("newPassword")}</Field.Label>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="new-password">{t("newPassword")}</Label>
                 <Input
+                  id="new-password"
                   type="password"
+                  minLength={8}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  minLength={8}
                 />
-              </Field.Root>
-
-              <Field.Root>
-                <Field.Label>{t("confirmPassword")}</Field.Label>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="confirm-password">
+                  {t("confirmPassword")}
+                </Label>
                 <Input
+                  id="confirm-password"
                   type="password"
+                  minLength={8}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  minLength={8}
                 />
-              </Field.Root>
-
+              </div>
               <Button
-                colorPalette="brand"
                 onClick={handleChangePassword}
-                loading={saving}
-                disabled={!currentPassword || !newPassword || !confirmPassword}
-                alignSelf="flex-start"
+                disabled={
+                  saving || !currentPassword || !newPassword || !confirmPassword
+                }
               >
+                {saving && <RiLoaderLine className="animate-spin" />}
                 {t("changePassword")}
               </Button>
-            </Stack>
-          </Card.Body>
-        </Card.Root>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        {/* Genres Section */}
-        <Card.Root>
-          <Card.Body>
-            <Stack gap={4}>
-              <GroupToggle
-                label={t("genres")}
-                collapsed={!sectionsOpen.genres}
-                onToggle={() =>
-                  setSectionsOpen((prev) => ({ ...prev, genres: !prev.genres }))
-                }
-                color="fg.default"
-                size="md"
-                buttonProps={{ px: 0, py: 0 }}
-              />
-              {sectionsOpen.genres && (
-                <>
-                  <Stack gap={2}>
-                    {genres.map((genre) => {
-                      const selectedColor =
-                        genreColorDrafts[genre.id] ||
-                        resolvePalette(genre.name, genre.color);
+        <TabsContent value="genres" className="mt-4">
+          <EntitySection
+            items={genres}
+            hasColor
+            drafts={genreDrafts}
+            onDraftChange={(id, value) =>
+              setGenreDrafts((prev) => ({ ...prev, [id]: value }))
+            }
+            colorDrafts={genreColorDrafts}
+            onColorChange={(id, color) =>
+              setGenreColorDrafts((prev) => ({ ...prev, [id]: color }))
+            }
+            countOf={(item) => item._count?.books ?? 0}
+            onSave={(id) =>
+              updateEntity(
+                "genres",
+                id,
+                genreDrafts[id] || "",
+                genreColorDrafts[id] ||
+                  resolvePalette(
+                    genres.find((g) => g.id === id)?.name ?? "",
+                    null
+                  ),
+                setGenres,
+                setGenreDrafts,
+                setGenreColorDrafts
+              )
+            }
+            onDelete={(id) => deleteEntity("genres", id, setGenres, setGenreDrafts)}
+            newValue={newGenre}
+            onNewValueChange={setNewGenre}
+            newColor={newGenreColor}
+            onNewColorChange={setNewGenreColor}
+            onAdd={() =>
+              addEntity(
+                "genres",
+                newGenre,
+                newGenreColor,
+                setGenres,
+                setNewGenre,
+                { books: 0 },
+                setNewGenreColor
+              )
+            }
+            addPlaceholder={t("addGenre")}
+            emptyText={t("noItems")}
+          />
+        </TabsContent>
 
-                      return (
-                        <Flex
-                          key={genre.id}
-                          align="center"
-                          gap={2}
-                          wrap="nowrap"
-                        >
-                          <Input
-                            value={genreDrafts[genre.id] || ""}
-                            onChange={(e) =>
-                              setGenreDrafts((prev) => ({
-                                ...prev,
-                                [genre.id]: e.target.value,
-                              }))
-                            }
-                            size="sm"
-                            flex="1"
-                            minW="0"
-                          />
-                          <Flex align="center" gap={2}>
-                            <SelectRoot
-                              collection={colorCollection}
-                              value={[selectedColor]}
-                              onValueChange={(details) =>
-                                setGenreColorDrafts((prev) => ({
-                                  ...prev,
-                                  [genre.id]: details.value[0] as ColorPalette,
-                                }))
-                              }
-                              width="140px"
-                            >
-                              <SelectTrigger>
-                                <ColorSelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {colorCollection.items.map((item) => (
-                                  <SelectItem key={item.value} item={item}>
-                                    <Flex align="center" gap={2}>
-                                      <Box
-                                        boxSize="12px"
-                                        borderRadius="full"
-                                        bg={`${item.value}.solid`}
-                                      />
-                                      <Text fontSize="sm">{item.label}</Text>
-                                    </Flex>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </SelectRoot>
-                          </Flex>
-                          <Button
-                            size="sm"
-                            onClick={() =>
-                              updateEntity(
-                                "genres",
-                                genre.id,
-                                genreDrafts[genre.id] || "",
-                                selectedColor,
-                                setGenres,
-                                setGenreDrafts,
-                                setGenreColorDrafts
-                              )
-                            }
-                          >
-                            {tCommon("save")}
-                          </Button>
-                          <Tooltip.Root
-                            disabled={(genre._count?.books || 0) === 0}
-                          >
-                            <Tooltip.Trigger asChild>
-                              <Box as="span" display="inline-block">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  colorPalette="red"
-                                  disabled={(genre._count?.books || 0) > 0}
-                                  onClick={() =>
-                                    deleteEntity(
-                                      "genres",
-                                      genre.id,
-                                      setGenres,
-                                      setGenreDrafts
-                                    )
-                                  }
-                                >
-                                  {tCommon("delete")}
-                                </Button>
-                              </Box>
-                            </Tooltip.Trigger>
-                            <Tooltip.Positioner>
-                              <Tooltip.Content>
-                                <Tooltip.Arrow>
-                                  <Tooltip.ArrowTip />
-                                </Tooltip.Arrow>
-                                {t("deleteBlocked")}
-                              </Tooltip.Content>
-                            </Tooltip.Positioner>
-                          </Tooltip.Root>
-                        </Flex>
-                      );
-                    })}
-                  </Stack>
-                  <Flex gap={2} wrap="nowrap" align="center">
-                    <Input
-                      placeholder={t("addGenre")}
-                      value={newGenre}
-                      onChange={(e) => setNewGenre(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          addEntity(
-                            "genres",
-                            newGenre,
-                            newGenreColor,
-                            setGenres,
-                            setNewGenre,
-                            { books: 0 },
-                            setNewGenreColor
-                          );
-                        }
-                      }}
-                      size="sm"
-                      flex="1"
-                      minW="0"
-                    />
-                    <Flex align="center" gap={2}>
-                      <SelectRoot
-                        collection={colorCollection}
-                        value={[newGenreColor]}
-                        onValueChange={(details) =>
-                          setNewGenreColor(details.value[0] as ColorPalette)
-                        }
-                        width="140px"
-                      >
-                        <SelectTrigger>
-                          <ColorSelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {colorCollection.items.map((item) => (
-                            <SelectItem key={item.value} item={item}>
-                              <Flex align="center" gap={2}>
-                                <Box
-                                  boxSize="12px"
-                                  borderRadius="full"
-                                  bg={`${item.value}.solid`}
-                                />
-                                <Text fontSize="sm">{item.label}</Text>
-                              </Flex>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </SelectRoot>
-                    </Flex>
-                    <Button
-                      onClick={() =>
-                        addEntity(
-                          "genres",
-                          newGenre,
-                          newGenreColor,
-                          setGenres,
-                          setNewGenre,
-                          { books: 0 },
-                          setNewGenreColor
-                        )
-                      }
-                    >
-                      {tCommon("add")}
-                    </Button>
-                  </Flex>
-                </>
-              )}
-            </Stack>
-          </Card.Body>
-        </Card.Root>
+        <TabsContent value="formats" className="mt-4">
+          <EntitySection
+            items={formats}
+            hasColor={false}
+            drafts={formatDrafts}
+            onDraftChange={(id, value) =>
+              setFormatDrafts((prev) => ({ ...prev, [id]: value }))
+            }
+            countOf={(item) => item._count?.books ?? 0}
+            onSave={(id) =>
+              updateEntity(
+                "formats",
+                id,
+                formatDrafts[id] || "",
+                null,
+                setFormats,
+                setFormatDrafts
+              )
+            }
+            onDelete={(id) =>
+              deleteEntity("formats", id, setFormats, setFormatDrafts)
+            }
+            newValue={newFormat}
+            onNewValueChange={setNewFormat}
+            onAdd={() =>
+              addEntity("formats", newFormat, null, setFormats, setNewFormat, {
+                books: 0,
+              })
+            }
+            addPlaceholder={t("addFormat")}
+            emptyText={t("noItems")}
+          />
+        </TabsContent>
 
-        {/* Formats Section */}
-        <Card.Root>
-          <Card.Body>
-            <Stack gap={4}>
-              <GroupToggle
-                label={t("formats")}
-                collapsed={!sectionsOpen.formats}
-                onToggle={() =>
-                  setSectionsOpen((prev) => ({
-                    ...prev,
-                    formats: !prev.formats,
-                  }))
-                }
-                color="fg.default"
-                size="md"
-                buttonProps={{ px: 0, py: 0 }}
-              />
-              {sectionsOpen.formats && (
-                <>
-                  <Stack gap={2}>
-                    {formats.map((format) => (
-                      <Flex key={format.id} align="center" gap={2}>
-                        <Input
-                          value={formatDrafts[format.id] || ""}
-                          onChange={(e) =>
-                            setFormatDrafts((prev) => ({
-                              ...prev,
-                              [format.id]: e.target.value,
-                            }))
-                          }
-                        />
-                        <Button
-                          size="sm"
-                          onClick={() =>
-                            updateEntity(
-                              "formats",
-                              format.id,
-                              formatDrafts[format.id] || "",
-                              null,
-                              setFormats,
-                              setFormatDrafts
-                            )
-                          }
-                        >
-                          {tCommon("save")}
-                        </Button>
-                        <Tooltip.Root
-                          disabled={(format._count?.books || 0) === 0}
-                        >
-                          <Tooltip.Trigger asChild>
-                            <Box as="span" display="inline-block">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                colorPalette="red"
-                                disabled={(format._count?.books || 0) > 0}
-                                onClick={() =>
-                                  deleteEntity(
-                                    "formats",
-                                    format.id,
-                                    setFormats,
-                                    setFormatDrafts
-                                  )
-                                }
-                              >
-                                {tCommon("delete")}
-                              </Button>
-                            </Box>
-                          </Tooltip.Trigger>
-                          <Tooltip.Positioner>
-                            <Tooltip.Content>
-                              <Tooltip.Arrow>
-                                <Tooltip.ArrowTip />
-                              </Tooltip.Arrow>
-                              {t("deleteBlocked")}
-                            </Tooltip.Content>
-                          </Tooltip.Positioner>
-                        </Tooltip.Root>
-                      </Flex>
-                    ))}
-                  </Stack>
-                  <Flex gap={2}>
-                    <Input
-                      placeholder={t("addFormat")}
-                      value={newFormat}
-                      onChange={(e) => setNewFormat(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          addEntity(
-                            "formats",
-                            newFormat,
-                            null,
-                            setFormats,
-                            setNewFormat
-                          );
-                        }
-                      }}
-                    />
-                    <Button
-                      onClick={() =>
-                        addEntity(
-                          "formats",
-                          newFormat,
-                          null,
-                          setFormats,
-                          setNewFormat,
-                          { books: 0 }
-                        )
-                      }
-                    >
-                      {tCommon("add")}
-                    </Button>
-                  </Flex>
-                </>
-              )}
-            </Stack>
-          </Card.Body>
-        </Card.Root>
+        <TabsContent value="genders" className="mt-4">
+          <EntitySection
+            items={genders}
+            hasColor
+            helpText={t("gendersHelp")}
+            drafts={genderDrafts}
+            onDraftChange={(id, value) =>
+              setGenderDrafts((prev) => ({ ...prev, [id]: value }))
+            }
+            colorDrafts={genderColorDrafts}
+            onColorChange={(id, color) =>
+              setGenderColorDrafts((prev) => ({ ...prev, [id]: color }))
+            }
+            countOf={(item) => item._count?.authors ?? 0}
+            onSave={(id) =>
+              updateEntity(
+                "genders",
+                id,
+                genderDrafts[id] || "",
+                genderColorDrafts[id] ||
+                  resolvePalette(
+                    genders.find((g) => g.id === id)?.name ?? "",
+                    null
+                  ),
+                setGenders,
+                setGenderDrafts,
+                setGenderColorDrafts
+              )
+            }
+            onDelete={(id) =>
+              deleteEntity("genders", id, setGenders, setGenderDrafts)
+            }
+            newValue={newGender}
+            onNewValueChange={setNewGender}
+            newColor={newGenderColor}
+            onNewColorChange={setNewGenderColor}
+            onAdd={() =>
+              addEntity(
+                "genders",
+                newGender,
+                newGenderColor,
+                setGenders,
+                setNewGender,
+                { authors: 0 },
+                setNewGenderColor
+              )
+            }
+            addPlaceholder={t("addGender")}
+            emptyText={t("noItems")}
+          />
+        </TabsContent>
 
-        {/* Genders Section */}
-        <Card.Root>
-          <Card.Body>
-            <Stack gap={4}>
-              <GroupToggle
-                label={t("genders")}
-                collapsed={!sectionsOpen.genders}
-                onToggle={() =>
-                  setSectionsOpen((prev) => ({
-                    ...prev,
-                    genders: !prev.genders,
-                  }))
-                }
-                color="fg.default"
-                size="md"
-                buttonProps={{ px: 0, py: 0 }}
-              />
-              {sectionsOpen.genders && (
-                <>
-                  <Text color="fg.muted" fontSize="sm">
-                    {t("gendersHelp")}
-                  </Text>
-                  <Stack gap={2}>
-                    {genders.map((gender) => {
-                      const selectedColor =
-                        genderColorDrafts[gender.id] ||
-                        resolvePalette(gender.name, gender.color);
-
-                      return (
-                        <Flex
-                          key={gender.id}
-                          align="center"
-                          gap={2}
-                          wrap="nowrap"
-                        >
-                          <Input
-                            value={genderDrafts[gender.id] || ""}
-                            onChange={(e) =>
-                              setGenderDrafts((prev) => ({
-                                ...prev,
-                                [gender.id]: e.target.value,
-                              }))
-                            }
-                            size="sm"
-                            flex="1"
-                            minW="0"
-                          />
-                          <Flex align="center" gap={2}>
-                            <SelectRoot
-                              collection={colorCollection}
-                              value={[selectedColor]}
-                              onValueChange={(details) =>
-                                setGenderColorDrafts((prev) => ({
-                                  ...prev,
-                                  [gender.id]: details.value[0] as ColorPalette,
-                                }))
-                              }
-                              width="140px"
-                            >
-                              <SelectTrigger>
-                                <ColorSelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {colorCollection.items.map((item) => (
-                                  <SelectItem key={item.value} item={item}>
-                                    <Flex align="center" gap={2}>
-                                      <Box
-                                        boxSize="12px"
-                                        borderRadius="full"
-                                        bg={`${item.value}.solid`}
-                                      />
-                                      <Text fontSize="sm">{item.label}</Text>
-                                    </Flex>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </SelectRoot>
-                          </Flex>
-                          <Button
-                            size="sm"
-                            onClick={() =>
-                              updateEntity(
-                                "genders",
-                                gender.id,
-                                genderDrafts[gender.id] || "",
-                                selectedColor,
-                                setGenders,
-                                setGenderDrafts,
-                                setGenderColorDrafts
-                              )
-                            }
-                          >
-                            {tCommon("save")}
-                          </Button>
-                          <Tooltip.Root
-                            disabled={(gender._count?.authors || 0) === 0}
-                          >
-                            <Tooltip.Trigger asChild>
-                              <Box as="span" display="inline-block">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  colorPalette="red"
-                                  disabled={(gender._count?.authors || 0) > 0}
-                                  onClick={() =>
-                                    deleteEntity(
-                                      "genders",
-                                      gender.id,
-                                      setGenders,
-                                      setGenderDrafts
-                                    )
-                                  }
-                                >
-                                  {tCommon("delete")}
-                                </Button>
-                              </Box>
-                            </Tooltip.Trigger>
-                            <Tooltip.Positioner>
-                              <Tooltip.Content>
-                                <Tooltip.Arrow>
-                                  <Tooltip.ArrowTip />
-                                </Tooltip.Arrow>
-                                {t("deleteBlocked")}
-                              </Tooltip.Content>
-                            </Tooltip.Positioner>
-                          </Tooltip.Root>
-                        </Flex>
-                      );
-                    })}
-                  </Stack>
-                  <Flex gap={2} wrap="nowrap" align="center">
-                    <Input
-                      placeholder={t("addGender")}
-                      value={newGender}
-                      onChange={(e) => setNewGender(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          addEntity(
-                            "genders",
-                            newGender,
-                            newGenderColor,
-                            setGenders,
-                            setNewGender,
-                            { authors: 0 },
-                            setNewGenderColor
-                          );
-                        }
-                      }}
-                      size="sm"
-                      flex="1"
-                      minW="0"
-                    />
-                    <Flex align="center" gap={2}>
-                      <SelectRoot
-                        collection={colorCollection}
-                        value={[newGenderColor]}
-                        onValueChange={(details) =>
-                          setNewGenderColor(details.value[0] as ColorPalette)
-                        }
-                        width="140px"
-                      >
-                        <SelectTrigger>
-                          <ColorSelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {colorCollection.items.map((item) => (
-                            <SelectItem key={item.value} item={item}>
-                              <Flex align="center" gap={2}>
-                                <Box
-                                  boxSize="12px"
-                                  borderRadius="full"
-                                  bg={`${item.value}.solid`}
-                                />
-                                <Text fontSize="sm">{item.label}</Text>
-                              </Flex>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </SelectRoot>
-                    </Flex>
-                    <Button
-                      onClick={() =>
-                        addEntity(
-                          "genders",
-                          newGender,
-                          newGenderColor,
-                          setGenders,
-                          setNewGender,
-                          { authors: 0 },
-                          setNewGenderColor
-                        )
-                      }
-                    >
-                      {tCommon("add")}
-                    </Button>
-                  </Flex>
-                </>
-              )}
-            </Stack>
-          </Card.Body>
-        </Card.Root>
-
-        {/* Nationalities Section */}
-        <Card.Root>
-          <Card.Body>
-            <Stack gap={4}>
-              <GroupToggle
-                label={t("nationalities")}
-                collapsed={!sectionsOpen.nationalities}
-                onToggle={() =>
-                  setSectionsOpen((prev) => ({
-                    ...prev,
-                    nationalities: !prev.nationalities,
-                  }))
-                }
-                color="fg.default"
-                size="md"
-                buttonProps={{ px: 0, py: 0 }}
-              />
-              {sectionsOpen.nationalities && (
-                <>
-                  <Text color="fg.muted" fontSize="sm">
-                    {t("nationalitiesHelp")}
-                  </Text>
-                  <Stack gap={2}>
-                    {nationalities.map((nat) => {
-                      const selectedColor =
-                        nationalityColorDrafts[nat.id] ||
-                        resolvePalette(nat.name, nat.color);
-
-                      return (
-                        <Flex key={nat.id} align="center" gap={2} wrap="nowrap">
-                          <Input
-                            value={nationalityDrafts[nat.id] || ""}
-                            onChange={(e) =>
-                              setNationalityDrafts((prev) => ({
-                                ...prev,
-                                [nat.id]: e.target.value,
-                              }))
-                            }
-                            size="sm"
-                            flex="1"
-                            minW="0"
-                          />
-                          <Flex align="center" gap={2}>
-                            <SelectRoot
-                              collection={colorCollection}
-                              value={[selectedColor]}
-                              onValueChange={(details) =>
-                                setNationalityColorDrafts((prev) => ({
-                                  ...prev,
-                                  [nat.id]: details.value[0] as ColorPalette,
-                                }))
-                              }
-                              width="140px"
-                            >
-                              <SelectTrigger>
-                                <ColorSelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {colorCollection.items.map((item) => (
-                                  <SelectItem key={item.value} item={item}>
-                                    <Flex align="center" gap={2}>
-                                      <Box
-                                        boxSize="12px"
-                                        borderRadius="full"
-                                        bg={`${item.value}.solid`}
-                                      />
-                                      <Text fontSize="sm">{item.label}</Text>
-                                    </Flex>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </SelectRoot>
-                          </Flex>
-                          <Button
-                            size="sm"
-                            onClick={() =>
-                              updateEntity(
-                                "nationalities",
-                                nat.id,
-                                nationalityDrafts[nat.id] || "",
-                                selectedColor,
-                                setNationalities,
-                                setNationalityDrafts,
-                                setNationalityColorDrafts
-                              )
-                            }
-                          >
-                            {tCommon("save")}
-                          </Button>
-                          <Tooltip.Root
-                            disabled={(nat._count?.authors || 0) === 0}
-                          >
-                            <Tooltip.Trigger asChild>
-                              <Box as="span" display="inline-block">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  colorPalette="red"
-                                  disabled={(nat._count?.authors || 0) > 0}
-                                  onClick={() =>
-                                    deleteEntity(
-                                      "nationalities",
-                                      nat.id,
-                                      setNationalities,
-                                      setNationalityDrafts
-                                    )
-                                  }
-                                >
-                                  {tCommon("delete")}
-                                </Button>
-                              </Box>
-                            </Tooltip.Trigger>
-                            <Tooltip.Positioner>
-                              <Tooltip.Content>
-                                <Tooltip.Arrow>
-                                  <Tooltip.ArrowTip />
-                                </Tooltip.Arrow>
-                                {t("deleteBlocked")}
-                              </Tooltip.Content>
-                            </Tooltip.Positioner>
-                          </Tooltip.Root>
-                        </Flex>
-                      );
-                    })}
-                  </Stack>
-                  <Flex gap={2} wrap="nowrap" align="center">
-                    <Input
-                      placeholder={t("addNationality")}
-                      value={newNationality}
-                      onChange={(e) => setNewNationality(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          addEntity(
-                            "nationalities",
-                            newNationality,
-                            newNationalityColor,
-                            setNationalities,
-                            setNewNationality,
-                            { authors: 0 },
-                            setNewNationalityColor
-                          );
-                        }
-                      }}
-                      size="sm"
-                      flex="1"
-                      minW="0"
-                    />
-                    <Flex align="center" gap={2}>
-                      <SelectRoot
-                        collection={colorCollection}
-                        value={[newNationalityColor]}
-                        onValueChange={(details) =>
-                          setNewNationalityColor(
-                            details.value[0] as ColorPalette
-                          )
-                        }
-                        width="140px"
-                      >
-                        <SelectTrigger>
-                          <ColorSelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {colorCollection.items.map((item) => (
-                            <SelectItem key={item.value} item={item}>
-                              <Flex align="center" gap={2}>
-                                <Box
-                                  boxSize="12px"
-                                  borderRadius="full"
-                                  bg={`${item.value}.solid`}
-                                />
-                                <Text fontSize="sm">{item.label}</Text>
-                              </Flex>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </SelectRoot>
-                    </Flex>
-                    <Button
-                      onClick={() =>
-                        addEntity(
-                          "nationalities",
-                          newNationality,
-                          newNationalityColor,
-                          setNationalities,
-                          setNewNationality,
-                          { authors: 0 },
-                          setNewNationalityColor
-                        )
-                      }
-                    >
-                      {tCommon("add")}
-                    </Button>
-                  </Flex>
-                </>
-              )}
-            </Stack>
-          </Card.Body>
-        </Card.Root>
-      </Stack>
-    </Container>
+        <TabsContent value="nationalities" className="mt-4">
+          <EntitySection
+            items={nationalities}
+            hasColor
+            helpText={t("nationalitiesHelp")}
+            drafts={nationalityDrafts}
+            onDraftChange={(id, value) =>
+              setNationalityDrafts((prev) => ({ ...prev, [id]: value }))
+            }
+            colorDrafts={nationalityColorDrafts}
+            onColorChange={(id, color) =>
+              setNationalityColorDrafts((prev) => ({ ...prev, [id]: color }))
+            }
+            countOf={(item) => item._count?.authors ?? 0}
+            onSave={(id) =>
+              updateEntity(
+                "nationalities",
+                id,
+                nationalityDrafts[id] || "",
+                nationalityColorDrafts[id] ||
+                  resolvePalette(
+                    nationalities.find((n) => n.id === id)?.name ?? "",
+                    null
+                  ),
+                setNationalities,
+                setNationalityDrafts,
+                setNationalityColorDrafts
+              )
+            }
+            onDelete={(id) =>
+              deleteEntity(
+                "nationalities",
+                id,
+                setNationalities,
+                setNationalityDrafts
+              )
+            }
+            newValue={newNationality}
+            onNewValueChange={setNewNationality}
+            newColor={newNationalityColor}
+            onNewColorChange={setNewNationalityColor}
+            onAdd={() =>
+              addEntity(
+                "nationalities",
+                newNationality,
+                newNationalityColor,
+                setNationalities,
+                setNewNationality,
+                { authors: 0 },
+                setNewNationalityColor
+              )
+            }
+            addPlaceholder={t("addNationality")}
+            emptyText={t("noItems")}
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
-

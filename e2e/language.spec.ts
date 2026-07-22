@@ -1,21 +1,11 @@
 import { test, expect } from "@playwright/test";
 
-const openNavIfMobile = async (page: import("@playwright/test").Page) => {
-  const menuButton = page.getByRole("button", { name: "Open menu" });
-  if (await menuButton.isVisible()) {
-    await menuButton.click();
-  }
-};
-
 test.use({ storageState: { cookies: [], origins: [] } });
 
 test("language switching stays across navigation", async ({ page }) => {
   await page.goto("/login");
-  await page
-    .locator('[data-scope="select"][data-part="trigger"]')
-    .first()
-    .click();
-  await page.getByRole("option", { name: "🇫🇷 Français" }).click();
+  await page.getByRole("combobox", { name: "Language" }).click();
+  await page.getByRole("option", { name: "FR" }).click();
 
   await expect(page).toHaveURL(/\/fr\/login/);
   await expect(page.getByRole("heading", { name: "Connexion" })).toBeVisible();
@@ -25,14 +15,9 @@ test("language switching stays across navigation", async ({ page }) => {
   await page.getByRole("button", { name: "Connexion" }).click();
 
   await expect(page).toHaveURL(/\/fr\/dashboard/);
-  await expect(
-    page.getByRole("heading", { name: "Tableau de bord" })
-  ).toBeVisible();
+  await expect(page.getByText("Tableau de bord").first()).toBeVisible();
 
-  await openNavIfMobile(page);
   await page.getByRole("link", { name: "Ma Bibliothèque" }).click();
   await expect(page).toHaveURL(/\/fr\/library/);
-  await expect(
-    page.getByRole("heading", { name: "Ma Bibliothèque" })
-  ).toBeVisible();
+  await expect(page.getByRole("searchbox")).toBeVisible();
 });

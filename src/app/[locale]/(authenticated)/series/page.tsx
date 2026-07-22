@@ -1,215 +1,353 @@
-"use client";
-
-import { useEffect, useState, useCallback } from "react";
-import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/routing";
-import {
-  Box,
-  Button,
-  Card,
-  Container,
-  Flex,
-  Heading,
-  Input,
-  Stack,
-  Text,
-  Field,
-  Icon,
-} from "@chakra-ui/react";
-import { FiArrowRight, FiBookOpen } from "react-icons/fi";
-import { BookCover } from "@/components/ui/book-cover";
-import {
-  PaginationRoot,
-  PaginationPrevTrigger,
-  PaginationItems,
-  PaginationNextTrigger,
-  PaginationPageText,
-} from "@/components/ui/pagination";
-import type { PageResult } from "@/types/pagination";
-
-type Series = {
-  id: string;
-  name: string;
-  slug: string;
-  _count: { books: number };
-  books: Array<{ id: string; title: string; coverUrl: string | null }>;
-};
-
-export default function SeriesPage() {
-  const t = useTranslations("series");
-  const tCommon = useTranslations("common");
-  const tNav = useTranslations("nav");
-
-  const [series, setSeries] = useState<Series[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [name, setName] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [page, setPage] = useState(1);
-  const [totalSeries, setTotalSeries] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const pageSize = 24;
-
-  const fetchSeries = useCallback(async (signal?: AbortSignal) => {
-    try {
-      setLoading(true);
-      const response = await fetch(
-        `/api/series?page=${page}&pageSize=${pageSize}`,
-        signal ? { signal } : undefined
-      );
-      if (response.ok) {
-        const data = (await response.json()) as PageResult<Series>;
-        setSeries(data.items);
-        setTotalSeries(data.total);
-        setTotalPages(data.totalPages);
-      }
-    } catch (error) {
-      console.error("Failed to fetch series:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [page, pageSize]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    let isActive = true;
-    fetchSeries(controller.signal).catch((error) => {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        return;
-      }
-      if (isActive) {
-        console.error("Failed to fetch series:", error);
-      }
-    });
-    return () => {
-      isActive = false;
-      controller.abort();
-    };
-  }, [fetchSeries]);
-
-  const handleCreate = async () => {
-    if (!name.trim()) return;
-    setSaving(true);
-    try {
-      const response = await fetch("/api/series", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim() }),
-      });
-      if (response.ok) {
-        setName("");
-        await fetchSeries();
-      }
-    } catch (error) {
-      console.error("Failed to create series:", error);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Container maxW="container.lg" py={8}>
-      <Stack gap={6}>
-        {/* Page title */}
-        <Heading as="h1" size="2xl">
-          {tNav("series")}
-        </Heading>
-
-        {/* Create series */}
-        <Card.Root>
-          <Card.Body>
-            <Stack gap={3}>
-              <Text fontWeight="semibold">{t("createTitle")}</Text>
-              <Flex gap={3} wrap="wrap">
-                <Field.Root maxW="400px">
-                  <Field.Label>{t("namePlaceholder")}</Field.Label>
-                  <Input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder={t("namePlaceholder")}
-                  />
-                </Field.Root>
-                <Button
-                  colorPalette="brand"
-                  onClick={handleCreate}
-                  loading={saving}
-                  loadingText={tCommon("loading")}
-                >
-                  {t("create")}
-                </Button>
-              </Flex>
-            </Stack>
-          </Card.Body>
-        </Card.Root>
-
-        {/* Loading / empty / list */}
-        {loading ? (
-          <Text color="fg.muted">{tCommon("loading")}</Text>
-        ) : series.length === 0 ? (
-          <Card.Root>
-            <Card.Body>
-              <Stack align="center" py={10}>
-                <Icon as={FiBookOpen} boxSize={8} color="brand.fg" />
-                <Text color="fg.muted">{t("empty")}</Text>
-              </Stack>
-            </Card.Body>
-          </Card.Root>
-        ) : (
-          <Stack gap={4}>
-            {/* Series list */}
-            <Stack gap={3}>
-              {series.map((item) => (
-                <Card.Root key={item.id} asChild>
-                  <Link href={`/series/${item.slug}`}>
-                    <Card.Body>
-                      <Flex justify="space-between" align="center" gap={4}>
-                        <Box flex="1">
-                          <Text fontWeight="semibold">{item.name}</Text>
-                          <Text color="fg.muted" fontSize="sm">
-                            {t("booksCount", { count: item._count.books })}
-                          </Text>
-                        </Box>
-                        <Flex align="center" gap={2}>
-                          {item.books.length > 0 && (
-                            <Flex gap={2}>
-                              {item.books.map((book) => (
-                                <Box key={book.id} maxW="52px">
-                                  <BookCover
-                                    coverUrl={book.coverUrl}
-                                    title={book.title}
-                                    size="xs"
-                                  />
-                                </Box>
-                              ))}
-                            </Flex>
-                          )}
-                          <FiArrowRight color="var(--chakra-colors-fg-muted)" />
-                        </Flex>
-                      </Flex>
-                    </Card.Body>
-                  </Link>
-                </Card.Root>
-              ))}
-            </Stack>
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <Flex justify="center">
-                <PaginationRoot
-                  count={totalSeries}
-                  pageSize={pageSize}
-                  page={page}
-                  onPageChange={(e) => setPage(e.page)}
-                >
-                  <PaginationPrevTrigger />
-                  <PaginationItems />
-                  <PaginationNextTrigger />
-                  <PaginationPageText />
-                </PaginationRoot>
-              </Flex>
-            )}
-          </Stack>
-        )}
-      </Stack>
-    </Container>
-  );
-}
-
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
+import {
+  RiArrowRightSLine,
+  RiBookOpenLine,
+  RiDeleteBinLine,
+  RiEditLine,
+  RiMore2Line,
+} from "@remixicon/react";
+
+import { CreateSeriesDialog } from "@/components/series/create-series-dialog";
+import { BookCover } from "@/components/ui/book-cover";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  PaginationItems,
+  PaginationNextTrigger,
+  PaginationPageText,
+  PaginationPrevTrigger,
+  PaginationRoot,
+} from "@/components/ui/pagination";
+import { Link, useRouter } from "@/i18n/routing";
+import type { PageResult } from "@/types/pagination";
+
+type Series = {
+  id: string;
+  name: string;
+  slug: string;
+  _count: { books: number };
+  books: Array<{ id: string; title: string; coverUrl: string | null }>;
+};
+
+export default function SeriesPage() {
+  const t = useTranslations("series");
+  const tCommon = useTranslations("common");
+  const tNav = useTranslations("nav");
+  const router = useRouter();
+
+  const [series, setSeries] = useState<Series[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalSeries, setTotalSeries] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const pageSize = 24;
+
+  const [editTarget, setEditTarget] = useState<Series | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Series | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const fetchSeries = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        setLoading(true);
+        const response = await fetch(
+          `/api/series?page=${page}&pageSize=${pageSize}`,
+          signal ? { signal } : undefined
+        );
+        if (response.ok) {
+          const data = (await response.json()) as PageResult<Series>;
+          setSeries(data.items);
+          setTotalSeries(data.total);
+          setTotalPages(data.totalPages);
+        }
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+        console.error("Failed to fetch series:", error);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [page, pageSize]
+  );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let isActive = true;
+    fetchSeries(controller.signal).catch((error) => {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
+      if (isActive) {
+        console.error("Failed to fetch series:", error);
+      }
+    });
+    return () => {
+      isActive = false;
+      controller.abort();
+    };
+  }, [fetchSeries]);
+
+  const openEdit = (item: Series) => {
+    setEditTarget(item);
+    setEditName(item.name);
+  };
+
+  const handleEdit = async () => {
+    if (!editTarget || !editName.trim()) return;
+    setEditSaving(true);
+    try {
+      const response = await fetch(`/api/series/${editTarget.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: editName.trim() }),
+      });
+      if (response.ok) {
+        const updated = await response.json();
+        setSeries((prev) =>
+          prev.map((item) =>
+            item.id === editTarget.id
+              ? { ...item, name: updated.name, slug: updated.slug }
+              : item
+          )
+        );
+        setEditTarget(null);
+      }
+    } catch (error) {
+      console.error("Failed to update series:", error);
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/series/${deleteTarget.id}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        setDeleteTarget(null);
+        await fetchSeries();
+      }
+    } catch (error) {
+      console.error("Failed to delete series:", error);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <h1 className="font-heading text-3xl font-semibold tracking-tight">
+          {tNav("series")}
+        </h1>
+        <Button type="button" onClick={() => setIsCreateOpen(true)}>
+          {t("create")}
+        </Button>
+      </div>
+
+      {loading ? (
+        <p className="text-muted-foreground">{tCommon("loading")}</p>
+      ) : series.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center gap-2 py-10">
+            <RiBookOpenLine className="size-8 text-muted-foreground" />
+            <p className="text-muted-foreground">{t("empty")}</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          <div className="space-y-3">
+            {series.map((item) => (
+              <Card key={item.id}>
+                <CardContent className="flex items-center justify-between gap-4">
+                  <Link
+                    href={`/series/${item.slug}`}
+                    className="flex min-w-0 flex-1 items-center justify-between gap-4"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-semibold">{item.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {t("booksCount", { count: item._count.books })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {item.books.length > 0 && (
+                        <div className="hidden gap-2 sm:flex">
+                          {item.books.map((book) => (
+                            <div key={book.id} className="w-[52px]">
+                              <BookCover
+                                coverUrl={book.coverUrl}
+                                title={book.title}
+                                size="xs"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <RiArrowRightSLine className="size-5 shrink-0 text-muted-foreground" />
+                    </div>
+                  </Link>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={t("actions")}
+                        />
+                      }
+                    >
+                      <RiMore2Line />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => router.push(`/series/${item.slug}`)}
+                      >
+                        {t("view")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => openEdit(item)}>
+                        <RiEditLine />
+                        {tCommon("edit")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onClick={() => setDeleteTarget(item)}
+                      >
+                        <RiDeleteBinLine />
+                        {tCommon("delete")}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <PaginationRoot
+                count={totalSeries}
+                pageSize={pageSize}
+                page={page}
+                onPageChange={(e) => setPage(e.page)}
+              >
+                <PaginationPrevTrigger />
+                <PaginationPageText className="px-1" />
+                <PaginationItems />
+                <PaginationNextTrigger />
+              </PaginationRoot>
+            </div>
+          )}
+        </div>
+      )}
+
+      <CreateSeriesDialog
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
+        onCreated={() => {
+          fetchSeries();
+        }}
+      />
+
+      <Dialog
+        open={!!editTarget}
+        onOpenChange={(next) => !next && setEditTarget(null)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("editTitle")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="edit-series-name">{t("namePlaceholder")}</Label>
+            <Input
+              id="edit-series-name"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              placeholder={t("namePlaceholder")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleEdit();
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setEditTarget(null)}
+            >
+              {tCommon("cancel")}
+            </Button>
+            <Button type="button" onClick={handleEdit} disabled={editSaving}>
+              {editSaving ? tCommon("loading") : tCommon("save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("deleteTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("deleteConfirm", {
+                count: deleteTarget?._count.books ?? 0,
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>
+              {tCommon("cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deleting}
+              onClick={handleDelete}
+            >
+              {deleting ? tCommon("loading") : tCommon("delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

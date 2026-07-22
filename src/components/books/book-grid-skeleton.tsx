@@ -1,24 +1,15 @@
-import { Grid, Skeleton, Stack } from "@chakra-ui/react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function BookGridSkeleton() {
   return (
-    <Grid
-      templateColumns={{
-        base: "repeat(2, 1fr)",
-        md: "repeat(3, 1fr)",
-        lg: "repeat(4, 1fr)",
-        xl: "repeat(5, 1fr)",
-        "2xl": "repeat(6, 1fr)",
-      }}
-      gap={6}
-    >
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
       {Array.from({ length: 12 }).map((_, i) => (
-        <Stack key={i} gap={4}>
-          <Skeleton height="300px" borderRadius="md" />
-          <Skeleton height="20px" width="80%" />
-          <Skeleton height="16px" width="60%" />
-        </Stack>
+        <div key={i} className="space-y-3">
+          <Skeleton className="aspect-[2/3] w-full rounded-xl" />
+          <Skeleton className="h-4 w-4/5" />
+          <Skeleton className="h-3 w-3/5" />
+        </div>
       ))}
-    </Grid>
+    </div>
   );
 }

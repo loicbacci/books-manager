@@ -466,7 +466,13 @@ export function useColumnProcessing({
         formatId: formatMapped,
         genreIds,
         rating: ratingValue
-          ? Math.min(5, Math.max(1, Math.round(ratingValue)))
+          ? (() => {
+              const rounded = Math.round(ratingValue);
+              // 1–5 columns → half-star 1–10; values >5 already on 1–10
+              return rounded >= 1 && rounded <= 5
+                ? Math.min(10, Math.max(1, rounded * 2))
+                : Math.min(10, Math.max(1, rounded));
+            })()
           : null,
         summary: summaryValue,
         favoriteQuote: quoteValue,

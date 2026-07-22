@@ -3,8 +3,12 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Stack, Input, Button, Text, Field } from "@chakra-ui/react";
 import { useTranslations } from "next-intl";
+import { RiLoaderLine } from "@remixicon/react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export function RegisterForm({ locale }: { locale: string }) {
   const router = useRouter();
@@ -75,83 +79,80 @@ export function RegisterForm({ locale }: { locale: string }) {
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <Stack gap={4}>
-        <Field.Root>
-          <Field.Label>
-            {t("name")} ({tCommon("optional")})
-          </Field.Label>
-          <Input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoComplete="name"
-          />
-        </Field.Root>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-1.5">
+        <Label htmlFor="name">
+          {t("name")} ({tCommon("optional")})
+        </Label>
+        <Input
+          id="name"
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoComplete="name"
+        />
+      </div>
 
-        <Field.Root>
-          <Field.Label>{t("email")}</Field.Label>
-          <Input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="email"
-          />
-        </Field.Root>
+      <div className="space-y-1.5">
+        <Label htmlFor="email">{t("email")}</Label>
+        <Input
+          id="email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          autoComplete="email"
+        />
+      </div>
 
-        <Field.Root>
-          <Field.Label>{t("password")}</Field.Label>
-          <Input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="new-password"
-            minLength={8}
-          />
-          <Field.HelperText>{t("passwordHelp")}</Field.HelperText>
-        </Field.Root>
+      <div className="space-y-1.5">
+        <Label htmlFor="password">{t("password")}</Label>
+        <Input
+          id="password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          autoComplete="new-password"
+          minLength={8}
+        />
+        <p className="text-xs text-muted-foreground">{t("passwordHelp")}</p>
+      </div>
 
-        <Field.Root>
-          <Field.Label>{t("confirmPassword")}</Field.Label>
-          <Input
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-            autoComplete="new-password"
-          />
-        </Field.Root>
+      <div className="space-y-1.5">
+        <Label htmlFor="confirmPassword">{t("confirmPassword")}</Label>
+        <Input
+          id="confirmPassword"
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          required
+          autoComplete="new-password"
+        />
+      </div>
 
-        <Field.Root>
-          <Field.Label>{t("inviteCode")}</Field.Label>
-          <Input
-            type="text"
-            value={inviteCode}
-            onChange={(e) => setInviteCode(e.target.value)}
-            required
-          />
-          <Field.HelperText>{t("inviteCodeHelp")}</Field.HelperText>
-        </Field.Root>
+      <div className="space-y-1.5">
+        <Label htmlFor="inviteCode">{t("inviteCode")}</Label>
+        <Input
+          id="inviteCode"
+          type="text"
+          value={inviteCode}
+          onChange={(e) => setInviteCode(e.target.value)}
+          required
+        />
+        <p className="text-xs text-muted-foreground">{t("inviteCodeHelp")}</p>
+      </div>
 
-        {error && (
-          <Text color="error.500" fontSize="sm">
-            {error}
-          </Text>
-        )}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
 
-        <Button
-          type="submit"
-          colorPalette="brand"
-          size="lg"
-          width="full"
-          loading={isLoading}
-        >
-          {t("register")}
-        </Button>
-      </Stack>
+      <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
+        {isLoading && <RiLoaderLine className="animate-spin" />}
+        {t("register")}
+      </Button>
     </form>
   );
 }
-

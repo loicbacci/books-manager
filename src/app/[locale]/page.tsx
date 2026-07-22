@@ -1,18 +1,11 @@
 import { redirect } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
-import { auth } from "@/lib/auth";
-import {
-  Box,
-  Container,
-  Heading,
-  Text,
-  Stack,
-  Button,
-  Flex,
-} from "@chakra-ui/react";
 import { getTranslations } from "next-intl/server";
-import Link from "next/link";
+
+import { auth } from "@/lib/auth";
+import { Button } from "@/components/ui/button";
 import { FeatureCard } from "@/components/home/feature-card";
+import { Link } from "@/i18n/routing";
 
 type Props = {
   params: Promise<{ locale: string }>;
@@ -34,65 +27,66 @@ export default async function HomePage({ params }: Props) {
   const tHome = await getTranslations("home");
 
   return (
-    // Page shell
-    <Box minH="100vh" bg="surface.base">
-      <Container maxW="container.xl" py={20}>
-        <Stack gap={12} align="center" textAlign="center">
-          {/* Hero header */}
-          <Stack gap={4}>
-            <Heading as="h1" size={{ base: "2xl", md: "4xl" }} color="brand.fg">
-              {t("appName")}
-            </Heading>
-            <Text
-              fontSize={{ base: "lg", md: "xl" }}
-              color="fg.muted"
-              maxW="600px"
-            >
-              {tHome("heroSubtitle")}
-            </Text>
-          </Stack>
+    <div className="bg-background">
+      <div className="mx-auto flex max-w-5xl flex-col items-center gap-12 px-4 py-20 text-center sm:px-6 lg:px-8">
+        {/* Hero header */}
+        <div className="space-y-4">
+          <h1 className="font-heading text-4xl font-semibold tracking-tight text-primary sm:text-5xl">
+            {t("appName")}
+          </h1>
+          <p className="mx-auto max-w-xl text-lg text-muted-foreground">
+            {tHome("heroSubtitle")}
+          </p>
+        </div>
 
-          {/* Primary calls-to-action */}
-          <Flex gap={4}>
-            <Button asChild colorPalette="brand" size="lg">
-              <Link href={`/${locale}/login`}>{tAuth("login")}</Link>
-            </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link href={`/${locale}/register`}>{tAuth("register")}</Link>
-            </Button>
-          </Flex>
+        {/* Primary calls-to-action */}
+        <div className="flex flex-wrap items-center justify-center gap-4">
+          <Button
+            size="lg"
+            render={<Link href="/login" />}
+            nativeButton={false}
+          >
+            {tAuth("login")}
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            render={<Link href="/register" />}
+            nativeButton={false}
+          >
+            {tAuth("register")}
+          </Button>
+        </div>
 
-          {/* Feature highlights */}
-          <Stack gap={8} pt={8}>
-            <Heading as="h2" size="xl">
-              {tHome("featuresTitle")}
-            </Heading>
-            <Flex gap={6} wrap="wrap" justify="center">
-              <FeatureCard
-                icon="library"
-                title={tHome("featureLibraryTitle")}
-                description={tHome("featureLibraryDescription")}
-              />
-              <FeatureCard
-                icon="stats"
-                title={tHome("featureStatsTitle")}
-                description={tHome("featureStatsDescription")}
-              />
-              <FeatureCard
-                icon="rating"
-                title={tHome("featureRatingTitle")}
-                description={tHome("featureRatingDescription")}
-              />
-              <FeatureCard
-                icon="language"
-                title={tHome("featureLanguageTitle")}
-                description={tHome("featureLanguageDescription")}
-              />
-            </Flex>
-          </Stack>
-        </Stack>
-      </Container>
-    </Box>
+        {/* Feature highlights */}
+        <div className="space-y-8 pt-8">
+          <h2 className="font-heading text-2xl font-semibold">
+            {tHome("featuresTitle")}
+          </h2>
+          <div className="flex flex-wrap justify-center gap-6">
+            <FeatureCard
+              icon="library"
+              title={tHome("featureLibraryTitle")}
+              description={tHome("featureLibraryDescription")}
+            />
+            <FeatureCard
+              icon="stats"
+              title={tHome("featureStatsTitle")}
+              description={tHome("featureStatsDescription")}
+            />
+            <FeatureCard
+              icon="rating"
+              title={tHome("featureRatingTitle")}
+              description={tHome("featureRatingDescription")}
+            />
+            <FeatureCard
+              icon="language"
+              title={tHome("featureLanguageTitle")}
+              description={tHome("featureLanguageDescription")}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
-

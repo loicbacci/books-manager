@@ -1,16 +1,10 @@
 import { render, RenderOptions } from "@testing-library/react";
 import { ReactElement } from "react";
-import { ChakraProvider } from "@/components/providers/chakra-provider";
-
-// Mock providers wrapper for testing
-function AllTheProviders({ children }: { children: React.ReactNode }) {
-  return <ChakraProvider>{children}</ChakraProvider>;
-}
 
 const customRender = (
   ui: ReactElement,
   options?: Omit<RenderOptions, "wrapper">
-) => render(ui, { wrapper: AllTheProviders, ...options });
+) => render(ui, { ...options });
 
 export * from "@testing-library/react";
 export { customRender as render };
@@ -82,7 +76,7 @@ export const createMockFormat = (overrides = {}) => ({
 export const createMockGender = (overrides = {}) => ({
   id: "test-gender-id",
   userId: "test-user-id",
-  name: "Woman",
+  name: "Female",
   createdAt: new Date("2024-01-01"),
   ...overrides,
 });
@@ -91,9 +85,6 @@ export const createMockNationality = (overrides = {}) => ({
   id: "test-nationality-id",
   userId: "test-user-id",
   name: "French",
-  code: "FR",
   createdAt: new Date("2024-01-01"),
   ...overrides,
 });
-
-

@@ -8,6 +8,7 @@ import { NextRequest } from "next/server";
 // Mock the db module
 const mockCreate = jest.fn();
 const mockFindUnique = jest.fn();
+const mockTransaction = jest.fn();
 
 jest.mock("@/lib/db", () => ({
   db: {
@@ -15,6 +16,8 @@ jest.mock("@/lib/db", () => ({
       create: (...args: unknown[]) => mockCreate(...args),
       findUnique: (...args: unknown[]) => mockFindUnique(...args),
     },
+    $transaction: (fn: (tx: unknown) => Promise<unknown>) =>
+      mockTransaction(fn),
   },
 }));
 
@@ -34,6 +37,14 @@ describe("POST /api/auth/register", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env = { ...originalEnv, REGISTRATION_INVITE_CODE: "valid-code" };
+    mockTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+      const tx = {
+        user: {
+          create: (...args: unknown[]) => mockCreate(...args),
+        },
+      };
+      return fn(tx);
+    });
   });
 
   afterEach(() => {

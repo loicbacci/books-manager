@@ -1,26 +1,23 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+import { RiFilterLine } from "@remixicon/react";
+
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select,
   SelectContent,
   SelectItem,
-  SelectRoot,
   SelectTrigger,
-  SelectValueText,
+  SelectValue,
 } from "@/components/ui/select";
-import {
-  Box,
-  Button,
-  Card,
-  Flex,
-  ListCollection,
-  PopoverBody,
-  PopoverContent,
-  PopoverRoot,
-  PopoverTrigger,
-  Stack,
-  Text,
-} from "@chakra-ui/react";
-import { useTranslations } from "next-intl";
-import { FiFilter } from "react-icons/fi";
+import { cn } from "@/lib/utils";
 
 /**
  * Card layout toggles for the book grid.
@@ -77,6 +74,16 @@ export type SortOptionItem = { value: SortOption; label: string };
 export type GroupOptionItem = { value: GroupOption; label: string };
 export type FilterOptionItem = { value: FilterStatus; label: string };
 
+const cardFieldKeys: Array<{ key: keyof BookCardFields; labelKey: string }> = [
+  { key: "cover", labelKey: "cardDisplayCover" },
+  { key: "title", labelKey: "cardDisplayTitle" },
+  { key: "author", labelKey: "cardDisplayAuthor" },
+  { key: "genres", labelKey: "cardDisplayGenres" },
+  { key: "rating", labelKey: "cardDisplayRating" },
+  { key: "status", labelKey: "cardDisplayStatus" },
+  { key: "format", labelKey: "cardDisplayFormat" },
+];
+
 type BookGridControlsProps = {
   areControlsOpen: boolean;
   onToggleControls: () => void;
@@ -86,13 +93,13 @@ type BookGridControlsProps = {
   onToggleCardField: (field: keyof BookCardFields) => void;
   sort: SortOption;
   onSortChange: (value: SortOption) => void;
-  sortCollection: ListCollection<SortOptionItem>;
+  sortItems: SortOptionItem[];
   groupBy: GroupOption;
   onGroupByChange: (value: GroupOption) => void;
-  groupCollection: ListCollection<GroupOptionItem>;
+  groupItems: GroupOptionItem[];
   filter: FilterStatus;
   onFilterChange: (value: FilterStatus) => void;
-  filterCollection: ListCollection<FilterOptionItem>;
+  filterItems: FilterOptionItem[];
   showGroupActions: boolean;
   onCollapseAll: () => void;
   onExpandAll: () => void;
@@ -112,202 +119,156 @@ export function BookGridControls({
   onToggleCardField,
   sort,
   onSortChange,
-  sortCollection,
+  sortItems,
   groupBy,
   onGroupByChange,
-  groupCollection,
+  groupItems,
   filter,
   onFilterChange,
-  filterCollection,
+  filterItems,
   showGroupActions,
   onCollapseAll,
   onExpandAll,
 }: BookGridControlsProps) {
   const t = useTranslations("book");
   const tCommon = useTranslations("common");
-  const controlBg = "bg.input";
-  const controlBorder = { base: "border.default", _dark: "border.default" };
-  const cardBg = { base: "bg.panel", _dark: "bg.card" };
 
   return (
-    <Card.Root bg={cardBg}>
-      <Card.Body>
-        <Stack gap={4}>
-          <Flex
-            gap={4}
-            wrap="wrap"
-            direction={{ base: "column", md: "row" }}
-            align={{ base: "stretch", md: "center" }}
-          >
-            <Button
-              variant="outline"
-              width={{ base: "full", md: "auto" }}
-              onClick={onToggleControls}
-              display={{ base: "inline-flex", md: "none" }}
-            >
-              <Flex align="center" gap={2}>
-                <Text as="span">{t("filtersButton")}</Text>
-                <Box display="flex" alignItems="center">
-                  <FiFilter />
-                </Box>
-              </Flex>
-            </Button>
-          </Flex>
+    <div className="rounded-2xl bg-card p-4 shadow-sm ring-1 ring-foreground/5 dark:ring-foreground/10">
+      <div className="space-y-4">
+        <Button
+          type="button"
+          variant="outline"
+          className="inline-flex w-full md:hidden"
+          onClick={onToggleControls}
+        >
+          <span>{t("filtersButton")}</span>
+          <RiFilterLine />
+        </Button>
 
-          <Box
-            display={{
-              base: areControlsOpen ? "block" : "none",
-              md: "block",
-            }}
-          >
-            <Flex
-              gap={4}
-              wrap="wrap"
-              direction={{ base: "column", md: "row" }}
-              align={{ base: "stretch", md: "center" }}
+        <div className={cn(areControlsOpen ? "block" : "hidden", "md:block")}>
+          <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-center">
+            <Popover
+              open={isDisplayOpen}
+              onOpenChange={(open) => {
+                if (open !== isDisplayOpen) onToggleDisplay();
+              }}
             >
-              <PopoverRoot
-                open={isDisplayOpen}
-                onOpenChange={(details) => {
-                  if (details.open !== isDisplayOpen) {
-                    onToggleDisplay();
-                  }
-                }}
-                positioning={{ placement: "bottom-start" }}
-              >
-                <PopoverTrigger asChild>
+              <PopoverTrigger
+                render={
                   <Button
+                    type="button"
                     variant="outline"
-                    width={{ base: "full", md: "auto" }}
-                  >
-                    {t("cardDisplay")}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent>
-                  <PopoverBody>
-                    <Stack gap={2}>
-                      {[
-                        { key: "cover", label: t("cardDisplayCover") },
-                        { key: "title", label: t("cardDisplayTitle") },
-                        { key: "author", label: t("cardDisplayAuthor") },
-                        { key: "genres", label: t("cardDisplayGenres") },
-                        { key: "rating", label: t("cardDisplayRating") },
-                        { key: "status", label: t("cardDisplayStatus") },
-                        { key: "format", label: t("cardDisplayFormat") },
-                      ].map((item) => (
-                        <Checkbox
-                          key={item.key}
-                          checked={cardFields[item.key as keyof BookCardFields]}
-                          onCheckedChange={() =>
-                            onToggleCardField(item.key as keyof BookCardFields)
-                          }
-                        >
-                          {item.label}
-                        </Checkbox>
-                      ))}
-                    </Stack>
-                  </PopoverBody>
-                </PopoverContent>
-              </PopoverRoot>
-              <SelectRoot
-                collection={sortCollection}
-                value={[sort]}
-                onValueChange={(e) => onSortChange(e.value[0] as SortOption)}
-                width={{ base: "full", md: "220px" }}
+                    className="w-full md:w-auto"
+                  />
+                }
               >
-                <SelectTrigger bg={controlBg} borderColor={controlBorder}>
-                  <SelectValueText placeholder={tCommon("sort")} />
+                {t("cardDisplay")}
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-56">
+                <div className="space-y-2">
+                  {cardFieldKeys.map((item) => (
+                    <label
+                      key={item.key}
+                      className="flex items-center gap-2 text-sm"
+                    >
+                      <Checkbox
+                        checked={cardFields[item.key]}
+                        onCheckedChange={() => onToggleCardField(item.key)}
+                      />
+                      {t(item.labelKey)}
+                    </label>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Select
+              items={sortItems}
+              value={sort}
+              onValueChange={(value) => onSortChange(value as SortOption)}
+            >
+              <SelectTrigger className="w-full md:w-[220px]">
+                <SelectValue placeholder={tCommon("sort")} />
+              </SelectTrigger>
+              <SelectContent>
+                {sortItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <div className="flex flex-col gap-2 md:flex-row md:items-center">
+              <span className="text-sm text-muted-foreground">
+                {t("groupingLabel")}
+              </span>
+              <Select
+                items={groupItems}
+                value={groupBy}
+                onValueChange={(value) => onGroupByChange(value as GroupOption)}
+              >
+                <SelectTrigger className="w-full md:w-[220px]">
+                  <SelectValue placeholder={t("groupBy")} />
                 </SelectTrigger>
                 <SelectContent>
-                  {sortCollection.items.map((item) => (
-                    <SelectItem key={item.value} item={item}>
+                  {groupItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
                       {item.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
-              </SelectRoot>
-              <Flex
-                align={{ base: "stretch", md: "center" }}
-                gap={2}
-                direction={{ base: "column", md: "row" }}
-                width={{ base: "full", md: "auto" }}
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-2 md:flex-row md:items-center">
+              <span className="text-sm text-muted-foreground">
+                {t("filteringLabel")}
+              </span>
+              <Select
+                items={filterItems}
+                value={filter}
+                onValueChange={(value) => onFilterChange(value as FilterStatus)}
               >
-                <Text fontSize="sm" color="fg.muted">
-                  {t("groupingLabel")}
-                </Text>
-                <SelectRoot
-                  collection={groupCollection}
-                  value={[groupBy]}
-                  onValueChange={(e) =>
-                    onGroupByChange(e.value[0] as GroupOption)
-                  }
-                  width={{ base: "full", md: "220px" }}
+                <SelectTrigger className="w-full md:w-[220px]">
+                  <SelectValue placeholder={t("filterBy")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {filterItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {showGroupActions && (
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="w-full md:w-auto"
+                  onClick={onCollapseAll}
                 >
-                  <SelectTrigger bg={controlBg} borderColor={controlBorder}>
-                    <SelectValueText placeholder={t("groupBy")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {groupCollection.items.map((item) => (
-                      <SelectItem key={item.value} item={item}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </SelectRoot>
-              </Flex>
-              <Flex
-                align={{ base: "stretch", md: "center" }}
-                gap={2}
-                direction={{ base: "column", md: "row" }}
-                width={{ base: "full", md: "auto" }}
-              >
-                <Text fontSize="sm" color="fg.muted">
-                  {t("filteringLabel")}
-                </Text>
-                <SelectRoot
-                  collection={filterCollection}
-                  value={[filter]}
-                  onValueChange={(e) =>
-                    onFilterChange(e.value[0] as FilterStatus)
-                  }
-                  width={{ base: "full", md: "220px" }}
+                  {t("groupCollapseAll")}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="w-full md:w-auto"
+                  onClick={onExpandAll}
                 >
-                  <SelectTrigger bg={controlBg} borderColor={controlBorder}>
-                    <SelectValueText placeholder={t("filterBy")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filterCollection.items.map((item) => (
-                      <SelectItem key={item.value} item={item}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </SelectRoot>
-              </Flex>
-              {showGroupActions && (
-                <Flex gap={2} width={{ base: "full", md: "auto" }}>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    width={{ base: "full", md: "auto" }}
-                    onClick={onCollapseAll}
-                  >
-                    {t("groupCollapseAll")}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    width={{ base: "full", md: "auto" }}
-                    onClick={onExpandAll}
-                  >
-                    {t("groupExpandAll")}
-                  </Button>
-                </Flex>
-              )}
-            </Flex>
-          </Box>
-        </Stack>
-      </Card.Body>
-    </Card.Root>
+                  {t("groupExpandAll")}
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

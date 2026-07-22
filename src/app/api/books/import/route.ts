@@ -28,7 +28,7 @@ const importBookSchema = z
     totalPages: z.number().int().positive().optional().nullable(),
     currentPage: z.number().int().min(0).optional().nullable(),
     status: z.enum(["TO_READ", "READING", "READ", "DROPPED"]).optional(),
-    rating: z.number().int().min(1).max(5).optional().nullable(),
+    rating: z.number().int().min(1).max(10).optional().nullable(),
     summary: z.string().max(5000).optional().nullable(),
     favoriteQuote: z.string().max(2000).optional().nullable(),
     favoriteMoment: z.string().max(2000).optional().nullable(),

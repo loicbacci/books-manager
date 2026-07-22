@@ -26,7 +26,12 @@
     "deleteFailed": "Delete failed",
     "clear": "Clear",
     "optional": "Optional",
-    "viewAll": "View all"
+    "viewAll": "View all",
+    "createFailed": "Failed to create",
+    "pagination": "Pagination",
+    "paginationPrevious": "Previous page",
+    "paginationNext": "Next page",
+    "pageOf": "Page {page} of {totalPages}"
   },
   "auth": {
     "login": "Log in",
@@ -54,6 +59,12 @@
     "series": "Series",
     "statistics": "Statistics",
     "settings": "Settings"
+  },
+  "theme": {
+    "toggle": "Toggle theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
   },
   "home": {
     "heroSubtitle": "Track your reading journey. Manage books you've read, are reading, or want to read. Get insights into your reading habits with beautiful statistics.",
@@ -94,10 +105,14 @@
     "unknownGender": "Unknown gender",
     "unknownNationality": "Unknown nationality",
     "filtersButton": "Filters",
-    "sortingLabel": "Sorting:"
+    "sortingLabel": "Sorting:",
+    "editTitle": "Edit author",
+    "deleteTitle": "Delete author",
+    "deleteConfirm": "Are you sure you want to delete this author? {count, plural, =0 {No books will be affected.} one {# book will be detached from this author.} other {# books will be detached from this author.}}"
   },
   "book": {
     "title": "Title",
+    "details": "Book",
     "author": "Author",
     "authors": "Authors",
     "genre": "Genre",
@@ -189,7 +204,32 @@
     "formatPlaceholder": "Select format",
     "totalPagesPlaceholder": "e.g., 350",
     "summaryPlaceholder": "Your thoughts about the book...",
-    "unknownAuthor": "Unknown author"
+    "unknownAuthor": "Unknown author",
+    "removeFromWishlist": "Remove from wishlist",
+    "removedFromWishlist": "Removed from wishlist",
+    "addToWishlist": "Add to wishlist",
+    "addedToWishlist": "Added to wishlist",
+    "continueReading": "Continue: {title}",
+    "markFinished": "Mark finished",
+    "plusOne": "+1 page",
+    "plusTen": "+10 pages",
+    "selectMode": "Select",
+    "selectedCount": "{count} selected",
+    "selectAllVisible": "Select all visible",
+    "bulkChangeStatus": "Change status",
+    "bulkAddWishlist": "Add to wishlist",
+    "bulkRemoveWishlist": "Remove from wishlist",
+    "bulkDeleted": "{count, plural, one {# book deleted} other {# books deleted}}",
+    "bulkDeleteConfirm": "Are you sure you want to delete {count, plural, one {# selected book} other {# selected books}}?",
+    "pressSlashToSearch": "Press / to search",
+    "clearFilters": "Clear filters",
+    "unsavedChanges": "You have unsaved changes. Discard them?",
+    "currentlyReadingEmpty": "Not reading anything right now",
+    "sectionEssentials": "Essentials",
+    "sectionReading": "Reading",
+    "sectionNotes": "Notes",
+    "sectionDates": "Dates",
+    "sectionSeries": "Series"
   },
   "sheetImport": {
     "title": "Import from spreadsheet",
@@ -265,11 +305,41 @@
     "importSuccess": "Import completed",
     "importSuccessDescription": "Successfully imported {count} books.",
     "importFailed": "Import failed",
+    "importError": "Import error",
+    "parsing": "Parsing file...",
+    "dragDrop": "Drag & drop your Excel file here",
+    "supportedFormats": "Supported formats: .xlsx, .xls",
+    "rowsDetected": "{count, plural, one {# row detected} other {# rows detected}}",
+    "field": "Field",
+    "column": "Column",
+    "selectColumn": "Select a column",
+    "ignore": "Do not import",
+    "rowsToImport": "Rows to import",
+    "startImport": "Start import",
+    "missing": "Missing",
+    "remove": "Remove",
+    "actions": "Actions",
     "steps": {
-        "upload": { "label": "Upload File" },
-        "mapping": { "label": "Map Columns" },
-        "authors": { "label": "Resolve Authors" },
-        "review": { "label": "Review" }
+      "upload": {
+        "label": "Upload File",
+        "title": "Upload spreadsheet",
+        "description": "Choose an Excel file with your book list."
+      },
+      "mapping": {
+        "label": "Map Columns",
+        "title": "Map columns",
+        "description": "Match spreadsheet columns to book fields."
+      },
+      "authors": {
+        "label": "Resolve Authors",
+        "title": "Resolve authors",
+        "description": "Match detected authors to existing ones, or create new authors."
+      },
+      "review": {
+        "label": "Review",
+        "title": "Review import",
+        "description": "Confirm the books to import before submitting."
+      }
     },
     "authorInFile": "Author in File",
     "matchWith": "Match with",
@@ -289,7 +359,12 @@
     "booksCount": "{count, plural, =0 {No books} one {# book} other {# books}}",
     "emptyBooks": "No books in this series yet",
     "bookOrder": "T{order}",
-    "unknownAuthor": "Unknown author"
+    "unknownAuthor": "Unknown author",
+    "actions": "Series actions",
+    "view": "View",
+    "editTitle": "Rename series",
+    "deleteTitle": "Delete series",
+    "deleteConfirm": "Are you sure you want to delete this series? {count, plural, =0 {No books will be affected.} one {# book will be detached from this series.} other {# books will be detached from this series.}}"
   },
   "status": {
     "toRead": "To Read",
@@ -325,6 +400,7 @@
   "settings": {
     "title": "Settings",
     "profile": "Profile",
+    "password": "Password",
     "language": "Language",
     "formats": "Book formats",
     "genders": "Genders",
@@ -350,6 +426,7 @@
     "addFormat": "Add format",
     "addGender": "Add gender",
     "addGenre": "Add genre",
-    "addNationality": "Add nationality"
+    "addNationality": "Add nationality",
+    "noItems": "Nothing here yet"
   }
 }

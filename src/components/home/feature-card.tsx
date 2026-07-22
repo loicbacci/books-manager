@@ -1,13 +1,17 @@
-"use client";
+import {
+  RiBarChartBoxLine,
+  RiBookOpenLine,
+  RiGlobalLine,
+  RiStarLine,
+} from "@remixicon/react";
 
-import { Box, Heading, Icon, Text } from "@chakra-ui/react";
-import { FiBarChart2, FiBookOpen, FiGlobe, FiStar } from "react-icons/fi";
+import { Card, CardContent } from "@/components/ui/card";
 
 const iconMap = {
-  library: FiBookOpen,
-  stats: FiBarChart2,
-  rating: FiStar,
-  language: FiGlobe,
+  library: RiBookOpenLine,
+  stats: RiBarChartBoxLine,
+  rating: RiStarLine,
+  language: RiGlobalLine,
 };
 
 type FeatureIcon = keyof typeof iconMap;
@@ -19,24 +23,15 @@ type FeatureCardProps = {
 };
 
 export function FeatureCard({ icon, title, description }: FeatureCardProps) {
-  const FeatureIcon = iconMap[icon];
+  const Icon = iconMap[icon];
 
   return (
-    <Box
-      bg="surface.raised"
-      p={6}
-      borderRadius="lg"
-      boxShadow="card"
-      maxW="250px"
-      textAlign="center"
-    >
-      <Icon as={FeatureIcon} boxSize={8} color="brand.fg" mb={2} />
-      <Heading as="h3" size="md" mb={2}>
-        {title}
-      </Heading>
-      <Text color="fg.muted" fontSize="sm">
-        {description}
-      </Text>
-    </Box>
+    <Card className="w-64 text-center">
+      <CardContent className="flex flex-col items-center gap-2">
+        <Icon className="size-8 text-primary" />
+        <h3 className="font-heading text-base font-medium">{title}</h3>
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </CardContent>
+    </Card>
   );
 }

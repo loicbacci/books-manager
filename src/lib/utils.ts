@@ -1,3 +1,10 @@
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
 /**
  * Calculate reading progress as a percentage
  */
@@ -110,14 +117,12 @@ export function calculatePagesReadThisYear(
   const currentYear = new Date().getFullYear();
 
   return books.reduce((total, book) => {
-    // For completed books, check if completed this year
     if (book.status === "READ" && book.endDate) {
       const endYear = new Date(book.endDate).getFullYear();
       if (endYear === currentYear) {
         return total + (book.totalPages || 0);
       }
     }
-    // For currently reading books, add current pages
     if (book.status === "READING") {
       return total + book.currentPage;
     }

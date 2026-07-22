@@ -1,33 +1,36 @@
 "use client";
 
 import Image from "next/image";
-import { Box, Icon } from "@chakra-ui/react";
-import { FiBook } from "react-icons/fi";
+import { RiBook2Line } from "@remixicon/react";
+
+import { cn } from "@/lib/utils";
 
 type BookCoverProps = {
   coverUrl: string | null;
   title: string;
   size?: "xs" | "sm" | "md" | "lg";
+  className?: string;
 };
 
-export function BookCover({ coverUrl, title, size = "md" }: BookCoverProps) {
-  const sizes = {
-    xs: { fontSize: "xl", iconSize: "xl" },
-    sm: { fontSize: "2xl", iconSize: "2xl" },
-    md: { fontSize: "3xl", iconSize: "3xl" },
-    lg: { fontSize: "4xl", iconSize: "4xl" },
-  };
+const iconSizeClassNames = {
+  xs: "size-8",
+  sm: "size-10",
+  md: "size-14",
+  lg: "size-20",
+};
 
+export function BookCover({
+  coverUrl,
+  title,
+  size = "md",
+  className,
+}: BookCoverProps) {
   return (
-    <Box
-      aspectRatio={2 / 3}
-      bg="bg.muted"
-      borderRadius="md"
-      display="flex"
-      alignItems="center"
-      justifyContent="center"
-      overflow="hidden"
-      position="relative"
+    <div
+      className={cn(
+        "relative flex aspect-[2/3] items-center justify-center overflow-hidden rounded-xl bg-muted",
+        className
+      )}
     >
       {coverUrl ? (
         <Image
@@ -35,20 +38,16 @@ export function BookCover({ coverUrl, title, size = "md" }: BookCoverProps) {
           alt={title}
           fill
           sizes="(max-width: 768px) 50vw, 250px"
-          style={{ objectFit: "cover" }}
+          className="object-cover"
           unoptimized
         />
       ) : (
-        <Icon
-          as={FiBook}
-          fontSize={sizes[size].iconSize}
-          color="fg.muted"
+        <RiBook2Line
+          className={cn("text-muted-foreground", iconSizeClassNames[size])}
           aria-label={`${title} cover placeholder`}
           role="img"
         />
       )}
-    </Box>
+    </div>
   );
 }
-
-

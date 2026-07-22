@@ -72,7 +72,7 @@ test("statistics reflect newly added read book", async ({ page }) => {
   expect(updatedReadCount).toBe(initialReadCount + 1);
 
   await page.goto("/statistics");
-  await expect(page.getByRole("heading", { name: "Statistics" })).toBeVisible();
+  await expect(page.getByText("Statistics").first()).toBeVisible();
   const uiReadCount = await getStatValue(page, "Books read");
   expect(uiReadCount).toBe(updatedReadCount);
 });

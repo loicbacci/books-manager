@@ -55,16 +55,33 @@ export async function POST(req: Request) {
     // Hash the password before persisting.
     const hashedPassword = await hash(password, 12);
 
-    const user = await db.user.create({
-      data: {
-        email: normalizedEmail,
-        hashedPassword,
-        name,
-      },
-    });
+    try {
+      await db.$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: {
+            email: normalizedEmail,
+            hashedPassword,
+            name,
+          },
+        });
 
-    // Seed per-user reference data (formats, genres, genders, etc.).
-    await createUserDefaults(user.id);
+        // Seed per-user reference data (formats, genres, genders, etc.).
+        await createUserDefaults(user.id, tx);
+      });
+    } catch (error) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "P2002"
+      ) {
+        return NextResponse.json(
+          { error: "User already exists" },
+          { status: 409 }
+        );
+      }
+      throw error;
+    }
 
     return NextResponse.json(
       { message: "User created successfully" },
