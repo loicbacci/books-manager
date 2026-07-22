@@ -4,15 +4,19 @@ import { AppShell } from "@/components/layout/app-shell";
 
 type Props = {
   children: React.ReactNode;
+  params: Promise<{ locale: string }>;
 };
 
-export default async function AuthenticatedLayout({ children }: Props) {
+export default async function AuthenticatedLayout({
+  children,
+  params,
+}: Props) {
   const session = await auth();
+  const { locale } = await params;
 
   if (!session?.user) {
-    redirect("/login");
+    redirect(`/${locale}/login`);
   }
 
   return <AppShell>{children}</AppShell>;
 }
-

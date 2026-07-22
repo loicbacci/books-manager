@@ -1,39 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+
+import { Button } from "@/components/ui/button";
 import {
-  Button,
-  Flex,
-  Input,
-  Stack,
-  Text,
-  createListCollection,
-} from "@chakra-ui/react";
-import { Tag } from "@/components/ui/tag";
-import {
-  DialogRoot,
+  Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogBody,
-  DialogFooter,
-  DialogCloseTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { MultiSelect } from "@/components/ui/multi-select";
 import {
-  ComboboxRoot,
-  ComboboxControl,
-  ComboboxInput,
-  ComboboxContent,
-  ComboboxItem,
-  ComboboxItemText,
-} from "@/components/ui/combobox";
-import {
-  SelectRoot,
-  SelectTrigger,
-  SelectValueText,
+  Select,
   SelectContent,
   SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 
 type CreatedAuthor = {
@@ -48,6 +33,8 @@ type CreateAuthorDialogProps = {
   onOpenChange: (open: boolean) => void;
   onCreated?: (author: CreatedAuthor) => void;
 };
+
+const NONE_GENDER = "none";
 
 export function CreateAuthorDialog({
   open,
@@ -66,7 +53,7 @@ export function CreateAuthorDialog({
   const [nationalities, setNationalities] = useState<
     Array<{ id: string; name: string }>
   >([]);
-  const [genderId, setGenderId] = useState("none");
+  const [genderId, setGenderId] = useState(NONE_GENDER);
   const [nationalityIds, setNationalityIds] = useState<string[]>([]);
   const [isMetaLoading, setIsMetaLoading] = useState(false);
   const [isAddingGender, setIsAddingGender] = useState(false);
@@ -75,7 +62,6 @@ export function CreateAuthorDialog({
   const [newNationalityName, setNewNationalityName] = useState("");
   const [savingGender, setSavingGender] = useState(false);
   const [savingNationality, setSavingNationality] = useState(false);
-  const [nationalityQuery, setNationalityQuery] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -111,42 +97,15 @@ export function CreateAuthorDialog({
     };
   }, [open]);
 
-  const genderCollection = useMemo(
-    () =>
-      createListCollection({
-        items: [
-          { value: "none", label: t("unknownGender") },
-          ...genders.map((gender) => ({
-            value: gender.id,
-            label: gender.name,
-          })),
-        ],
-      }),
-    [genders, t]
-  );
+  const genderItems = [
+    { value: NONE_GENDER, label: t("unknownGender") },
+    ...genders.map((gender) => ({ value: gender.id, label: gender.name })),
+  ];
 
-  const filteredNationalities = useMemo(() => {
-    const query = nationalityQuery.trim().toLowerCase();
-    return nationalities.filter((nat) =>
-      nat.name.toLowerCase().includes(query)
-    );
-  }, [nationalities, nationalityQuery]);
-
-  const nationalityCollection = useMemo(
-    () =>
-      createListCollection({
-        items: filteredNationalities.map((nat) => ({
-          value: nat.id,
-          label: nat.name,
-        })),
-      }),
-    [filteredNationalities]
-  );
-
-  const selectedNationalities = useMemo(
-    () => nationalities.filter((nat) => nationalityIds.includes(nat.id)),
-    [nationalities, nationalityIds]
-  );
+  const nationalityOptions = nationalities.map((nat) => ({
+    value: nat.id,
+    label: nat.name,
+  }));
 
   const handleCreate = async () => {
     if (!name.trim()) return;
@@ -157,14 +116,14 @@ export function CreateAuthorDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
-          genderId: genderId === "none" ? null : genderId,
+          genderId: genderId === NONE_GENDER ? null : genderId,
           nationalityIds,
         }),
       });
       if (response.ok) {
         const created = (await response.json()) as CreatedAuthor;
         setName("");
-        setGenderId("none");
+        setGenderId(NONE_GENDER);
         setNationalityIds([]);
         onCreated?.(created);
         onOpenChange(false);
@@ -231,201 +190,157 @@ export function CreateAuthorDialog({
   };
 
   return (
-    <DialogRoot
-      open={open}
-      onOpenChange={(e) => !e.open && onOpenChange(false)}
-    >
-      <DialogContent maxW="md">
+    <Dialog open={open} onOpenChange={(next) => !next && onOpenChange(false)}>
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{t("createTitle")}</DialogTitle>
-          <DialogCloseTrigger />
         </DialogHeader>
-        <DialogBody>
-          <Stack gap={3}>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t("namePlaceholder")}
-              aria-label={t("namePlaceholder")}
+        <div className="space-y-3">
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t("namePlaceholder")}
+            aria-label={t("namePlaceholder")}
+          />
+
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">{t("gender")}</p>
+            <Select
+              items={genderItems}
+              value={genderId}
+              onValueChange={(value) => {
+                if (value) setGenderId(value);
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={t("gender")} />
+              </SelectTrigger>
+              <SelectContent>
+                {genderItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {isMetaLoading && (
+              <p className="text-sm text-muted-foreground">
+                {tCommon("loading")}
+              </p>
+            )}
+            {!isAddingGender ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-fit"
+                onClick={() => setIsAddingGender(true)}
+              >
+                {tSettings("addGender")}
+              </Button>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <Input
+                  value={newGenderName}
+                  onChange={(e) => setNewGenderName(e.target.value)}
+                  placeholder={tSettings("addGender")}
+                  aria-label={tSettings("addGender")}
+                  className="min-w-[200px] flex-1"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleCreateGender}
+                  disabled={savingGender}
+                >
+                  {savingGender ? tCommon("loading") : tCommon("add")}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setIsAddingGender(false);
+                    setNewGenderName("");
+                  }}
+                >
+                  {tCommon("cancel")}
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              {t("nationality")}
+            </p>
+            <MultiSelect
+              options={nationalityOptions}
+              value={nationalityIds}
+              onChange={setNationalityIds}
+              placeholder={t("nationality")}
+              disabled={isMetaLoading}
             />
-            {/* Gender selection + inline add */}
-            {/* Nationality selection + inline add */}
-            <Stack gap={2}>
-              <Text fontSize="sm" color="fg.muted">
-                {t("gender")}
-              </Text>
-              <SelectRoot
-                collection={genderCollection}
-                value={[genderId]}
-                onValueChange={(e) => setGenderId(e.value[0] || "none")}
+            {isMetaLoading && (
+              <p className="text-sm text-muted-foreground">
+                {tCommon("loading")}
+              </p>
+            )}
+            {!isAddingNationality ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-fit"
+                onClick={() => setIsAddingNationality(true)}
               >
-                <SelectTrigger>
-                  <SelectValueText placeholder={t("gender")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {genderCollection.items.map((item) => (
-                    <SelectItem key={item.value} item={item}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </SelectRoot>
-              {isMetaLoading && (
-                <Text fontSize="sm" color="fg.muted">
-                  {tCommon("loading")}
-                </Text>
-              )}
-              {!isAddingGender ? (
+                {tSettings("addNationality")}
+              </Button>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <Input
+                  value={newNationalityName}
+                  onChange={(e) => setNewNationalityName(e.target.value)}
+                  placeholder={tSettings("addNationality")}
+                  aria-label={tSettings("addNationality")}
+                  className="min-w-[200px] flex-1"
+                />
                 <Button
-                  variant="outline"
+                  type="button"
                   size="sm"
-                  width="fit-content"
-                  onClick={() => setIsAddingGender(true)}
+                  onClick={handleCreateNationality}
+                  disabled={savingNationality}
                 >
-                  {tSettings("addGender")}
+                  {savingNationality ? tCommon("loading") : tCommon("add")}
                 </Button>
-              ) : (
-                <Flex gap={2} wrap="wrap">
-                  <Input
-                    value={newGenderName}
-                    onChange={(e) => setNewGenderName(e.target.value)}
-                    placeholder={tSettings("addGender")}
-                    aria-label={tSettings("addGender")}
-                    flex={1}
-                    minW="200px"
-                  />
-                  <Button
-                    size="sm"
-                    colorPalette="brand"
-                    onClick={handleCreateGender}
-                    loading={savingGender}
-                    loadingText={tCommon("loading")}
-                  >
-                    {tCommon("add")}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      setIsAddingGender(false);
-                      setNewGenderName("");
-                    }}
-                  >
-                    {tCommon("cancel")}
-                  </Button>
-                </Flex>
-              )}
-            </Stack>
-            <Stack gap={2}>
-              <Text fontSize="sm" color="fg.muted">
-                {t("nationality")}
-              </Text>
-              <ComboboxRoot
-                collection={nationalityCollection}
-                value={nationalityIds}
-                multiple
-                selectionBehavior="clear"
-                closeOnSelect={false}
-                inputValue={nationalityQuery}
-                onValueChange={(e) => setNationalityIds(e.value)}
-                onInputValueChange={(e) => setNationalityQuery(e.inputValue)}
-              >
-                <ComboboxControl clearable>
-                  <ComboboxInput
-                    placeholder={t("nationality")}
-                    disabled={isMetaLoading}
-                  />
-                </ComboboxControl>
-                <ComboboxContent>
-                  {nationalityCollection.items.map((item) => (
-                    <ComboboxItem key={item.value} item={item}>
-                      <ComboboxItemText>{item.label}</ComboboxItemText>
-                    </ComboboxItem>
-                  ))}
-                </ComboboxContent>
-              </ComboboxRoot>
-              {selectedNationalities.length > 0 && (
-                <Flex wrap="wrap" gap={2}>
-                  {selectedNationalities.map((nat) => (
-                    <Tag
-                      key={nat.id}
-                      size="sm"
-                      colorPalette="ink"
-                      closable
-                      onClose={() =>
-                        setNationalityIds((prev) =>
-                          prev.filter((id) => id !== nat.id)
-                        )
-                      }
-                    >
-                      {nat.name}
-                    </Tag>
-                  ))}
-                </Flex>
-              )}
-              {isMetaLoading && (
-                <Text fontSize="sm" color="fg.muted">
-                  {tCommon("loading")}
-                </Text>
-              )}
-              {!isAddingNationality ? (
                 <Button
-                  variant="outline"
+                  type="button"
                   size="sm"
-                  width="fit-content"
-                  onClick={() => setIsAddingNationality(true)}
+                  variant="ghost"
+                  onClick={() => {
+                    setIsAddingNationality(false);
+                    setNewNationalityName("");
+                  }}
                 >
-                  {tSettings("addNationality")}
+                  {tCommon("cancel")}
                 </Button>
-              ) : (
-                <Flex gap={2} wrap="wrap">
-                  <Input
-                    value={newNationalityName}
-                    onChange={(e) => setNewNationalityName(e.target.value)}
-                    placeholder={tSettings("addNationality")}
-                    aria-label={tSettings("addNationality")}
-                    flex={1}
-                    minW="200px"
-                  />
-                  <Button
-                    size="sm"
-                    colorPalette="brand"
-                    onClick={handleCreateNationality}
-                    loading={savingNationality}
-                    loadingText={tCommon("loading")}
-                  >
-                    {tCommon("add")}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      setIsAddingNationality(false);
-                      setNewNationalityName("");
-                    }}
-                  >
-                    {tCommon("cancel")}
-                  </Button>
-                </Flex>
-              )}
-            </Stack>
-          </Stack>
-        </DialogBody>
-        {/* Dialog actions */}
+              </div>
+            )}
+          </div>
+        </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+          >
             {tCommon("cancel")}
           </Button>
-          <Button
-            colorPalette="brand"
-            onClick={handleCreate}
-            loading={saving}
-            loadingText={tCommon("loading")}
-          >
-            {t("create")}
+          <Button type="button" onClick={handleCreate} disabled={saving}>
+            {saving ? tCommon("loading") : t("create")}
           </Button>
         </DialogFooter>
       </DialogContent>
-    </DialogRoot>
+    </Dialog>
   );
 }

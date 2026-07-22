@@ -10,31 +10,32 @@ Books Manager is a multi-user web application for tracking personal book collect
 
 - **Framework**: Next.js 15 (App Router)
 - **Language**: TypeScript
-- **UI**: Chakra UI v3 + Tailwind CSS (prefixed with `tw-`)
+- **UI**: shadcn/ui + Tailwind CSS + Remix Icon (preset `b39i8bS88` — rhea / mauve / fuchsia / Inter)
 - **Database**: PostgreSQL with Prisma ORM
 - **Auth**: NextAuth.js v5 (Auth.js) with credentials provider
 - **i18n**: next-intl (English/French)
 - **Charts**: Recharts
+- **Toasts**: sonner
 - **Deployment**: Docker + Docker Compose
 
 ## Commands
 
 ```bash
 # Development
-npm run dev              # Start dev server
-npm run build            # Production build
-npm run lint             # Run ESLint
-npm run lint:fix         # Fix ESLint issues
-npm run type-check       # TypeScript check
-npm run format           # Format with Prettier
+pnpm run dev              # Start DB + Prisma generate + Next.js
+pnpm run build            # Production build
+pnpm run lint             # Run ESLint
+pnpm run lint:fix         # Fix ESLint issues
+pnpm run type-check       # TypeScript check
+pnpm run format           # Format with Prettier
 
 # Database
-npm run db:generate      # Generate Prisma client
-npm run db:push          # Push schema to DB (dev)
-npm run db:migrate       # Create migration (dev)
-npm run db:migrate:prod  # Deploy migrations (prod)
-npm run db:studio        # Open Prisma Studio
-npm run db:seed          # Seed database
+pnpm run db:generate      # Generate Prisma client
+pnpm run db:push          # Push schema to DB (dev)
+pnpm run db:migrate       # Create migration (dev)
+pnpm run db:migrate:prod  # Deploy migrations (prod)
+pnpm run db:studio        # Open Prisma Studio
+pnpm run db:seed          # Seed database
 
 # Docker (development - DB only)
 docker compose -f docker-compose.dev.yml up -d
@@ -43,10 +44,10 @@ docker compose -f docker-compose.dev.yml up -d
 docker compose up -d --build
 
 # Testing
-npm run test              # Run all tests
-npm run test:watch        # Run tests in watch mode
-npm run test:coverage     # Run tests with coverage report
-npm run test:ci           # Run tests in CI mode
+pnpm run test              # Run all tests
+pnpm run test:watch        # Run tests in watch mode
+pnpm run test:coverage     # Run tests with coverage report
+pnpm run test:ci           # Run tests in CI mode
 ```
 
 ## Testing
@@ -62,9 +63,9 @@ The project uses Jest and React Testing Library for comprehensive testing:
 ### Running Tests
 
 ```bash
-npm test                  # Run all tests
-npm run test:watch        # Watch mode for development
-npm run test:coverage     # Generate coverage report
+pnpm test                  # Run all tests
+pnpm run test:watch        # Watch mode for development
+pnpm run test:coverage     # Generate coverage report
 ```
 
 ### Writing Tests
@@ -86,27 +87,32 @@ src/
 │   │   │   ├── dashboard/      # Main dashboard with stats overview
 │   │   │   ├── library/        # Book library with search/filters
 │   │   │   ├── books/[id]/     # Individual book detail page
+│   │   │   ├── authors/        # Author list and detail
+│   │   │   ├── series/         # Series list and detail
+│   │   │   ├── sheet-import/   # Spreadsheet import wizard
 │   │   │   ├── statistics/     # Advanced stats with charts
 │   │   │   └── settings/       # User settings & custom entities
 │   │   ├── login/              # Login page
 │   │   └── register/           # Registration page
 │   └── api/                    # API routes
 │       ├── auth/               # Authentication endpoints
-│       ├── books/              # Book CRUD operations
+│       ├── books/              # Book CRUD + import/search
 │       ├── authors/            # Author management
 │       ├── genres/             # Genre management
 │       ├── formats/            # Format management
 │       ├── genders/            # Gender management
 │       ├── nationalities/      # Nationality management
+│       ├── series/             # Series management
 │       ├── stats/              # Statistics endpoints
 │       └── user/               # User profile endpoints
 ├── components/
 │   ├── books/                  # Book-related components (modals, forms)
+│   ├── import/                 # Spreadsheet import steps
 │   ├── layout/                 # Layout components
 │   ├── providers/              # React context providers
-│   └── ui/                     # Reusable UI components
+│   └── ui/                     # shadcn/ui components
 ├── i18n/                       # Internationalization config
-├── lib/                        # Shared utilities (db, auth, theme)
+├── lib/                        # Shared utilities (db, auth, rating)
 ├── messages/                   # Translation files (en.json, fr.json)
 ├── types/                      # TypeScript type definitions
 └── __tests__/                  # Test files
@@ -119,8 +125,9 @@ src/
 ### Key Patterns
 
 - **Locale routing**: All pages under `[locale]` use next-intl for i18n
-- **Chakra + Tailwind**: Chakra UI for components, Tailwind (with `tw-` prefix) for utilities
+- **shadcn + Tailwind**: shadcn/ui for components, Tailwind design tokens for styling, Remix Icon for icons
 - **Per-user data**: All configurable entities (genres, formats, genders, nationalities) are user-scoped
+- **Ratings**: Stored as integers 1–10 (half-star scale); UI presents 5 stars
 - **Invite-only registration**: `REGISTRATION_INVITE_CODE` env var required to create accounts
 - **Route protection**: Authenticated routes use Next.js middleware with NextAuth session checks
 - **API design**: RESTful API routes with proper HTTP methods (GET, POST, PUT, DELETE)
@@ -139,6 +146,7 @@ src/
 - Filter by status (All, To Read, Reading, Read, Dropped, Wishlist)
 - Grid view with book covers, progress, ratings, and metadata
 - Add new books via modal dialog
+- Spreadsheet import via add-book modal → `/sheet-import`
 - Online book search integration (Google Books & Open Library APIs)
 
 #### Book Details (`/books/[id]`)
@@ -149,7 +157,7 @@ src/
 - Progress tracking (current page / total pages)
 - Reading dates (start/end)
 - Personal notes (summary, favorite quote, favorite moment)
-- Rating system (5-star scale)
+- Rating system (5-star UI, 1–10 stored)
 - Author(s), genre(s), and format management
 - Delete book functionality with confirmation
 
@@ -202,8 +210,8 @@ REGISTRATION_INVITE_CODE=<generate with: openssl rand -hex 16>
 
 ## Development Notes
 
-- **Database changes**: Always run `npm run db:generate` after modifying `prisma/schema.prisma`
+- **Database changes**: Always run `pnpm run db:generate` after modifying `prisma/schema.prisma`
 - **Testing**: Write tests for new features using the factories in `test-utils.tsx`
 - **Translations**: Add new translation keys to both `messages/en.json` and `messages/fr.json`
-- **Styling**: Use Chakra UI components first, Tailwind utilities (with `tw-` prefix) for spacing/layout
+- **Styling**: Prefer shadcn/ui components with Tailwind tokens and Remix icons
 - **Type safety**: All API responses and database queries are fully typed with TypeScript

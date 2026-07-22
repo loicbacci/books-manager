@@ -111,6 +111,26 @@ describe("auth config", () => {
     });
   });
 
+  it("normalizes email case before lookup", async () => {
+    mockFindUnique.mockResolvedValue({
+      id: "user-1",
+      email: "user@example.com",
+      name: "User",
+      image: null,
+      hashedPassword: "hashed",
+    });
+    mockCompare.mockResolvedValue(true);
+    const authorize = capturedOptions!.providers![0].authorize;
+
+    await expect(
+      authorize({ email: "  User@Example.COM ", password: "good" })
+    ).resolves.toMatchObject({ id: "user-1" });
+
+    expect(mockFindUnique).toHaveBeenCalledWith({
+      where: { email: "user@example.com" },
+    });
+  });
+
   it("adds user id to session in callback", async () => {
     expect(capturedOptions?.callbacks).toBeDefined();
     const sessionCallback = capturedOptions!.callbacks!.session;

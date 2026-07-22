@@ -138,6 +138,21 @@ describe("GET /api/books", () => {
     );
   });
 
+  it("filters books by wishlist=1", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "user-123" } });
+    mockFindMany.mockResolvedValue([]);
+
+    await GET(createRequest({ wishlist: "1" }));
+
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          isWishlist: true,
+        }),
+      })
+    );
+  });
+
   it("filters books by search term", async () => {
     mockAuth.mockResolvedValue({ user: { id: "user-123" } });
     mockFindMany.mockResolvedValue([]);
@@ -148,7 +163,16 @@ describe("GET /api/books", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           userId: "user-123",
-          title: { contains: "lord", mode: "insensitive" },
+          OR: [
+            { title: { contains: "lord", mode: "insensitive" } },
+            {
+              authors: {
+                some: {
+                  author: { name: { contains: "lord", mode: "insensitive" } },
+                },
+              },
+            },
+          ],
         }),
       })
     );

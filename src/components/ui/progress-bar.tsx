@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Text, HStack } from "@chakra-ui/react";
+import { cn } from "@/lib/utils";
 
 export interface ProgressBarProps {
   value?: number;
@@ -8,8 +8,14 @@ export interface ProgressBarProps {
   total?: number | null;
   showLabel?: boolean;
   size?: "sm" | "md" | "lg";
-  colorScheme?: string;
+  className?: string;
 }
+
+const heightClassNames = {
+  sm: "h-2",
+  md: "h-3",
+  lg: "h-4",
+};
 
 export function ProgressBar({
   value,
@@ -17,53 +23,42 @@ export function ProgressBar({
   total,
   showLabel = false,
   size = "md",
-  colorScheme = "brand",
+  className,
 }: ProgressBarProps) {
   const percentage =
     value ??
     (total && total > 0 ? Math.round(((current ?? 0) / total) * 100) : 0);
   const clampedPercentage = Math.min(100, Math.max(0, percentage));
 
-  const heights = {
-    sm: "8px",
-    md: "12px",
-    lg: "16px",
-  };
-
   return (
-    <Box width="100%">
-      <Box
-        height={heights[size]}
-        bg="bg.muted"
-        borderRadius="full"
-        overflow="hidden"
+    <div className={cn("w-full", className)}>
+      <div
+        className={cn(
+          "overflow-hidden rounded-full bg-muted",
+          heightClassNames[size]
+        )}
         role="progressbar"
         aria-valuenow={clampedPercentage}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label={`Reading progress: ${clampedPercentage}%`}
       >
-        <Box
-          height="100%"
-          width={`${clampedPercentage}%`}
-          bg={`${colorScheme}.500`}
-          borderRadius="full"
-          transition="width 0.3s ease"
+        <div
           data-testid="progress-fill"
+          className="h-full rounded-full bg-primary transition-[width] duration-300 ease-out"
+          style={{ width: `${clampedPercentage}%` }}
         />
-      </Box>
+      </div>
       {showLabel && (
-        <HStack justify="space-between" mt={1}>
-          <Text fontSize="sm" color="fg.muted">
+        <div className="mt-1 flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">
             {current} / {total ?? "?"} pages
-          </Text>
-          <Text fontSize="sm" fontWeight="medium" color={`${colorScheme}.600`}>
+          </span>
+          <span className="text-sm font-medium text-primary">
             {clampedPercentage}%
-          </Text>
-        </HStack>
+          </span>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
-
-

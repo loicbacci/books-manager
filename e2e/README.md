@@ -7,6 +7,9 @@ This folder contains Playwright end-to-end coverage for key user flows.
 - `auth.setup.ts`
   - Logs in with the seed user and stores `storageState` for authenticated tests.
 
+- `auth-redirect.spec.ts`
+  - Unauthenticated visits to protected routes redirect to login.
+
 - `smoke.spec.ts`
   - Verifies the dashboard loads and primary navigation links are visible.
 
@@ -14,7 +17,10 @@ This folder contains Playwright end-to-end coverage for key user flows.
   - Clicks through main navigation links (Library, Authors, Series, Stats, Settings).
 
 - `library.spec.ts`
-  - Ensures library search filters seeded books correctly.
+  - Library search (server-side), wishlist deep link, sheet-import redirect.
+
+- `bulk-select.spec.ts`
+  - Library selection mode: status/wishlist/delete via bulk API.
 
 - `authors.spec.ts`
   - Confirms seeded authors render in the authors list.
@@ -24,10 +30,6 @@ This folder contains Playwright end-to-end coverage for key user flows.
 
 - `book-crud.spec.ts`
   - Adds a book, edits title/rating/dates, saves changes, and deletes the book.
-  - Verifies success toasts and that the book is removed from the library.
-
-- `sheet-import.spec.ts`
-  - Imports a small Excel sheet, resolves missing fields, and confirms books show in the library.
 
 - `stats.spec.ts`
   - Adds a book, marks it as read via edit (end date), and verifies the stats summary updates.

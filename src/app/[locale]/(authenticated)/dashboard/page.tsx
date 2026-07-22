@@ -1,79 +1,71 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
+import {
+  RiBookLine,
+  RiBookOpenLine,
+  RiCloseLine,
+  RiFileTextLine,
+  RiHeartLine,
+  RiLoaderLine,
+} from "@remixicon/react";
+
 import { Link } from "@/i18n/routing";
+import { Button } from "@/components/ui/button";
 import {
-  Box,
-  Container,
-  Grid,
-  Heading,
-  Text,
-  Stack,
   Card,
-  Flex,
-  Spinner,
-  Button,
-  Icon,
-} from "@chakra-ui/react";
-import { ProgressBar } from "@/components/ui/progress-bar";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { BookCover } from "@/components/ui/book-cover";
-import {
-  FiBookOpen,
-  FiCalendar,
-  FiBook,
-  FiFileText,
-  FiEdit3,
-  FiBookmark,
-} from "react-icons/fi";
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { StarRating } from "@/components/books/star-rating";
+import { cn } from "@/lib/utils";
+
+type CurrentlyReadingBook = {
+  id: string;
+  slug: string;
+  title: string;
+  coverUrl: string | null;
+  currentPage: number;
+  totalPages: number | null;
+  authors: string[];
+  progress: number;
+};
+
+type MiniBook = {
+  id: string;
+  slug: string;
+  title: string;
+  coverUrl: string | null;
+  status: string;
+  rating: number | null;
+  authors: string[];
+};
 
 type Stats = {
-  totalBooks: number;
-  booksRead: number;
   booksReading: number;
-  booksToRead: number;
   booksReadThisYear: number;
   booksReadThisMonth: number;
   pagesReadThisYear: number;
   pagesReadThisMonth: number;
   wishlistCount: number;
-  currentlyReading: Array<{
-    id: string;
-    slug: string;
-    title: string;
-    coverUrl: string | null;
-    currentPage: number;
-    totalPages: number | null;
-    authors: string[];
-    progress: number;
-  }>;
-  wishlistBooks: Array<{
-    id: string;
-    slug: string;
-    title: string;
-    coverUrl: string | null;
-    status: string;
-    rating: number | null;
-    authors: string[];
-  }>;
-  recentFinishedBooks: Array<{
-    id: string;
-    slug: string;
-    title: string;
-    coverUrl: string | null;
-    status: string;
-    rating: number | null;
-    authors: string[];
-  }>;
+  currentlyReading: CurrentlyReadingBook[];
+  wishlistBooks: MiniBook[];
+  recentFinishedBooks: MiniBook[];
 };
 
 export default function DashboardPage() {
-  const t = useTranslations("nav");
   const tStats = useTranslations("stats");
   const tBook = useTranslations("book");
   const tCommon = useTranslations("common");
+
   const [stats, setStats] = useState<Stats | null>(null);
+  const [wishlistBooks, setWishlistBooks] = useState<MiniBook[]>([]);
+  const [wishlistCount, setWishlistCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -85,9 +77,11 @@ export default function DashboardPage() {
           signal: controller.signal,
         });
         if (response.ok) {
-          const data = await response.json();
+          const data: Stats = await response.json();
           if (isActive) {
             setStats(data);
+            setWishlistBooks(data.wishlistBooks);
+            setWishlistCount(data.wishlistCount);
           }
         }
       } catch (error) {
@@ -108,313 +102,332 @@ export default function DashboardPage() {
     };
   }, []);
 
-  // Loading state
+  const handleRemoveFromWishlist = async (book: MiniBook) => {
+    setWishlistBooks((prev) => prev.filter((b) => b.id !== book.id));
+    setWishlistCount((prev) => Math.max(0, prev - 1));
+
+    try {
+      const response = await fetch(`/api/books/${book.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isWishlist: false }),
+      });
+      if (!response.ok) {
+        throw new Error("Request failed");
+      }
+      toast.success(tBook("removedFromWishlist"));
+    } catch (error) {
+      console.error("Failed to remove from wishlist:", error);
+      // Roll back the optimistic update on failure.
+      setWishlistBooks((prev) => [book, ...prev]);
+      setWishlistCount((prev) => prev + 1);
+      toast.error(tCommon("saveFailed"));
+    }
+  };
+
   if (loading) {
     return (
-      <Container maxW="container.xl" py={8}>
-        <Flex justify="center" align="center" minH="400px">
-          <Spinner size="xl" color="brand.500" />
-        </Flex>
-      </Container>
+      <div className="flex min-h-[400px] items-center justify-center">
+        <RiLoaderLine className="size-8 animate-spin text-primary" />
+      </div>
     );
   }
 
   return (
-    <Container maxW="container.xl" py={8}>
-      <Stack gap={8}>
-        {/* Page title */}
-        <Heading as="h1" size="2xl">
-          {t("dashboard")}
-        </Heading>
+    <div className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+      {/* KPI summary cards — 4 only */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <KpiCard
+          icon={RiBookOpenLine}
+          label={tStats("booksRead")}
+          subLabel={tStats("thisYear")}
+          value={stats?.booksReadThisYear ?? 0}
+        />
+        <KpiCard
+          icon={RiBookLine}
+          label={tStats("booksReading")}
+          value={stats?.booksReading ?? 0}
+        />
+        <KpiCard
+          icon={RiFileTextLine}
+          label={tStats("pagesRead")}
+          subLabel={tStats("thisYear")}
+          value={stats?.pagesReadThisYear ?? 0}
+        />
+        <KpiCard
+          icon={RiHeartLine}
+          label={tBook("wishlist")}
+          value={wishlistCount}
+        />
+      </div>
 
-        {/* KPI summary cards */}
-        <Grid
-          templateColumns={{
-            base: "repeat(2, 1fr)",
-            md: "repeat(3, 1fr)",
-            lg: "repeat(5, 1fr)",
-          }}
-          gap={{ base: 3, md: 4 }}
+      {stats?.currentlyReading && stats.currentlyReading.length > 0 && (
+        <Button
+          size="lg"
+          className="w-full sm:w-auto"
+          render={
+            <Link href={`/books/${stats.currentlyReading[0].slug}`} />
+          }
+          nativeButton={false}
         >
-          <StatCard
-            label={tStats("booksRead")}
-            subLabel={tStats("thisYear")}
-            value={stats?.booksReadThisYear ?? 0}
-            icon={FiBookOpen}
-          />
-          <StatCard
-            label={tStats("booksRead")}
-            subLabel={tStats("thisMonth")}
-            value={stats?.booksReadThisMonth ?? 0}
-            icon={FiCalendar}
-          />
-          <StatCard
-            label={tStats("booksReading")}
-            value={stats?.booksReading ?? 0}
-            icon={FiBook}
-          />
-          <StatCard
-            label={tStats("pagesRead")}
-            subLabel={tStats("thisYear")}
-            value={stats?.pagesReadThisYear ?? 0}
-            icon={FiFileText}
-          />
-          <StatCard
-            label={tStats("pagesRead")}
-            subLabel={tStats("thisMonth")}
-            value={stats?.pagesReadThisMonth ?? 0}
-            icon={FiEdit3}
-          />
-        </Grid>
+          <RiBookOpenLine />
+          {tBook("continueReading", { title: stats.currentlyReading[0].title })}
+        </Button>
+      )}
 
-        {/* Currently reading list */}
-        {stats?.currentlyReading && stats.currentlyReading.length > 0 && (
-          <Card.Root bg="surface.card" boxShadow="card">
-            <Card.Body p={{ base: 4, md: 6 }}>
-              <Heading as="h2" size="lg" mb={4}>
-                {tStats("booksReading")}
-              </Heading>
-              <Grid
-                templateColumns={{
-                  base: "1fr",
-                  md: "repeat(2, 1fr)",
-                  lg: "repeat(3, 1fr)",
-                }}
-                gap={4}
-              >
-                {stats.currentlyReading.map((book) => (
-                  <Card.Root key={book.id}>
-                    <Card.Body>
-                      <Flex
-                        gap={4}
-                        direction={{ base: "row", md: "column" }}
-                        align={{ base: "flex-start", md: "stretch" }}
-                      >
-                        <Box
-                          w={{ base: "84px", md: "full" }}
-                          flexShrink={0}
-                        >
-                          <BookCover
-                            coverUrl={book.coverUrl}
-                            title={book.title}
-                            size="xs"
-                          />
-                        </Box>
-                        <Stack gap={3} flex={1}>
-                          <Box>
-                            <Text fontWeight="semibold" lineClamp={2}>
-                              {book.title}
-                            </Text>
-                            <Text fontSize="sm" color="fg.muted" lineClamp={1}>
-                              {book.authors.join(", ") ||
-                                tBook("unknownAuthor")}
-                            </Text>
-                          </Box>
-                          <Box>
-                            <Flex justify="space-between" mb={1}>
-                              <Text fontSize="sm" color="fg.muted">
-                                {tBook("progress")}
-                              </Text>
-                              <Text fontSize="sm" fontWeight="medium">
-                                {book.progress}%
-                              </Text>
-                            </Flex>
-                            <ProgressBar value={book.progress} />
-                            <Text fontSize="xs" color="fg.muted" mt={1}>
-                              {book.currentPage} / {book.totalPages ?? "?"}{" "}
-                              {tBook("pages")}
-                            </Text>
-                          </Box>
-                        </Stack>
-                      </Flex>
-                    </Card.Body>
-                  </Card.Root>
-                ))}
-              </Grid>
-            </Card.Body>
-          </Card.Root>
-        )}
+      {/* Currently reading — always visible */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{tStats("booksReading")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {stats?.currentlyReading && stats.currentlyReading.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {stats.currentlyReading.map((book) => (
+                <Link
+                  key={book.id}
+                  href={`/books/${book.slug}`}
+                  className="flex gap-3 rounded-2xl p-3 ring-1 ring-foreground/5 transition hover:bg-muted/60"
+                >
+                  <MiniCover
+                    coverUrl={book.coverUrl}
+                    title={book.title}
+                    className="w-16 shrink-0"
+                  />
+                  <div className="flex-1 space-y-2">
+                    <div>
+                      <p className="line-clamp-2 text-sm font-medium">
+                        {book.title}
+                      </p>
+                      <p className="line-clamp-1 text-xs text-muted-foreground">
+                        {book.authors.join(", ") || tBook("unknownAuthor")}
+                      </p>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>{tBook("progress")}</span>
+                        <span className="font-medium text-foreground">
+                          {book.progress}%
+                        </span>
+                      </div>
+                      <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-primary transition-all"
+                          style={{ width: `${book.progress}%` }}
+                        />
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {book.currentPage} / {book.totalPages ?? "?"}{" "}
+                        {tBook("pages")}
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={RiBookLine}
+              text={tBook("currentlyReadingEmpty")}
+              actionHref="/library"
+              actionLabel={tBook("addBook")}
+            />
+          )}
+        </CardContent>
+      </Card>
 
-        {/* Wishlist books grid */}
-        <Card.Root bg="surface.card" boxShadow="card">
-          <Card.Body p={{ base: 4, md: 6 }}>
-            <Flex justify="space-between" align="center" mb={4}>
-              <Heading as="h2" size="lg">
-                {tBook("wishlist")}
-              </Heading>
-              <Button asChild variant="ghost" size="sm">
-                <Link href="/library">{tCommon("viewAll")}</Link>
-              </Button>
-            </Flex>
-
-            {stats?.wishlistBooks && stats.wishlistBooks.length > 0 ? (
-              <Grid
-                templateColumns={{
-                  base: "repeat(2, 1fr)",
-                  md: "repeat(3, 1fr)",
-                  lg: "repeat(6, 1fr)",
-                }}
-                gap={4}
-              >
-                {stats.wishlistBooks.map((book) => (
-                  <Card.Root key={book.id} asChild>
-                    <Link href={`/books/${book.slug}`}>
-                      <Card.Body p={3}>
-                        <Stack gap={2}>
-                          <BookCover
-                            coverUrl={book.coverUrl}
-                            title={book.title}
-                            size="sm"
-                          />
-                          <Box>
-                            <Text
-                              fontSize="sm"
-                              fontWeight="semibold"
-                              lineClamp={2}
-                            >
-                              {book.title}
-                            </Text>
-                            <Text fontSize="xs" color="fg.muted" lineClamp={1}>
-                              {book.authors.join(", ") ||
-                                tBook("unknownAuthor")}
-                            </Text>
-                          </Box>
-                          <StatusBadge status={book.status} />
-                        </Stack>
-                      </Card.Body>
-                    </Link>
-                  </Card.Root>
-                ))}
-              </Grid>
-            ) : (
-              <Card.Root>
-                <Card.Body>
-                  <Stack align="center" py={8}>
-                    <Icon as={FiBookmark} boxSize={8} color="brand.fg" />
-                    <Text color="fg.muted">{tBook("noBooks")}</Text>
-                    <Button asChild colorPalette="brand" mt={2}>
-                      <Link href="/library">{tBook("addBook")}</Link>
-                    </Button>
-                  </Stack>
-                </Card.Body>
-              </Card.Root>
-            )}
-          </Card.Body>
-        </Card.Root>
-
-        {/* Recently finished books grid */}
-        <Card.Root bg="surface.card" boxShadow="card">
-          <Card.Body p={{ base: 4, md: 6 }}>
-            <Flex justify="space-between" align="center" mb={4}>
-            <Heading as="h2" size="lg">
-              {tStats("recentFinished")}
-            </Heading>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/library">{tCommon("viewAll")}</Link>
+      {/* Wishlist */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{tBook("wishlist")}</CardTitle>
+          <CardAction>
+            <Button
+              variant="ghost"
+              size="sm"
+              render={<Link href="/library?wishlist=1" />}
+              nativeButton={false}
+            >
+              {tCommon("viewAll")}
             </Button>
-            </Flex>
+          </CardAction>
+        </CardHeader>
+        <CardContent>
+          {wishlistBooks.length > 0 ? (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+              {wishlistBooks.map((book) => (
+                <div key={book.id} className="group relative">
+                  <button
+                    type="button"
+                    aria-label={tBook("removeFromWishlist")}
+                    onClick={() => handleRemoveFromWishlist(book)}
+                    className="absolute top-1.5 right-1.5 z-10 flex size-6 items-center justify-center rounded-full bg-background/90 text-muted-foreground shadow-sm ring-1 ring-foreground/10 transition hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <RiCloseLine className="size-3.5" />
+                  </button>
+                  <Link
+                    href={`/books/${book.slug}`}
+                    className="block space-y-2 rounded-2xl p-2 ring-1 ring-foreground/5 transition hover:bg-muted/60"
+                  >
+                    <MiniCover coverUrl={book.coverUrl} title={book.title} />
+                    <div>
+                      <p className="line-clamp-2 text-sm font-medium">
+                        {book.title}
+                      </p>
+                      <p className="line-clamp-1 text-xs text-muted-foreground">
+                        {book.authors.join(", ") || tBook("unknownAuthor")}
+                      </p>
+                    </div>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={RiHeartLine}
+              text={tBook("noBooks")}
+              actionHref="/library"
+              actionLabel={tBook("addBook")}
+            />
+          )}
+        </CardContent>
+      </Card>
 
-            {stats?.recentFinishedBooks &&
-            stats.recentFinishedBooks.length > 0 ? (
-              <Grid
-                templateColumns={{
-                  base: "repeat(2, 1fr)",
-                  md: "repeat(3, 1fr)",
-                  lg: "repeat(6, 1fr)",
-                }}
-                gap={4}
-              >
-                {stats.recentFinishedBooks.map((book) => (
-                  <Card.Root key={book.id} asChild>
-                    <Link href={`/books/${book.slug}`}>
-                      <Card.Body p={3}>
-                        <Stack gap={2}>
-                          <BookCover
-                            coverUrl={book.coverUrl}
-                            title={book.title}
-                            size="sm"
-                          />
-                          <Box>
-                            <Text
-                              fontSize="sm"
-                              fontWeight="semibold"
-                              lineClamp={2}
-                            >
-                              {book.title}
-                            </Text>
-                          <Text fontSize="xs" color="fg.muted" lineClamp={1}>
-                            {book.authors.join(", ") ||
-                              tBook("unknownAuthor")}
-                          </Text>
-                          </Box>
-                          <StatusBadge status={book.status} />
-                        </Stack>
-                      </Card.Body>
-                    </Link>
-                  </Card.Root>
-                ))}
-              </Grid>
-            ) : (
-              // Empty state
-              <Card.Root>
-                <Card.Body>
-                  <Stack align="center" py={8}>
-                    <Icon as={FiBookOpen} boxSize={8} color="brand.fg" />
-                    <Text color="fg.muted">{tBook("noBooks")}</Text>
-                    <Button asChild colorPalette="brand" mt={2}>
-                      <Link href="/library">{tBook("addBook")}</Link>
-                    </Button>
-                  </Stack>
-                </Card.Body>
-              </Card.Root>
-            )}
-          </Card.Body>
-        </Card.Root>
-      </Stack>
-    </Container>
+      {/* Recently finished */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{tStats("recentFinished")}</CardTitle>
+          <CardAction>
+            <Button
+              variant="ghost"
+              size="sm"
+              render={<Link href="/library" />}
+              nativeButton={false}
+            >
+              {tCommon("viewAll")}
+            </Button>
+          </CardAction>
+        </CardHeader>
+        <CardContent>
+          {stats?.recentFinishedBooks && stats.recentFinishedBooks.length > 0 ? (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+              {stats.recentFinishedBooks.map((book) => (
+                <Link
+                  key={book.id}
+                  href={`/books/${book.slug}`}
+                  className="block space-y-2 rounded-2xl p-2 ring-1 ring-foreground/5 transition hover:bg-muted/60"
+                >
+                  <MiniCover coverUrl={book.coverUrl} title={book.title} />
+                  <div>
+                    <p className="line-clamp-2 text-sm font-medium">
+                      {book.title}
+                    </p>
+                    <p className="line-clamp-1 text-xs text-muted-foreground">
+                      {book.authors.join(", ") || tBook("unknownAuthor")}
+                    </p>
+                  </div>
+                  {book.rating != null && (
+                    <StarRating value={book.rating} readOnly size={12} />
+                  )}
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={RiBookOpenLine}
+              text={tBook("noBooks")}
+              actionHref="/library"
+              actionLabel={tBook("addBook")}
+            />
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
-function StatCard({
+function KpiCard({
+  icon: Icon,
   label,
   subLabel,
   value,
-  icon,
 }: {
+  icon: React.ComponentType<{ className?: string }>;
   label: string;
   subLabel?: string;
   value: number;
-  icon: React.ComponentType<{ size?: number }>;
 }) {
-  const StatIcon = icon;
   return (
-    // Small stat card used in the KPI grid
-    <Card.Root>
-      <Card.Body p={{ base: 3, md: 4 }}>
-        <Flex align="center" gap={{ base: 2, md: 3 }}>
-          <Box color="brand.fg">
-            <StatIcon size={22} />
-          </Box>
-          <Box>
-            <Text fontSize={{ base: "xl", md: "2xl" }} fontWeight="bold">
-              {value.toLocaleString()}
-            </Text>
-            <Text
-              fontSize={{ base: "xs", md: "sm" }}
-              color="fg.muted"
-              lineClamp={{ base: 2, md: 1 }}
-            >
-              {label}
-            </Text>
-            {subLabel ? (
-              <Text fontSize="xs" color="fg.muted" lineClamp={1}>
-                {subLabel}
-              </Text>
-            ) : null}
-          </Box>
-        </Flex>
-      </Card.Body>
-    </Card.Root>
+    <Card size="sm">
+      <CardContent className="flex items-center gap-3">
+        <Icon className="size-5 shrink-0 text-primary" />
+        <div className="min-w-0">
+          <p className="text-xl font-semibold leading-tight">
+            {value.toLocaleString()}
+          </p>
+          <p className="truncate text-xs text-muted-foreground">{label}</p>
+          {subLabel && (
+            <p className="truncate text-xs text-muted-foreground">
+              {subLabel}
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
+function MiniCover({
+  coverUrl,
+  title,
+  className,
+}: {
+  coverUrl: string | null;
+  title: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-muted",
+        className
+      )}
+    >
+      {coverUrl ? (
+        <Image
+          src={coverUrl}
+          alt={title}
+          fill
+          sizes="200px"
+          className="object-cover"
+          unoptimized
+        />
+      ) : (
+        <div className="flex h-full items-center justify-center text-muted-foreground">
+          <RiBookLine className="size-6" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmptyState({
+  icon: Icon,
+  text,
+  actionHref,
+  actionLabel,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  text: string;
+  actionHref: string;
+  actionLabel: string;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-3 py-10 text-center">
+      <Icon className="size-8 text-muted-foreground" />
+      <p className="text-sm text-muted-foreground">{text}</p>
+      <Button render={<Link href={actionHref} />} nativeButton={false}>
+        {actionLabel}
+      </Button>
+    </div>
+  );
+}

@@ -46,7 +46,7 @@ model Book {
   status      ReadingStatus @default(TO_READ)
   totalPages  Int?
   currentPage Int          @default(0)
-  rating      Int?         // 1-5 or 1-10, configurable
+  rating      Int?         // 1-10 half-star scale; null = unrated
   summary     String?      // Manual summary
   favoriteQuote  String?
   favoriteMoment String?

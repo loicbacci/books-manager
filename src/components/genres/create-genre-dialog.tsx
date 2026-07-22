@@ -2,16 +2,16 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Button, Input, Stack } from "@chakra-ui/react";
+
+import { Button } from "@/components/ui/button";
 import {
-  DialogRoot,
+  Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogBody,
-  DialogFooter,
-  DialogCloseTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 type CreatedGenre = {
   id: string;
@@ -61,38 +61,29 @@ export function CreateGenreDialog({
   };
 
   return (
-    <DialogRoot
-      open={open}
-      onOpenChange={(e) => !e.open && onOpenChange(false)}
-    >
-      <DialogContent maxW="md">
+    <Dialog open={open} onOpenChange={(next) => !next && onOpenChange(false)}>
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{tSettings("addGenre")}</DialogTitle>
-          <DialogCloseTrigger />
         </DialogHeader>
-        <DialogBody>
-          <Stack gap={3}>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t("genresPlaceholder")}
-            />
-          </Stack>
-        </DialogBody>
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={t("genresPlaceholder")}
+        />
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+          >
             {tCommon("cancel")}
           </Button>
-          <Button
-            colorPalette="brand"
-            onClick={handleCreate}
-            loading={saving}
-            loadingText={tCommon("loading")}
-          >
-            {tCommon("add")}
+          <Button type="button" onClick={handleCreate} disabled={saving}>
+            {saving ? tCommon("loading") : tCommon("add")}
           </Button>
         </DialogFooter>
       </DialogContent>
-    </DialogRoot>
+    </Dialog>
   );
 }

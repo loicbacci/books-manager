@@ -1,5 +1,17 @@
 "use client";
 
+import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import {
+  RiArrowLeftLine,
+  RiBookmarkFill,
+  RiBookmarkLine,
+  RiHeartFill,
+  RiHeartLine,
+  RiSearchLine,
+} from "@remixicon/react";
+import { toast } from "sonner";
+
 import { CreateAuthorDialog } from "@/components/authors/create-author-dialog";
 import { AuthorSelect } from "@/components/books/author-select";
 import {
@@ -7,64 +19,43 @@ import {
   type SearchResult,
 } from "@/components/books/book-search-modal";
 import { SeriesSelect } from "@/components/books/series-select";
+import { StarRating } from "@/components/books/star-rating";
 import { CreateGenreDialog } from "@/components/genres/create-genre-dialog";
+import { useSetPageBreadcrumbs } from "@/components/layout/page-header-context";
+import { Badge } from "@/components/ui/badge";
 import { BookCover } from "@/components/ui/book-cover";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
-  ComboboxContent,
-  ComboboxControl,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxItemText,
-  ComboboxRoot,
-} from "@/components/ui/combobox";
-import {
-  DialogBody,
-  DialogCloseTrigger,
+  Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogRoot,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import {
+  Select,
   SelectContent,
   SelectItem,
-  SelectRoot,
   SelectTrigger,
-  SelectValueText,
+  SelectValue,
 } from "@/components/ui/select";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Tag } from "@/components/ui/tag";
-import { toaster } from "@/components/ui/toaster";
+import { Textarea } from "@/components/ui/textarea";
 import { Link, useRouter } from "@/i18n/routing";
-import { resolvePalette } from "@/lib/color-palettes";
+import { paletteBadgeClassName } from "@/lib/color-palettes";
+import { cn } from "@/lib/utils";
 import type { PageResult } from "@/types/pagination";
-import {
-  Badge,
-  Box,
-  Button,
-  Card,
-  Link as ChakraLink,
-  Container,
-  createListCollection,
-  Field,
-  Flex,
-  Grid,
-  Heading,
-  Icon,
-  Input,
-  Spinner,
-  Stack,
-  Text,
-  Textarea,
-} from "@chakra-ui/react";
-import { useLocale, useTranslations } from "next-intl";
-import { use, useEffect, useMemo, useState } from "react";
-import { FiArrowLeft, FiBookmark, FiSearch, FiStar } from "react-icons/fi";
 
 type Book = {
   id: string;
+  slug?: string;
   title: string;
   coverUrl: string | null;
   status: string;
@@ -77,6 +68,7 @@ type Book = {
   startDate: string | null;
   endDate: string | null;
   isWishlist: boolean;
+  formatId: string | null;
   seriesId: string | null;
   seriesOrder: number | null;
   series: { id: string; name: string; slug: string } | null;
@@ -102,6 +94,9 @@ type Author = {
   nationalities?: Array<{ nationality: { id: string; name: string } }>;
 };
 
+const statusOptions = ["TO_READ", "READING", "READ", "DROPPED"] as const;
+const NO_FORMAT = "__none__";
+
 export default function BookDetailPage({
   params,
 }: {
@@ -114,6 +109,7 @@ export default function BookDetailPage({
   const tStatus = useTranslations("status");
   const tCommon = useTranslations("common");
   const tSettings = useTranslations("settings");
+  const tNav = useTranslations("nav");
   const locale = useLocale();
 
   const [book, setBook] = useState<Book | null>(null);
@@ -122,18 +118,88 @@ export default function BookDetailPage({
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-  const [_formats, setFormats] = useState<Format[]>([]);
+  const [formats, setFormats] = useState<Format[]>([]);
   const [authors, setAuthors] = useState<Author[]>([]);
   const [series, setSeries] = useState<Series[]>([]);
   const [isSeriesLoading, setIsSeriesLoading] = useState(false);
   const [isAuthorsLoading, setIsAuthorsLoading] = useState(false);
   const [genres, setGenres] = useState<Genre[]>([]);
   const [editGenreIds, setEditGenreIds] = useState<string[]>([]);
-  const [genreQuery, setGenreQuery] = useState("");
   const [isCreateGenreOpen, setIsCreateGenreOpen] = useState(false);
   const [editData, setEditData] = useState<Partial<Book>>({});
   const [editAuthorIds, setEditAuthorIds] = useState<string[]>([]);
   const [isCreateAuthorOpen, setIsCreateAuthorOpen] = useState(false);
+  const [wishlistUpdating, setWishlistUpdating] = useState(false);
+  const wishlistControllerRef = useRef<AbortController | null>(null);
+  const [progressDraft, setProgressDraft] = useState<number | null>(null);
+  const progressRequestIdRef = useRef(0);
+
+  const pageBreadcrumbs = useMemo(
+    () =>
+      book
+        ? [
+            { label: tNav("library"), href: "/library" },
+            { label: book.title },
+          ]
+        : null,
+    [book, tNav]
+  );
+  useSetPageBreadcrumbs(pageBreadcrumbs);
+
+  const isEditDirty = useMemo(() => {
+    if (!book || !isEditing) return false;
+
+    const authorIds = book.authors.map((entry) => entry.author.id).sort();
+    const genreIds = book.genres.map((g) => g.genre.id).sort();
+    const editAuthorIdsSorted = [...editAuthorIds].sort();
+    const editGenreIdsSorted = [...editGenreIds].sort();
+
+    if (editAuthorIdsSorted.join(",") !== authorIds.join(",")) return true;
+    if (editGenreIdsSorted.join(",") !== genreIds.join(",")) return true;
+
+    const fields: Array<keyof Book> = [
+      "title",
+      "coverUrl",
+      "status",
+      "currentPage",
+      "totalPages",
+      "rating",
+      "summary",
+      "favoriteQuote",
+      "favoriteMoment",
+      "startDate",
+      "endDate",
+      "isWishlist",
+      "formatId",
+      "seriesId",
+      "seriesOrder",
+    ];
+
+    return fields.some((field) => {
+      const original = book[field];
+      const edited = editData[field];
+      if (original === edited) return false;
+      if (original == null && edited == null) return false;
+      return String(original ?? "") !== String(edited ?? "");
+    });
+  }, [book, editAuthorIds, editData, editGenreIds, isEditing]);
+
+  const confirmDiscardEdits = useCallback(() => {
+    if (!isEditDirty) return true;
+    return window.confirm(t("unsavedChanges"));
+  }, [isEditDirty, t]);
+
+  useEffect(() => {
+    if (!isEditing || !isEditDirty) return;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isEditing, isEditDirty]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -223,6 +289,7 @@ export default function BookDetailPage({
     return () => {
       isActive = false;
       controller.abort();
+      wishlistControllerRef.current?.abort();
     };
   }, [id, router]);
 
@@ -243,6 +310,11 @@ export default function BookDetailPage({
         normalizedEndDate = new Date().toISOString();
       }
 
+      const formatId =
+        editData.formatId !== undefined
+          ? editData.formatId
+          : (editData.format?.id ?? book?.formatId ?? book?.format?.id ?? null);
+
       const response = await fetch(`/api/books/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -257,6 +329,7 @@ export default function BookDetailPage({
           favoriteQuote: editData.favoriteQuote,
           favoriteMoment: editData.favoriteMoment,
           isWishlist: editData.isWishlist,
+          formatId: formatId || null,
           seriesId: editData.seriesId || null,
           seriesOrder: editData.seriesOrder ?? null,
           startDate: normalizedStartDate,
@@ -282,13 +355,13 @@ export default function BookDetailPage({
         if (updatedBook.slug && updatedBook.slug !== id) {
           router.replace(`/books/${updatedBook.slug}`);
         }
-        toaster.create({ title: tCommon("changesSaved"), type: "success" });
+        toast.success(tCommon("changesSaved"));
       } else {
-        toaster.create({ title: tCommon("saveFailed"), type: "error" });
+        toast.error(tCommon("saveFailed"));
       }
     } catch (error) {
       console.error("Failed to save book:", error);
-      toaster.create({ title: tCommon("saveFailed"), type: "error" });
+      toast.error(tCommon("saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -298,18 +371,19 @@ export default function BookDetailPage({
     try {
       const response = await fetch(`/api/books/${id}`, { method: "DELETE" });
       if (response.ok) {
-        toaster.create({ title: tCommon("deleteSuccess"), type: "success" });
+        toast.success(tCommon("deleteSuccess"));
         router.push("/library");
       } else {
-        toaster.create({ title: tCommon("deleteFailed"), type: "error" });
+        toast.error(tCommon("deleteFailed"));
       }
     } catch (error) {
       console.error("Failed to delete book:", error);
-      toaster.create({ title: tCommon("deleteFailed"), type: "error" });
+      toast.error(tCommon("deleteFailed"));
     }
   };
 
   const handleProgressUpdate = async (newPage: number) => {
+    const requestId = ++progressRequestIdRef.current;
     try {
       const hasTotalPages = !!book?.totalPages;
       const isComplete = hasTotalPages && newPage === book?.totalPages;
@@ -338,70 +412,143 @@ export default function BookDetailPage({
 
       if (response.ok) {
         const updatedBook = await response.json();
+        if (requestId !== progressRequestIdRef.current) return;
         setBook(updatedBook);
         setEditData(updatedBook);
+        setProgressDraft(null);
       }
     } catch (error) {
       console.error("Failed to update progress:", error);
     }
   };
 
-  const statusCollection = useMemo(
+  const commitProgressDraft = () => {
+    if (!book || progressDraft === null) return;
+    const clamped = Math.min(
+      Math.max(0, progressDraft),
+      book.totalPages || progressDraft
+    );
+    if (clamped === book.currentPage) {
+      setProgressDraft(null);
+      return;
+    }
+    void handleProgressUpdate(clamped);
+  };
+
+  const handleToggleWishlist = async () => {
+    if (!book || wishlistUpdating) return;
+
+    const next = !book.isWishlist;
+    setBook((prev) => (prev ? { ...prev, isWishlist: next } : prev));
+    setEditData((prev) => ({ ...prev, isWishlist: next }));
+    setWishlistUpdating(true);
+
+    wishlistControllerRef.current?.abort();
+    const controller = new AbortController();
+    wishlistControllerRef.current = controller;
+
+    try {
+      const response = await fetch(`/api/books/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isWishlist: next }),
+        signal: controller.signal,
+      });
+
+      if (response.ok) {
+        const updatedBook = await response.json();
+        setBook(updatedBook);
+        setEditData(updatedBook);
+        toast.success(
+          next ? t("addedToWishlist") : t("removedFromWishlist")
+        );
+      } else {
+        setBook((prev) =>
+          prev ? { ...prev, isWishlist: !next } : prev
+        );
+        setEditData((prev) => ({ ...prev, isWishlist: !next }));
+        toast.error(tCommon("saveFailed"));
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
+      console.error("Failed to update wishlist:", error);
+      setBook((prev) => (prev ? { ...prev, isWishlist: !next } : prev));
+      setEditData((prev) => ({ ...prev, isWishlist: !next }));
+      toast.error(tCommon("saveFailed"));
+    } finally {
+      setWishlistUpdating(false);
+    }
+  };
+
+  const beginEditing = () => {
+    if (!book) return;
+    setEditData(book);
+    setEditAuthorIds(book.authors.map((entry) => entry.author.id));
+    setEditGenreIds(book.genres.map((g) => g.genre.id));
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    if (!book) return;
+    if (!confirmDiscardEdits()) return;
+    setEditData(book);
+    setEditAuthorIds(book.authors.map((entry) => entry.author.id));
+    setEditGenreIds(book.genres.map((g) => g.genre.id));
+    setIsEditing(false);
+  };
+
+  const navigateToLibrary = () => {
+    if (isEditing && !confirmDiscardEdits()) return;
+    router.push("/library");
+  };
+
+  const statusItems = useMemo(
     () =>
-      createListCollection({
-        items: [
-          { value: "TO_READ", label: tStatus("toRead") },
-          { value: "READING", label: tStatus("reading") },
-          { value: "READ", label: tStatus("read") },
-          { value: "DROPPED", label: tStatus("dropped") },
-        ],
-      }),
+      statusOptions.map((value) => ({
+        value,
+        label: tStatus(
+          value === "TO_READ"
+            ? "toRead"
+            : value === "READING"
+              ? "reading"
+              : value === "READ"
+                ? "read"
+                : "dropped"
+        ),
+      })),
     [tStatus]
   );
-  const ratingCollection = useMemo(
-    () =>
-      createListCollection({
-        items: Array.from({ length: 5 }, (_, index) => ({
-          value: String(index + 1),
-          label: "★".repeat(index + 1),
-        })),
-      }),
-    []
+
+  const formatItems = useMemo(
+    () => [
+      { value: NO_FORMAT, label: tCommon("none") },
+      ...formats.map((f) => ({ value: f.id, label: f.name })),
+    ],
+    [formats, tCommon]
   );
 
-  const filteredGenres = useMemo(() => {
-    const query = genreQuery.trim().toLowerCase();
-    return genres.filter((genre) => genre.name.toLowerCase().includes(query));
-  }, [genreQuery, genres]);
-  const genreCollection = useMemo(
+  const genreOptions = useMemo(
     () =>
-      createListCollection({
-        items: filteredGenres.map((genre) => ({
-          value: genre.id,
-          label: genre.name,
-        })),
-      }),
-    [filteredGenres]
-  );
-  const selectedGenres = useMemo(
-    () => genres.filter((genre) => editGenreIds.includes(genre.id)),
-    [editGenreIds, genres]
+      genres.map((genre) => ({
+        value: genre.id,
+        label: genre.name,
+        badgeClassName: paletteBadgeClassName(genre.name, genre.color),
+      })),
+    [genres]
   );
 
-  // Create search query from book title and authors for pre-filling search modal
   const searchQuery = useMemo(() => {
     if (!book) return "";
     return `${book.title} ${book.authors.map((a) => a.author.name).join(" ")}`;
   }, [book]);
 
-  // Loading state
   if (loading) {
     return (
-      <Container maxW="container.xl" py={8}>
-        <Flex justify="center" align="center" minH="400px">
-          <Spinner size="xl" color="brand.500" />
-        </Flex>
-      </Container>
+      <div className="flex min-h-[400px] items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
+        <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
     );
   }
 
@@ -409,7 +556,7 @@ export default function BookDetailPage({
     return null;
   }
 
-  const formatInputDate = (value: string | null) => {
+  const formatInputDate = (value: string | null | undefined) => {
     if (!value) return "";
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "";
@@ -442,10 +589,6 @@ export default function BookDetailPage({
     ? Math.round((book.currentPage / book.totalPages) * 100)
     : 0;
 
-  const paletteForGenre = (name: string, storedColor: string | null) => {
-    return resolvePalette(name, storedColor);
-  };
-
   const handleBookSelect = (searchBook: SearchResult) => {
     setEditData((prev) => ({
       ...prev,
@@ -456,9 +599,15 @@ export default function BookDetailPage({
     }));
   };
 
+  const currentFormatId =
+    editData.formatId ??
+    editData.format?.id ??
+    book.formatId ??
+    book.format?.id ??
+    "";
+
   return (
     <>
-      {/* External book search modal */}
       <BookSearchModal
         open={isSearchModalOpen}
         onClose={() => setIsSearchModalOpen(false)}
@@ -487,486 +636,305 @@ export default function BookDetailPage({
           );
         }}
       />
-      <Container maxW="container.xl" py={8}>
-        <Stack gap={6}>
-          {/* Header */}
-          <Flex justify="space-between" align="flex-start" wrap="wrap" gap={4}>
-            <Button variant="ghost" onClick={() => router.push("/library")}>
-              <FiArrowLeft /> {tCommon("back")}
-            </Button>
-            <Flex gap={2}>
-              {isEditing ? (
-                <>
-                  <Button variant="ghost" onClick={() => setIsEditing(false)}>
-                    {tCommon("cancel")}
-                  </Button>
-                  <Button
-                    colorPalette="brand"
-                    onClick={handleSave}
-                    loading={saving}
-                  >
-                    {tCommon("save")}
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setEditData(book);
-                      setEditAuthorIds(
-                        book.authors.map((entry) => entry.author.id)
-                      );
-                      setIsEditing(true);
-                    }}
-                  >
-                    {tCommon("edit")}
-                  </Button>
-                  <Button
-                    colorPalette="red"
-                    variant="outline"
-                    onClick={() => setShowDeleteDialog(true)}
-                  >
-                    {tCommon("delete")}
-                  </Button>
-                </>
-              )}
-            </Flex>
-          </Flex>
 
-          {/* Main Content */}
-          <Grid templateColumns={{ base: "1fr", md: "250px 1fr" }} gap={8}>
-            {/* Cover */}
-            <Box>
-              <Box boxShadow="lg" borderRadius="lg" overflow="hidden">
-                <BookCover
-                  coverUrl={book.coverUrl}
-                  title={book.title}
-                  size="lg"
-                />
-              </Box>
-              {book.isWishlist && (
-                <Badge
-                  colorPalette="gold"
-                  mt={2}
-                  display="inline-flex"
-                  gap={2}
-                  alignItems="center"
+      <div
+        className={cn(
+          "mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8",
+          isEditing && "pb-24"
+        )}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <Button variant="ghost" onClick={navigateToLibrary}>
+            <RiArrowLeftLine />
+            {tCommon("back")}
+          </Button>
+          {!isEditing && (
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={beginEditing}>
+                {tCommon("edit")}
+              </Button>
+              <Button
+                variant="outline"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => setShowDeleteDialog(true)}
+              >
+                {tCommon("delete")}
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <div className="grid gap-8 md:grid-cols-[250px_1fr]">
+          <div className="space-y-3">
+            <div className="relative overflow-hidden rounded-xl shadow-lg">
+              <BookCover
+                coverUrl={
+                  isEditing ? (editData.coverUrl ?? book.coverUrl) : book.coverUrl
+                }
+                title={isEditing ? (editData.title ?? book.title) : book.title}
+                size="lg"
+              />
+              {!isEditing && (
+                <button
+                  type="button"
+                  onClick={handleToggleWishlist}
+                  disabled={wishlistUpdating}
+                  aria-pressed={book.isWishlist}
+                  aria-label={
+                    book.isWishlist
+                      ? t("removeFromWishlist")
+                      : t("addToWishlist")
+                  }
+                  className="absolute top-2 right-2 flex size-9 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50"
                 >
-                  <FiBookmark />
-                  {t("wishlist")}
-                </Badge>
-              )}
-            </Box>
-
-            {/* Details */}
-            <Stack gap={6}>
-              {isEditing && (
-                <Flex
-                  p={3}
-                  bg="bg.muted"
-                  borderRadius="md"
-                  align="center"
-                  justify="space-between"
-                >
-                  <Text fontSize="sm" color="fg.muted">
-                    {t("addManually")}
-                  </Text>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setIsSearchModalOpen(true)}
-                  >
-                    <Flex align="center" gap={2}>
-                      <Icon as={FiSearch} />
-                      <Text as="span">{t("searchOnline")}</Text>
-                    </Flex>
-                  </Button>
-                </Flex>
-              )}
-
-              {isEditing ? (
-                <>
-                  <Field.Root>
-                    <Field.Label>{t("title")}</Field.Label>
-                    <Input
-                      value={editData.title || ""}
-                      onChange={(e) =>
-                        setEditData({ ...editData, title: e.target.value })
-                      }
-                      size="lg"
-                    />
-                  </Field.Root>
-
-                  <Field.Root>
-                    <Field.Label>{t("cover")} URL</Field.Label>
-                    <Input
-                      value={editData.coverUrl || ""}
-                      onChange={(e) =>
-                        setEditData({ ...editData, coverUrl: e.target.value })
-                      }
-                      placeholder={t("coverUrlPlaceholder")}
-                    />
-                  </Field.Root>
-                </>
-              ) : (
-                <Stack gap={2}>
-                  <Heading as="h1" size="2xl">
-                    {book.title}
-                  </Heading>
-                  {(book.series || isEditing) && (
-                    <Flex gap={3} align="center" wrap="wrap">
-                      {book.series && (
-                        <Card.Root
-                          asChild
-                          transition="background-color 0.2s ease"
-                          _hover={{ bg: "bg.muted" }}
-                        >
-                          <Link href={`/series/${book.series.slug}`}>
-                            <Card.Body py={2} px={3}>
-                              <Flex align="center" gap={3}>
-                                <Text fontWeight="semibold">
-                                  {book.series.name}
-                                </Text>
-                                {book.seriesOrder !== null && (
-                                  <Badge variant="subtle" colorPalette="blue">
-                                    {t("seriesOrderBadge", {
-                                      order: book.seriesOrder,
-                                    })}
-                                  </Badge>
-                                )}
-                              </Flex>
-                            </Card.Body>
-                          </Link>
-                        </Card.Root>
-                      )}
-                    </Flex>
-                  )}
-                </Stack>
-              )}
-
-              <Flex gap={2} wrap="wrap" align="center">
-                {isEditing ? (
-                  <SelectRoot
-                    collection={statusCollection}
-                    value={[editData.status || book.status]}
-                    onValueChange={(e) =>
-                      setEditData({ ...editData, status: e.value[0] })
-                    }
-                    width="200px"
-                  >
-                    <SelectTrigger>
-                      <SelectValueText placeholder={t("statusPlaceholder")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {statusCollection.items.map((item) => (
-                        <SelectItem key={item.value} item={item}>
-                          {item.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </SelectRoot>
-                ) : (
-                  <StatusBadge status={book.status} size="lg" />
-                )}
-                {book.format && (
-                  <Badge colorPalette="gold" size="lg">
-                    {book.format.name}
-                  </Badge>
-                )}
-              </Flex>
-
-              {isEditing ? (
-                <Field.Root>
-                  <Field.Label>{t("authors")}</Field.Label>
-                  <AuthorSelect
-                    authors={authors}
-                    value={editAuthorIds}
-                    onChange={setEditAuthorIds}
-                    placeholder={t("authors")}
-                    isLoading={isAuthorsLoading}
-                    onOpenCreateDialog={() => setIsCreateAuthorOpen(true)}
-                  />
-                </Field.Root>
-              ) : (
-                <Flex direction="column" gap={2}>
-                  {book.authors.length > 0 ? (
-                    book.authors.map(({ author }) => {
-                      const gender =
-                        author.gender?.name || tAuthor("unknownGender");
-                      const nationalityLabel =
-                        author.nationalities && author.nationalities.length > 0
-                          ? author.nationalities
-                              .map((entry) => entry.nationality.name)
-                              .join(", ")
-                          : tAuthor("unknownNationality");
-
-                      return (
-                        <Flex
-                          key={author.id}
-                          align="center"
-                          gap={2}
-                          wrap="wrap"
-                        >
-                          <ChakraLink variant="underline" asChild>
-                            <Link href={`/authors/${author.id}`}>
-                              {author.name}
-                            </Link>
-                          </ChakraLink>
-                          <Text color="fg.muted" fontSize="sm">
-                            ({gender} · {nationalityLabel})
-                          </Text>
-                        </Flex>
-                      );
-                    })
+                  {book.isWishlist ? (
+                    <RiHeartFill className="size-5 text-destructive" />
                   ) : (
-                    <Text color="fg.muted" fontSize="lg">
-                      {t("groupUnknownAuthor")}
-                    </Text>
+                    <RiHeartLine className="size-5" />
                   )}
-                </Flex>
+                </button>
               )}
+            </div>
+            {book.isWishlist && !isEditing && (
+              <Badge
+                variant="secondary"
+                className="inline-flex items-center gap-1.5"
+              >
+                <RiBookmarkFill className="size-3" />
+                {t("wishlist")}
+              </Badge>
+            )}
+          </div>
 
-              {isEditing && (
-                <Flex gap={3} align="center" wrap="wrap">
-                  <Box minW="240px" flex={1}>
-                    <SeriesSelect
-                      series={series}
-                      value={editData.seriesId || null}
-                      onChange={(seriesId) =>
-                        setEditData({
-                          ...editData,
-                          seriesId,
-                        })
-                      }
-                      onSeriesCreated={(created) =>
-                        setSeries((prev) =>
-                          [...prev, created].sort((a, b) =>
-                            a.name.localeCompare(b.name)
-                          )
-                        )
-                      }
-                      isLoading={isSeriesLoading}
-                      placeholder={t("seriesPlaceholder")}
-                    />
-                  </Box>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.1"
-                    value={editData.seriesOrder ?? ""}
-                    onChange={(e) =>
-                      setEditData({
-                        ...editData,
-                        seriesOrder: e.target.value
-                          ? parseFloat(e.target.value)
-                          : null,
-                      })
-                    }
-                    width="120px"
-                    placeholder={t("seriesOrderPlaceholder")}
-                  />
-                </Flex>
-              )}
+          <div className="space-y-6">
+            {isEditing && (
+              <div className="flex items-center justify-between gap-2 rounded-2xl bg-muted p-3">
+                <span className="text-sm text-muted-foreground">
+                  {t("addManually")}
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setIsSearchModalOpen(true)}
+                >
+                  <RiSearchLine />
+                  <span>{t("searchOnline")}</span>
+                </Button>
+              </div>
+            )}
 
-              {isEditing ? (
-                <Field.Root>
-                  <Field.Label>{t("genres")}</Field.Label>
-                  <ComboboxRoot
-                    collection={genreCollection}
-                    value={editGenreIds}
-                    multiple
-                    selectionBehavior="clear"
-                    closeOnSelect={false}
-                    inputValue={genreQuery}
-                    onValueChange={(details) => setEditGenreIds(details.value)}
-                    onInputValueChange={(details) =>
-                      setGenreQuery(details.inputValue)
-                    }
-                  >
-                    <ComboboxControl clearable>
-                      <ComboboxInput placeholder={t("genresPlaceholder")} />
-                    </ComboboxControl>
-                    <ComboboxContent>
-                      {genreCollection.items.map((item) => (
-                        <ComboboxItem key={item.value} item={item}>
-                          <ComboboxItemText>{item.label}</ComboboxItemText>
-                        </ComboboxItem>
-                      ))}
-                    </ComboboxContent>
-                  </ComboboxRoot>
-                  {selectedGenres.length > 0 && (
-                    <Flex wrap="wrap" gap={2} mt={2}>
-                      {selectedGenres.map((genre) => (
-                        <Tag
-                          key={genre.id}
-                          size="sm"
-                          colorPalette={paletteForGenre(
-                            genre.name,
-                            genre.color
-                          )}
-                          closable
-                          onClose={() =>
-                            setEditGenreIds((prev) =>
-                              prev.filter((id) => id !== genre.id)
-                            )
-                          }
-                        >
-                          {genre.name}
-                        </Tag>
-                      ))}
-                    </Flex>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    width="fit-content"
-                    mt={2}
-                    onClick={() => setIsCreateGenreOpen(true)}
-                  >
-                    {tSettings("addGenre")}
-                  </Button>
-                </Field.Root>
-              ) : (
-                book.genres.length > 0 && (
-                  <Flex gap={2} wrap="wrap">
-                    {book.genres.map(({ genre }) => (
-                      <Badge
-                        key={genre.id}
-                        colorPalette={paletteForGenre(genre.name, genre.color)}
-                        variant="subtle"
+            {isEditing ? (
+              <div className="space-y-8">
+                <section className="space-y-4">
+                  <h2 className="font-heading text-lg font-semibold">
+                    {t("sectionEssentials")}
+                  </h2>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="book-title">{t("title")}</Label>
+                      <Input
+                        id="book-title"
+                        value={editData.title || ""}
+                        onChange={(e) =>
+                          setEditData({ ...editData, title: e.target.value })
+                        }
+                        className="text-lg"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="book-cover">{t("cover")} URL</Label>
+                      <Input
+                        id="book-cover"
+                        value={editData.coverUrl || ""}
+                        onChange={(e) =>
+                          setEditData({ ...editData, coverUrl: e.target.value })
+                        }
+                        placeholder={t("coverUrlPlaceholder")}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>{t("authors")}</Label>
+                      <AuthorSelect
+                        authors={authors}
+                        value={editAuthorIds}
+                        onChange={setEditAuthorIds}
+                        placeholder={t("authors")}
+                        isLoading={isAuthorsLoading}
+                        onOpenCreateDialog={() => setIsCreateAuthorOpen(true)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>{t("genres")}</Label>
+                      <MultiSelect
+                        options={genreOptions}
+                        value={editGenreIds}
+                        onChange={setEditGenreIds}
+                        placeholder={t("genresPlaceholder")}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-fit"
+                        onClick={() => setIsCreateGenreOpen(true)}
                       >
-                        {genre.name}
-                      </Badge>
-                    ))}
-                  </Flex>
-                )
-              )}
-
-              {/* Progress Section */}
-              {book.totalPages && (
-                <Card.Root>
-                  <Card.Body>
-                    <Stack gap={4}>
-                      <Flex justify="space-between" align="center">
-                        <Text fontWeight="semibold">{t("progress")}</Text>
-                        <Text fontWeight="bold" color="brand.fg">
-                          {progress}%
-                        </Text>
-                      </Flex>
-                      <ProgressBar value={progress} colorScheme="brand" />
-                      <Flex justify="space-between" align="center" gap={4}>
-                        <Text color="fg.muted">
-                          {book.currentPage} / {book.totalPages} {t("pages")}
-                        </Text>
-                        <Flex gap={2} align="center">
-                          <Input
-                            type="number"
-                            min={0}
-                            max={book.totalPages}
-                            value={book.currentPage}
-                            onChange={(e) => {
-                              const newPage = Math.min(
-                                parseInt(e.target.value) || 0,
-                                book.totalPages || 0
-                              );
-                              handleProgressUpdate(newPage);
-                            }}
-                            width="100px"
-                            size="sm"
-                          />
-                        </Flex>
-                      </Flex>
-                    </Stack>
-                  </Card.Body>
-                </Card.Root>
-              )}
-
-              {/* Rating */}
-              <Card.Root>
-                <Card.Body>
-                  <Flex justify="space-between" align="center">
-                    <Text fontWeight="semibold">{t("rating")}</Text>
-                    {isEditing ? (
-                      <Flex align="center" gap={2}>
-                        <SelectRoot
-                          collection={ratingCollection}
-                          value={
-                            editData.rating ? [String(editData.rating)] : []
-                          }
-                          onValueChange={(e) =>
+                        {tSettings("addGenre")}
+                      </Button>
+                    </div>
+                    {formats.length > 0 && (
+                      <div className="space-y-2">
+                        <Label>{t("format")}</Label>
+                        <Select
+                          items={formatItems}
+                          value={currentFormatId || NO_FORMAT}
+                          onValueChange={(value) => {
+                            if (value == null) return;
                             setEditData({
                               ...editData,
-                              rating: e.value[0]
-                                ? Number.parseInt(e.value[0], 10)
-                                : null,
-                            })
-                          }
+                              formatId: value === NO_FORMAT ? null : value,
+                            });
+                          }}
                         >
-                          <SelectTrigger width="120px">
-                            <SelectValueText placeholder={t("notRated")} />
+                          <SelectTrigger className="w-full max-w-xs">
+                            <SelectValue placeholder={t("formatPlaceholder")} />
                           </SelectTrigger>
                           <SelectContent>
-                            {ratingCollection.items.map((item) => (
-                              <SelectItem key={item.value} item={item}>
+                            {formatItems.map((item) => (
+                              <SelectItem key={item.value} value={item.value}>
                                 {item.label}
                               </SelectItem>
                             ))}
                           </SelectContent>
-                        </SelectRoot>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() =>
+                        </Select>
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      <Label>{t("status")}</Label>
+                      <Select
+                        items={statusItems}
+                        value={editData.status || book.status}
+                        onValueChange={(value) => {
+                          if (!value) return;
+                          setEditData({ ...editData, status: value });
+                        }}
+                      >
+                        <SelectTrigger className="w-[200px]">
+                          <SelectValue placeholder={t("statusPlaceholder")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {statusItems.map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex flex-col gap-4 md:flex-row">
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <Label>{t("series")}</Label>
+                        <SeriesSelect
+                          series={series}
+                          value={editData.seriesId || null}
+                          onChange={(seriesId) =>
+                            setEditData({ ...editData, seriesId })
+                          }
+                          onSeriesCreated={(created) =>
+                            setSeries((prev) =>
+                              [...prev, created].sort((a, b) =>
+                                a.name.localeCompare(b.name)
+                              )
+                            )
+                          }
+                          isLoading={isSeriesLoading}
+                          placeholder={t("seriesPlaceholder")}
+                        />
+                      </div>
+                      <div className="w-full space-y-2 md:w-32">
+                        <Label htmlFor="book-series-order">
+                          {t("seriesOrder")}
+                        </Label>
+                        <Input
+                          id="book-series-order"
+                          type="number"
+                          min={0}
+                          step="0.1"
+                          value={editData.seriesOrder ?? ""}
+                          onChange={(e) =>
                             setEditData({
                               ...editData,
-                              rating: null,
+                              seriesOrder: e.target.value
+                                ? parseFloat(e.target.value)
+                                : null,
                             })
                           }
-                        >
-                          {tCommon("clear")}
-                        </Button>
-                      </Flex>
-                    ) : book.rating !== null ? (
-                      <Flex gap={1}>
-                        {Array.from({ length: 5 }).map((_, index) => {
-                          const rating = book.rating ?? 0;
-                          const isFilled = index < rating;
-                          return (
-                            <FiStar
-                              key={index}
-                              size={22}
-                              color={
-                                isFilled
-                                  ? "var(--chakra-colors-gold-500)"
-                                  : "var(--chakra-colors-fg-muted)"
-                              }
-                              style={{
-                                stroke: "currentColor",
-                                strokeWidth: 1.5,
-                                fill: isFilled ? "currentColor" : "none",
-                              }}
-                            />
-                          );
-                        })}
-                      </Flex>
-                    ) : (
-                      <Text color="fg.muted">{t("notRated")}</Text>
-                    )}
-                  </Flex>
-                </Card.Body>
-              </Card.Root>
+                          placeholder={t("seriesOrderPlaceholder")}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </section>
 
-              <Card.Root>
-                <Card.Body>
-                  <Grid
-                    templateColumns={{ base: "1fr", md: "1fr 1fr" }}
-                    gap={6}
-                  >
-                    <Stack gap={3}>
-                      <Text fontWeight="semibold">{t("startDate")}</Text>
-                      {isEditing ? (
+                <section className="space-y-4">
+                  <h2 className="font-heading text-lg font-semibold">
+                    {t("sectionReading")}
+                  </h2>
+                  <div className="space-y-4">
+                    <div className="flex flex-col gap-4 md:flex-row">
+                      <div className="flex-1 space-y-2">
+                        <Label htmlFor="book-total-pages">
+                          {t("totalPages")}
+                        </Label>
                         <Input
+                          id="book-total-pages"
+                          type="number"
+                          min={1}
+                          value={editData.totalPages ?? ""}
+                          onChange={(e) =>
+                            setEditData({
+                              ...editData,
+                              totalPages: e.target.value
+                                ? parseInt(e.target.value, 10)
+                                : null,
+                            })
+                          }
+                          placeholder={t("totalPagesPlaceholder")}
+                        />
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <Label htmlFor="book-current-page">
+                          {t("currentPage")}
+                        </Label>
+                        <Input
+                          id="book-current-page"
+                          type="number"
+                          min={0}
+                          value={editData.currentPage ?? 0}
+                          onChange={(e) =>
+                            setEditData({
+                              ...editData,
+                              currentPage: parseInt(e.target.value, 10) || 0,
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>{t("rating")}</Label>
+                      <StarRating
+                        value={editData.rating}
+                        onChange={(value) =>
+                          setEditData({ ...editData, rating: value })
+                        }
+                        size={22}
+                      />
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="book-start-date">{t("startDate")}</Label>
+                        <Input
+                          id="book-start-date"
                           type="date"
                           value={formatInputDate(
                             editData.startDate ?? book.startDate
@@ -980,23 +948,11 @@ export default function BookDetailPage({
                             })
                           }
                         />
-                      ) : book.startDate ? (
-                        <Text color="fg.muted">
-                          {new Date(book.startDate).toLocaleDateString()}{" "}
-                          {formatRelative(book.startDate) && (
-                            <Text as="span">
-                              ({formatRelative(book.startDate)})
-                            </Text>
-                          )}
-                        </Text>
-                      ) : (
-                        <Text color="fg.muted">{t("startDateMissing")}</Text>
-                      )}
-                    </Stack>
-                    <Stack gap={3}>
-                      <Text fontWeight="semibold">{t("endDate")}</Text>
-                      {isEditing ? (
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="book-end-date">{t("endDate")}</Label>
                         <Input
+                          id="book-end-date"
                           type="date"
                           value={formatInputDate(
                             editData.endDate ?? book.endDate
@@ -1010,134 +966,373 @@ export default function BookDetailPage({
                             })
                           }
                         />
-                      ) : book.endDate ? (
-                        <Text color="fg.muted">
-                          {new Date(book.endDate).toLocaleDateString()}{" "}
-                          {formatRelative(book.endDate) && (
-                            <Text as="span">
-                              ({formatRelative(book.endDate)})
-                            </Text>
-                          )}
-                        </Text>
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={!!editData.isWishlist}
+                        onCheckedChange={(checked) =>
+                          setEditData({
+                            ...editData,
+                            isWishlist: checked === true,
+                          })
+                        }
+                      />
+                      {editData.isWishlist ? (
+                        <RiBookmarkFill className="size-4 text-primary" />
                       ) : (
-                        <Text color="fg.muted">{t("endDateNotFinished")}</Text>
+                        <RiBookmarkLine className="size-4 text-muted-foreground" />
                       )}
-                    </Stack>
-                  </Grid>
-                </Card.Body>
-              </Card.Root>
+                      {t("wishlist")}
+                    </label>
+                  </div>
+                </section>
 
-              {/* Summary */}
-              {(book.summary || isEditing) && (
-                <Card.Root>
-                  <Card.Body>
-                    <Stack gap={2}>
-                      <Text fontWeight="semibold">{t("summary")}</Text>
-                      {isEditing ? (
-                        <Textarea
-                          value={editData.summary || ""}
-                          onChange={(e) =>
-                            setEditData({
-                              ...editData,
-                              summary: e.target.value,
-                            })
-                          }
-                          rows={4}
-                        />
+                <section className="space-y-4">
+                  <h2 className="font-heading text-lg font-semibold">
+                    {t("sectionNotes")}
+                  </h2>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="book-summary">{t("summary")}</Label>
+                      <Textarea
+                        id="book-summary"
+                        value={editData.summary || ""}
+                        onChange={(e) =>
+                          setEditData({ ...editData, summary: e.target.value })
+                        }
+                        rows={4}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="book-favorite-quote">
+                        {t("favoriteQuote")}
+                      </Label>
+                      <Textarea
+                        id="book-favorite-quote"
+                        value={editData.favoriteQuote || ""}
+                        onChange={(e) =>
+                          setEditData({
+                            ...editData,
+                            favoriteQuote: e.target.value,
+                          })
+                        }
+                        rows={2}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="book-favorite-moment">
+                        {t("favoriteMoment")}
+                      </Label>
+                      <Textarea
+                        id="book-favorite-moment"
+                        value={editData.favoriteMoment || ""}
+                        onChange={(e) =>
+                          setEditData({
+                            ...editData,
+                            favoriteMoment: e.target.value,
+                          })
+                        }
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+                </section>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <h1 className="font-heading text-3xl font-semibold tracking-tight md:text-4xl">
+                  {book.title}
+                </h1>
+                {book.series && (
+                  <Link
+                    href={`/series/${book.series.slug}`}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-card px-3 py-2 text-sm shadow-sm ring-1 ring-foreground/5 transition-colors hover:bg-muted dark:ring-foreground/10"
+                  >
+                    <span className="font-semibold">{book.series.name}</span>
+                    {book.seriesOrder !== null && (
+                      <Badge variant="secondary">
+                        {t("seriesOrderBadge", { order: book.seriesOrder })}
+                      </Badge>
+                    )}
+                  </Link>
+                )}
+              </div>
+            )}
+
+            {!isEditing && (
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge status={book.status} size="lg" />
+                {book.format && (
+                  <Badge variant="secondary">{book.format.name}</Badge>
+                )}
+              </div>
+            )}
+
+            {!isEditing && (
+              <div className="flex flex-col gap-2">
+                {book.authors.length > 0 ? (
+                  book.authors.map(({ author }) => {
+                    const gender =
+                      author.gender?.name || tAuthor("unknownGender");
+                    const nationalityLabel =
+                      author.nationalities && author.nationalities.length > 0
+                        ? author.nationalities
+                            .map((entry) => entry.nationality.name)
+                            .join(", ")
+                        : tAuthor("unknownNationality");
+
+                    return (
+                      <div
+                        key={author.id}
+                        className="flex flex-wrap items-center gap-2"
+                      >
+                        <Link
+                          href={`/authors/${author.id}`}
+                          className="font-medium underline-offset-4 hover:underline"
+                        >
+                          {author.name}
+                        </Link>
+                        <span className="text-sm text-muted-foreground">
+                          ({gender} · {nationalityLabel})
+                        </span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-lg text-muted-foreground">
+                    {t("groupUnknownAuthor")}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {!isEditing && book.genres.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {book.genres.map(({ genre }) => (
+                  <Badge
+                    key={genre.id}
+                    variant="secondary"
+                    className={cn(
+                      "border-0",
+                      paletteBadgeClassName(genre.name, genre.color)
+                    )}
+                  >
+                    {genre.name}
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            {book.totalPages && !isEditing && (
+              <Card>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold">{t("progress")}</span>
+                    <span className="font-bold text-primary">{progress}%</span>
+                  </div>
+                  <ProgressBar value={progress} />
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-muted-foreground">
+                      {book.currentPage} / {book.totalPages} {t("pages")}
+                    </span>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={book.totalPages}
+                      value={
+                        progressDraft !== null
+                          ? progressDraft
+                          : book.currentPage
+                      }
+                      onChange={(e) => {
+                        const newPage = Math.min(
+                          parseInt(e.target.value, 10) || 0,
+                          book.totalPages || 0
+                        );
+                        setProgressDraft(newPage);
+                      }}
+                      onBlur={commitProgressDraft}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.currentTarget.blur();
+                        }
+                      }}
+                      className="w-[100px]"
+                    />
+                  </div>
+                  {book.status === "READING" && (
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          void handleProgressUpdate(
+                            Math.min(book.currentPage + 1, book.totalPages!)
+                          )
+                        }
+                      >
+                        {t("plusOne")}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          void handleProgressUpdate(
+                            Math.min(book.currentPage + 10, book.totalPages!)
+                          )
+                        }
+                      >
+                        {t("plusTen")}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() =>
+                          void handleProgressUpdate(book.totalPages!)
+                        }
+                      >
+                        {t("markFinished")}
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {!isEditing && (
+              <>
+                <Card>
+                  <CardContent>
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="font-semibold">{t("rating")}</span>
+                      {book.rating !== null ? (
+                        <StarRating value={book.rating} readOnly size={22} />
                       ) : (
-                        <Text color="fg.muted" whiteSpace="pre-wrap">
-                          {book.summary}
-                        </Text>
+                        <span className="text-muted-foreground">
+                          {t("notRated")}
+                        </span>
                       )}
-                    </Stack>
-                  </Card.Body>
-                </Card.Root>
-              )}
+                    </div>
+                  </CardContent>
+                </Card>
 
-              {/* Favorite Quote */}
-              {(book.favoriteQuote || isEditing) && (
-                <Card.Root>
-                  <Card.Body>
-                    <Stack gap={2}>
-                      <Text fontWeight="semibold">{t("favoriteQuote")}</Text>
-                      {isEditing ? (
-                        <Textarea
-                          value={editData.favoriteQuote || ""}
-                          onChange={(e) =>
-                            setEditData({
-                              ...editData,
-                              favoriteQuote: e.target.value,
-                            })
-                          }
-                          rows={2}
-                        />
-                      ) : (
-                        <Text fontStyle="italic" color="fg.muted">
-                          &ldquo;{book.favoriteQuote}&rdquo;
-                        </Text>
-                      )}
-                    </Stack>
-                  </Card.Body>
-                </Card.Root>
-              )}
+                <Card>
+                  <CardContent>
+                    <div className="grid gap-6 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <p className="font-semibold">{t("startDate")}</p>
+                        {book.startDate ? (
+                          <p className="text-muted-foreground">
+                            {new Date(book.startDate).toLocaleDateString()}
+                            {formatRelative(book.startDate) && (
+                              <span> ({formatRelative(book.startDate)})</span>
+                            )}
+                          </p>
+                        ) : (
+                          <p className="text-muted-foreground">
+                            {t("startDateMissing")}
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <p className="font-semibold">{t("endDate")}</p>
+                        {book.endDate ? (
+                          <p className="text-muted-foreground">
+                            {new Date(book.endDate).toLocaleDateString()}
+                            {formatRelative(book.endDate) && (
+                              <span> ({formatRelative(book.endDate)})</span>
+                            )}
+                          </p>
+                        ) : (
+                          <p className="text-muted-foreground">
+                            {t("endDateNotFinished")}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-              {/* Favorite Moment */}
-              {(book.favoriteMoment || isEditing) && (
-                <Card.Root>
-                  <Card.Body>
-                    <Stack gap={2}>
-                      <Text fontWeight="semibold">{t("favoriteMoment")}</Text>
-                      {isEditing ? (
-                        <Textarea
-                          value={editData.favoriteMoment || ""}
-                          onChange={(e) =>
-                            setEditData({
-                              ...editData,
-                              favoriteMoment: e.target.value,
-                            })
-                          }
-                          rows={2}
-                        />
-                      ) : (
-                        <Text color="fg.muted" whiteSpace="pre-wrap">
-                          {book.favoriteMoment}
-                        </Text>
-                      )}
-                    </Stack>
-                  </Card.Body>
-                </Card.Root>
-              )}
-            </Stack>
-          </Grid>
-        </Stack>
+                {book.summary && (
+                  <Card>
+                    <CardContent className="space-y-2">
+                      <p className="font-semibold">{t("summary")}</p>
+                      <p className="whitespace-pre-wrap text-muted-foreground">
+                        {book.summary}
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
 
-        {/* Delete Confirmation Dialog */}
-        <DialogRoot
-          open={showDeleteDialog}
-          onOpenChange={(e) => setShowDeleteDialog(e.open)}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t("deleteBook")}</DialogTitle>
-              <DialogCloseTrigger />
-            </DialogHeader>
-            <DialogBody>
-              <Text>{t("deleteConfirm")}</Text>
-            </DialogBody>
-            <DialogFooter>
-              <Button
-                variant="ghost"
-                onClick={() => setShowDeleteDialog(false)}
-              >
+                {book.favoriteQuote && (
+                  <Card>
+                    <CardContent className="space-y-2">
+                      <p className="font-semibold">{t("favoriteQuote")}</p>
+                      <p className="italic text-muted-foreground">
+                        &ldquo;{book.favoriteQuote}&rdquo;
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {book.favoriteMoment && (
+                  <Card>
+                    <CardContent className="space-y-2">
+                      <p className="font-semibold">{t("favoriteMoment")}</p>
+                      <p className="whitespace-pre-wrap text-muted-foreground">
+                        {book.favoriteMoment}
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {isEditing && (
+        <div className="fixed inset-x-0 bottom-0 z-50 border-t bg-background/95 p-4 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+            <Button
+              type="button"
+              variant="outline"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setShowDeleteDialog(true)}
+            >
+              {tCommon("delete")}
+            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="ghost" onClick={cancelEditing}>
                 {tCommon("cancel")}
               </Button>
-              <Button colorPalette="red" onClick={handleDelete}>
-                {tCommon("delete")}
+              <Button type="button" onClick={handleSave} disabled={saving}>
+                {saving ? tCommon("loading") : tCommon("save")}
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </DialogRoot>
-      </Container>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("deleteBook")}</DialogTitle>
+            <DialogDescription>{t("deleteConfirm")}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowDeleteDialog(false)}>
+              {tCommon("cancel")}
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              {tCommon("delete")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

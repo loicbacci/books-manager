@@ -1,22 +1,31 @@
 "use client";
 
-import { BookGridBook, BookGridView } from "@/components/books/book-grid";
-import { useRouter } from "@/i18n/routing";
-import {
-  Badge,
-  Box,
-  Button,
-  Card,
-  Container,
-  Flex,
-  Heading,
-  Icon,
-  Stack,
-  Text,
-} from "@chakra-ui/react";
+import { use, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { use, useEffect, useState } from "react";
-import { FiArrowLeft, FiBookOpen } from "react-icons/fi";
+import {
+  RiArrowLeftLine,
+  RiBookOpenLine,
+  RiDeleteBinLine,
+  RiEditLine,
+} from "@remixicon/react";
+
+import { EditAuthorDialog } from "@/components/authors/edit-author-dialog";
+import { useSetPageBreadcrumbs } from "@/components/layout/page-header-context";
+import { BookGridBook, BookGridView, slimBookGridFields } from "@/components/books/book-grid";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { useRouter } from "@/i18n/routing";
 
 type Author = {
   id: string;
@@ -39,6 +48,21 @@ export default function AuthorDetailPage({
 
   const [author, setAuthor] = useState<Author | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const pageBreadcrumbs = useMemo(
+    () =>
+      author
+        ? [
+            { label: tNav("authors"), href: "/authors" },
+            { label: author.name },
+          ]
+        : null,
+    [author, tNav]
+  );
+  useSetPageBreadcrumbs(pageBreadcrumbs);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -75,12 +99,28 @@ export default function AuthorDetailPage({
     };
   }, [id, router]);
 
-  // Loading state
+  const handleDelete = async () => {
+    if (!author) return;
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/authors/${author.id}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        router.push("/authors");
+      }
+    } catch (error) {
+      console.error("Failed to delete author:", error);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
-      <Container maxW="container.lg" py={8}>
-        <Text color="fg.muted">{tCommon("loading")}</Text>
-      </Container>
+      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+        <p className="text-muted-foreground">{tCommon("loading")}</p>
+      </div>
     );
   }
 
@@ -88,53 +128,112 @@ export default function AuthorDetailPage({
     return null;
   }
 
+  const bookCount = author.books.length;
+
   return (
-    <Container maxW="container.xl" py={8}>
-      <Stack gap={6}>
-        {/* Back navigation */}
-        <Flex justify="space-between" align="center" wrap="wrap" gap={4}>
-          <Button variant="ghost" onClick={() => router.push("/authors")}>
-            <FiArrowLeft /> {tNav("authors")}
+    <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => router.push("/authors")}
+        >
+          <RiArrowLeftLine />
+          {tNav("authors")}
+        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsEditOpen(true)}
+          >
+            <RiEditLine />
+            {tCommon("edit")}
           </Button>
-        </Flex>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={() => setIsDeleteOpen(true)}
+          >
+            <RiDeleteBinLine />
+            {tCommon("delete")}
+          </Button>
+        </div>
+      </div>
 
-        {/* Author header + metadata */}
-        <Box>
-          <Heading as="h1" size="2xl">
-            {author.name}
-          </Heading>
-          <Flex gap={2} wrap="wrap" mt={2}>
-            {author.gender && (
-              <Badge variant="subtle" colorPalette="green">
-                {t("gender")}: {author.gender.name}
-              </Badge>
-            )}
-            {author.nationalities.map((entry) => (
-              <Badge
-                key={entry.nationality.id}
-                variant="subtle"
-                colorPalette="orange"
-              >
-                {t("nationality")}: {entry.nationality.name}
-              </Badge>
-            ))}
-          </Flex>
-        </Box>
+      <div>
+        <h1 className="font-heading text-3xl font-semibold tracking-tight">
+          {author.name}
+        </h1>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {author.gender && (
+            <Badge variant="secondary">
+              {t("gender")}: {author.gender.name}
+            </Badge>
+          )}
+          {author.nationalities.map((entry) => (
+            <Badge key={entry.nationality.id} variant="outline">
+              {t("nationality")}: {entry.nationality.name}
+            </Badge>
+          ))}
+        </div>
+      </div>
 
-        {/* Books list / empty state */}
-        {author.books.length === 0 ? (
-          <Card.Root>
-            <Card.Body>
-              <Stack align="center" py={10}>
-                <Icon as={FiBookOpen} boxSize={8} color="brand.fg" />
-                <Text color="fg.muted">{t("emptyBooks")}</Text>
-              </Stack>
-            </Card.Body>
-          </Card.Root>
-        ) : (
-          <BookGridView books={author.books} cookieKey="authorBooksViewPrefs" />
-        )}
-      </Stack>
-    </Container>
+      {author.books.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center gap-2 py-10">
+            <RiBookOpenLine className="size-8 text-muted-foreground" />
+            <p className="text-muted-foreground">{t("emptyBooks")}</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <BookGridView
+          books={author.books}
+          defaultFields={slimBookGridFields}
+          cookieKey="authorBooksViewPrefs"
+        />
+      )}
+
+      <EditAuthorDialog
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        author={author}
+        onUpdated={(updated) => {
+          setAuthor((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  name: updated.name,
+                  gender: updated.gender,
+                  nationalities: updated.nationalities,
+                }
+              : prev
+          );
+        }}
+      />
+
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("deleteTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("deleteConfirm", { count: bookCount })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>
+              {tCommon("cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deleting}
+              onClick={handleDelete}
+            >
+              {deleting ? tCommon("loading") : tCommon("delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 }

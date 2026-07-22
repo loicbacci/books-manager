@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
-import { auth } from "@/lib/auth";
-import { RegisterForm } from "./register-form";
-import { LanguageSwitcher } from "@/components/language-switcher";
-import { Box, Container, Heading, Stack, Text, Link as ChakraLink } from "@chakra-ui/react";
 import { getTranslations } from "next-intl/server";
-import Link from "next/link";
+
+import { auth } from "@/lib/auth";
+import { Card, CardContent } from "@/components/ui/card";
+import { RegisterForm } from "./register-form";
+import { Link } from "@/i18n/routing";
 
 type Props = {
   params: Promise<{ locale: string }>;
@@ -25,37 +25,30 @@ export default async function RegisterPage({ params }: Props) {
   const tAuth = await getTranslations("auth");
 
   return (
-    // Page shell
-    <Box minH="calc(100vh - 64px)" bg="surface.base" display="flex" alignItems="center">
-      <Container maxW="md">
-        <Stack gap={8}>
-          {/* Page header */}
-          <Stack gap={2} textAlign="center">
-            <Heading as="h1" size="2xl">
-              {tAuth("register")}
-            </Heading>
-          </Stack>
+    <div className="flex min-h-[70vh] items-center justify-center bg-background px-4 py-12">
+      <div className="w-full max-w-sm space-y-6">
+        <div className="space-y-1 text-center">
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">
+            {tAuth("register")}
+          </h1>
+        </div>
 
-          {/* Registration form card */}
-          <Box bg="surface.raised" p={8} borderRadius="xl" boxShadow="card">
+        <Card>
+          <CardContent>
             <RegisterForm locale={locale} />
-          </Box>
+          </CardContent>
+        </Card>
 
-          {/* Footer link to login */}
-          <Text textAlign="center" color="text.secondary">
-            {tAuth("hasAccount")}{" "}
-            <ChakraLink
-              asChild
-              color="brand.fg"
-              fontWeight="medium"
-              variant="underline"
-            >
-              <Link href={`/${locale}/login`}>{tAuth("login")}</Link>
-            </ChakraLink>
-          </Text>
-          <LanguageSwitcher />
-        </Stack>
-      </Container>
-    </Box>
+        <p className="text-center text-sm text-muted-foreground">
+          {tAuth("hasAccount")}{" "}
+          <Link
+            href="/login"
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
+            {tAuth("login")}
+          </Link>
+        </p>
+      </div>
+    </div>
   );
 }

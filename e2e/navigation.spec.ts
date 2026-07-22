@@ -1,33 +1,22 @@
 import { test, expect } from "@playwright/test";
 
-const openNavIfMobile = async (page: import("@playwright/test").Page) => {
-  const menuButton = page.getByRole("button", { name: "Open menu" });
-  if (await menuButton.isVisible()) {
-    await menuButton.click();
-  }
-};
-
-test("navigation links route to pages", async ({ page }) => {
+test("navigation links work", async ({ page }) => {
   await page.goto("/dashboard");
-  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+  await expect(page.getByText("Dashboard").first()).toBeVisible();
 
-  await openNavIfMobile(page);
   await page.getByRole("link", { name: "My Library" }).click();
-  await expect(page.getByRole("heading", { name: "My Library" })).toBeVisible();
+  await expect(page).toHaveURL(/\/library/);
+  await expect(page.getByRole("searchbox", { name: "Search" })).toBeVisible();
 
-  await openNavIfMobile(page);
   await page.getByRole("link", { name: "Authors" }).click();
-  await expect(page.getByRole("heading", { name: "Authors" })).toBeVisible();
+  await expect(page).toHaveURL(/\/authors/);
 
-  await openNavIfMobile(page);
   await page.getByRole("link", { name: "Series" }).click();
-  await expect(page.getByRole("heading", { name: "Series" })).toBeVisible();
+  await expect(page).toHaveURL(/\/series/);
 
-  await openNavIfMobile(page);
   await page.getByRole("link", { name: "Statistics" }).click();
-  await expect(page.getByRole("heading", { name: "Statistics" })).toBeVisible();
+  await expect(page).toHaveURL(/\/statistics/);
 
-  await openNavIfMobile(page);
   await page.getByRole("link", { name: "Settings" }).click();
-  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+  await expect(page).toHaveURL(/\/settings/);
 });

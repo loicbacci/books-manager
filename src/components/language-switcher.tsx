@@ -1,83 +1,73 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+
+import { cn } from "@/lib/utils";
 import {
-  createListCollection,
-  Stack,
-  Text,
-  type StackProps,
-  type TextProps,
-} from "@chakra-ui/react";
-import {
-  SelectRoot,
-  SelectTrigger,
-  SelectValueText,
+  Select,
   SelectContent,
   SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 
+type LocaleValue = "en" | "fr";
+
+const LOCALE_ITEMS: { value: LocaleValue; label: string }[] = [
+  { value: "en", label: "EN" },
+  { value: "fr", label: "FR" },
+];
+
 type LanguageSwitcherProps = {
-  align?: StackProps["align"];
-  direction?: StackProps["direction"];
-  labelAlign?: TextProps["textAlign"];
-  size?: "xs" | "sm" | "md" | "lg";
+  className?: string;
   showLabel?: boolean;
 };
 
 export function LanguageSwitcher({
-  align = "center",
-  direction = "column",
-  labelAlign,
-  size = "sm",
-  showLabel = true,
+  className,
+  showLabel = false,
 }: LanguageSwitcherProps) {
   const tSettings = useTranslations("settings");
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // Extract the locale segment so we can keep users on the same route.
   const localeMatch = pathname?.match(/^\/(en|fr)(?=\/|$)/);
-  const currentLocale = localeMatch?.[1] ?? "en";
+  const currentLocale: LocaleValue = (localeMatch?.[1] as LocaleValue) ?? "en";
   const pathWithoutLocale = localeMatch
-    ? pathname?.replace(/^\/(en|fr)(?=\/|$)/, "") ?? ""
-    : pathname ?? "";
-
-  const localeCollection = createListCollection({
-    items: [
-      { value: "en", label: "🇬🇧 English" },
-      { value: "fr", label: "🇫🇷 Français" },
-    ],
-  });
+    ? (pathname?.replace(/^\/(en|fr)(?=\/|$)/, "") ?? "")
+    : (pathname ?? "");
 
   return (
-    <Stack gap={2} align={align} direction={direction}>
+    <div className={cn("flex items-center gap-2", className)}>
       {showLabel && (
-        <Text fontSize="sm" color="fg.muted" textAlign={labelAlign}>
+        <span className="text-sm text-muted-foreground">
           {tSettings("language")}
-        </Text>
+        </span>
       )}
-      <SelectRoot
-        size={size}
-        collection={localeCollection}
-        value={[currentLocale]}
-        onValueChange={(e) => {
-          const nextLocale = e.value[0] || "en";
-          const nextPath = `/${nextLocale}${pathWithoutLocale || ""}`;
-          router.push(nextPath);
+      <Select
+        items={LOCALE_ITEMS}
+        value={currentLocale}
+        onValueChange={(value) => {
+          const nextLocale = value ?? "en";
+          const qs = searchParams.toString();
+          const path = `/${nextLocale}${pathWithoutLocale || ""}`;
+          router.push(qs ? `${path}?${qs}` : path);
         }}
       >
-        <SelectTrigger>
-          <SelectValueText placeholder={tSettings("language")} />
+        <SelectTrigger size="sm" aria-label={tSettings("language")}>
+          <SelectValue />
         </SelectTrigger>
-        <SelectContent>
-          {localeCollection.items.map((item) => (
-            <SelectItem key={item.value} item={item}>
+        <SelectContent align="end">
+          {LOCALE_ITEMS.map((item) => (
+            <SelectItem key={item.value} value={item.value}>
               {item.label}
             </SelectItem>
           ))}
         </SelectContent>
-      </SelectRoot>
-    </Stack>
+      </Select>
+    </div>
   );
 }

@@ -17,7 +17,7 @@ const updateBookSchema = z.object({
   status: z.enum(["TO_READ", "READING", "READ", "DROPPED"]).optional(),
   totalPages: z.number().int().positive().optional().nullable(),
   currentPage: z.number().int().min(0).optional(),
-  rating: z.number().int().min(1).max(5).optional().nullable(),
+  rating: z.number().int().min(1).max(10).optional().nullable(),
   summary: z.string().max(5000).optional().nullable(),
   favoriteQuote: z.string().max(2000).optional().nullable(),
   favoriteMoment: z.string().max(2000).optional().nullable(),
@@ -228,15 +228,22 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       seriesId: validatedData.seriesId ?? null,
     });
 
+    const uniqueAuthorIds = authorIds
+      ? Array.from(new Set(authorIds))
+      : undefined;
+    const uniqueGenreIds = genreIds
+      ? Array.from(new Set(genreIds))
+      : undefined;
+
     const book = await db.$transaction(async (tx) => {
       // Replace author relations when provided.
-      if (authorIds !== undefined) {
+      if (uniqueAuthorIds !== undefined) {
         await tx.bookAuthor.deleteMany({
           where: { bookId: existingBook.id },
         });
-        if (authorIds.length > 0) {
+        if (uniqueAuthorIds.length > 0) {
           await tx.bookAuthor.createMany({
-            data: authorIds.map((authorId) => ({
+            data: uniqueAuthorIds.map((authorId) => ({
               bookId: existingBook.id,
               authorId,
             })),
@@ -245,13 +252,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
 
       // Replace genre relations when provided.
-      if (genreIds !== undefined) {
+      if (uniqueGenreIds !== undefined) {
         await tx.bookGenre.deleteMany({
           where: { bookId: existingBook.id },
         });
-        if (genreIds.length > 0) {
+        if (uniqueGenreIds.length > 0) {
           await tx.bookGenre.createMany({
-            data: genreIds.map((genreId) => ({
+            data: uniqueGenreIds.map((genreId) => ({
               bookId: existingBook.id,
               genreId,
             })),

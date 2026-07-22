@@ -1,15 +1,16 @@
 "use client";
 
-import { FiChevronDown, FiChevronRight } from "react-icons/fi";
-import { Button, Heading, Text, type ButtonProps } from "@chakra-ui/react";
+import { RiArrowDownSLine, RiArrowRightSLine } from "@remixicon/react";
+
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type GroupToggleProps = {
   label: string;
   collapsed: boolean;
   onToggle: () => void;
   size?: "sm" | "md";
-  color?: string;
-  buttonProps?: ButtonProps;
+  className?: string;
 };
 
 export function GroupToggle({
@@ -17,25 +18,28 @@ export function GroupToggle({
   collapsed,
   onToggle,
   size = "md",
-  color = "fg.muted",
-  buttonProps,
+  className,
 }: GroupToggleProps) {
   return (
     <Button
+      type="button"
       variant="ghost"
       onClick={onToggle}
-      justifyContent="space-between"
-      width="full"
-      height="auto"
-      py={2}
-      {...buttonProps}
+      className={cn("h-auto w-full justify-between py-2", className)}
     >
-      <Heading size={size} color={color}>
+      <span
+        className={cn(
+          "font-heading font-semibold text-foreground",
+          size === "sm" ? "text-sm" : "text-base"
+        )}
+      >
         {label}
-      </Heading>
-      <Text>{collapsed ? <FiChevronRight /> : <FiChevronDown />}</Text>
+      </span>
+      {collapsed ? (
+        <RiArrowRightSLine className="text-muted-foreground" />
+      ) : (
+        <RiArrowDownSLine className="text-muted-foreground" />
+      )}
     </Button>
   );
 }
-
-

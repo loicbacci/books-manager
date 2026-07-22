@@ -47,7 +47,11 @@ describe("createUserDefaults", () => {
         expect.objectContaining({ name: "Woman", userId: "test-user-id" }),
         expect.objectContaining({ name: "Non-binary", userId: "test-user-id" }),
         expect.objectContaining({ name: "Other", userId: "test-user-id" }),
-        expect.objectContaining({ name: "Unknown", userId: "test-user-id" }),
+      ]),
+    });
+    expect(db.gender.createMany).toHaveBeenCalledWith({
+      data: expect.not.arrayContaining([
+        expect.objectContaining({ name: "Unknown" }),
       ]),
     });
   });

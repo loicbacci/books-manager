@@ -1,14 +1,19 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
-import { ChakraProvider } from "@/components/providers/chakra-provider";
-import { ColorModeProvider } from "@/components/ui/color-mode";
+import { AppProviders } from "@/components/providers/app-providers";
 import { Navigation } from "@/components/navigation";
-import { Toaster } from "@/components/ui/toaster";
 import { auth } from "@/lib/auth";
+import { cn } from "@/lib/utils";
 import "@/app/globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+});
 
 export const metadata: Metadata = {
   title: "Books Manager",
@@ -38,18 +43,14 @@ export default async function LocaleLayout({ children, params }: Props) {
 
   return (
     <html lang={locale} suppressHydrationWarning>
-      <body>
+      <body className={cn(inter.variable, "font-sans antialiased")}>
         <NextIntlClientProvider messages={messages}>
-          <ChakraProvider>
-            <ColorModeProvider defaultTheme="system" enableSystem>
-              <Navigation isAuthenticated={!!session?.user} />
-              <Toaster />
-              {children}
-            </ColorModeProvider>
-          </ChakraProvider>
+          <AppProviders>
+            <Navigation isAuthenticated={!!session?.user} />
+            <main>{children}</main>
+          </AppProviders>
         </NextIntlClientProvider>
       </body>
     </html>
   );
 }
-

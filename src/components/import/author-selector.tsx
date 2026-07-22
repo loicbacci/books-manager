@@ -1,14 +1,24 @@
-import {
-    ComboboxContent,
-    ComboboxControl,
-    ComboboxInput,
-    ComboboxItem,
-    ComboboxItemText,
-    ComboboxRoot,
-} from "@/components/ui/combobox";
-import { createListCollection } from "@chakra-ui/react";
+"use client";
+
 import { useTranslations } from "next-intl";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { RiCheckLine } from "@remixicon/react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 type Author = {
   id: string;
@@ -18,7 +28,7 @@ type Author = {
 type AuthorSelectorProps = {
   value: string;
   onChange: (value: string) => void;
-  initialAuthors?: Author[]; // Suggesting authors already known
+  initialAuthors?: Author[];
 };
 
 export function AuthorSelector({
@@ -27,82 +37,98 @@ export function AuthorSelector({
   initialAuthors = [],
 }: AuthorSelectorProps) {
   const t = useTranslations("sheetImport");
+  const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Author[]>(initialAuthors);
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
 
-  // Sync items when initialAuthors changes (e.g. batch fetch completes)
-  // We merge/override to ensure selected item is present
-  useState(() => {
-     // Initial state set above
-  });
-  // Actually standard effect
-  const [prevInitial, setPrevInitial] = useState(initialAuthors);
-  if (initialAuthors !== prevInitial) {
-      setItems(initialAuthors);
-      setPrevInitial(initialAuthors);
-  }
+  useEffect(() => {
+    setItems(initialAuthors);
+  }, [initialAuthors]);
 
-  const collection = createListCollection({
-    items: items,
-    itemToString: (item) => item.name,
-    itemToValue: (item) => item.id,
-  });
+  const selected = items.find((item) => item.id === value) ??
+    initialAuthors.find((item) => item.id === value);
 
-  const handleInputChange = useCallback(
-    async (details: { inputValue: string }) => {
-      const value = details.inputValue;
-      if (!value || value.length < 2) return;
-      setLoading(true);
-      try {
-        const res = await fetch(
-          `/api/authors?query=${encodeURIComponent(value)}&pageSize=20`
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setItems(data.items || []);
-        }
-      } catch (error) {
-        console.error("Failed to search authors", error);
-      } finally {
-        setLoading(false);
+  const handleSearch = useCallback(async (query: string) => {
+    setSearch(query);
+    if (!query || query.length < 2) return;
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `/api/authors?query=${encodeURIComponent(query)}&pageSize=20`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setItems(data.items || []);
       }
-    },
-    []
-  );
-
-  const handleValueChange = (e: { value: string[]; items: Author[] }) => {
-     if (e.value.length > 0) {
-         onChange(e.value[0]);
-     } else {
-         onChange("");
-     }
-  };
+    } catch (error) {
+      console.error("Failed to search authors", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   return (
-    <ComboboxRoot
-      collection={collection}
-      onInputValueChange={handleInputChange}
-      onValueChange={handleValueChange}
-      value={value ? [value] : []}
-      selectionBehavior="replace"
-      size="sm"
-      width="300px"
-    >
-      <ComboboxControl>
-        <ComboboxInput placeholder={t("searchAuthor")} />
-      </ComboboxControl>
-      <ComboboxContent>
-        {items.map((item) => (
-          <ComboboxItem key={item.id} item={item}>
-            <ComboboxItemText>{item.name}</ComboboxItemText>
-          </ComboboxItem>
-        ))}
-        {items.length === 0 && !loading && (
-            <ComboboxItem item={{ id: "new", name: t("createNewAuthor") }}>
-                <ComboboxItemText>{t("noResults")}</ComboboxItemText>
-            </ComboboxItem>
-        )}
-      </ComboboxContent>
-    </ComboboxRoot>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-[300px] justify-between font-normal"
+          />
+        }
+      >
+        <span
+          className={cn(
+            "truncate text-left",
+            !selected && "text-muted-foreground"
+          )}
+        >
+          {selected?.name ?? t("searchAuthor")}
+        </span>
+      </PopoverTrigger>
+      <PopoverContent className="w-(--anchor-width) min-w-72 p-0" align="start">
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder={t("searchAuthor")}
+            value={search}
+            onValueChange={handleSearch}
+          />
+          <CommandList>
+            <CommandEmpty>
+              {loading ? t("searchAuthor") : t("noResults")}
+            </CommandEmpty>
+            <CommandGroup>
+              {value && (
+                <CommandItem
+                  value="__create__"
+                  onSelect={() => {
+                    onChange("");
+                    setOpen(false);
+                  }}
+                >
+                  {t("createNewAuthor")}
+                </CommandItem>
+              )}
+              {items.map((item) => (
+                <CommandItem
+                  key={item.id}
+                  value={item.id}
+                  onSelect={() => {
+                    onChange(item.id);
+                    setOpen(false);
+                  }}
+                >
+                  <span className="flex-1 truncate">{item.name}</span>
+                  {value === item.id && <RiCheckLine className="size-4" />}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }

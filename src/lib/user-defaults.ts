@@ -1,4 +1,7 @@
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+
+type DbClient = Prisma.TransactionClient | typeof db;
 
 const DEFAULT_FORMATS = [
   { name: "Book", icon: "book", isDefault: true },
@@ -12,7 +15,6 @@ const DEFAULT_GENDERS = [
   { name: "Woman" },
   { name: "Non-binary" },
   { name: "Other" },
-  { name: "Unknown" },
 ];
 
 const DEFAULT_GENRES = [
@@ -46,31 +48,34 @@ const DEFAULT_NATIONALITIES = [
   { name: "Russian", code: "RU" },
 ];
 
-export async function createUserDefaults(userId: string) {
+export async function createUserDefaults(
+  userId: string,
+  client: DbClient = db
+) {
   await Promise.all([
     // Create default formats
-    db.format.createMany({
+    client.format.createMany({
       data: DEFAULT_FORMATS.map((format) => ({
         ...format,
         userId,
       })),
     }),
     // Create default genders
-    db.gender.createMany({
+    client.gender.createMany({
       data: DEFAULT_GENDERS.map((gender) => ({
         ...gender,
         userId,
       })),
     }),
     // Create default genres
-    db.genre.createMany({
+    client.genre.createMany({
       data: DEFAULT_GENRES.map((genre) => ({
         ...genre,
         userId,
       })),
     }),
     // Create default nationalities
-    db.nationality.createMany({
+    client.nationality.createMany({
       data: DEFAULT_NATIONALITIES.map((nationality) => ({
         ...nationality,
         userId,

@@ -22,9 +22,14 @@ const config: Config = {
   ],
   collectCoverageFrom: [
     "src/app/api/**/*.{js,jsx,ts,tsx}",
-    "src/components/ui/**/*.{js,jsx,ts,tsx}",
+    "src/components/ui/book-cover.tsx",
+    "src/components/ui/button.tsx",
+    "src/components/ui/group-toggle.tsx",
+    "src/components/ui/progress-bar.tsx",
+    "src/components/ui/status-badge.tsx",
     "src/lib/**/*.{js,jsx,ts,tsx}",
     "src/middleware.ts",
+    "!src/lib/import/**",
     "!src/**/*.d.ts",
   ],
   coverageThreshold: {

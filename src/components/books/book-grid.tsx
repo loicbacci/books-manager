@@ -1,18 +1,10 @@
 "use client";
 
-import {
-  Card,
-  Grid,
-  Icon,
-  Input,
-  Stack,
-  Text,
-  createListCollection,
-} from "@chakra-ui/react";
 import { useTranslations } from "next-intl";
-import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
-import { FiBookOpen } from "react-icons/fi";
+import type { ReactNode, RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { RiBookOpenLine, RiCheckboxMultipleLine, RiCloseLine } from "@remixicon/react";
+import { toast } from "sonner";
 
 import { BookCard } from "@/components/books/book-card";
 import {
@@ -26,7 +18,30 @@ import {
   SortOptionItem,
 } from "@/components/books/book-grid-controls";
 import { BookGridSkeleton } from "@/components/books/book-grid-skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { GroupToggle } from "@/components/ui/group-toggle";
+import { cn } from "@/lib/utils";
+
+type ReadingStatus = "TO_READ" | "READING" | "READ" | "DROPPED";
 
 /**
  * Normalized book shape required by the grid.
@@ -56,15 +71,17 @@ export type BookGridBook = {
 /**
  * Defaults for the card display toggles.
  */
-const defaultFields: BookCardFields = {
+export const slimBookGridFields: BookCardFields = {
   cover: true,
   title: true,
   author: true,
   genres: false,
-  rating: true,
-  status: true,
+  rating: false,
+  status: false,
   format: false,
 };
+
+const defaultFields: BookCardFields = slimBookGridFields;
 
 type BookGridViewProps = {
   books: BookGridBook[];
@@ -73,6 +90,21 @@ type BookGridViewProps = {
   emptyAction?: ReactNode;
   emptyText?: string;
   isLoading?: boolean;
+  /** Overrides the initial filter (e.g. from a deep link) and skips restoring
+   * the saved filter from the preferences cookie. */
+  initialFilter?: FilterStatus;
+  search?: string;
+  onSearchChange?: (value: string) => void;
+  filter?: FilterStatus;
+  onFilterChange?: (value: FilterStatus) => void;
+  serverSideFiltering?: boolean;
+  hasActiveFilters?: boolean;
+  onClearFilters?: () => void;
+  enableSelection?: boolean;
+  onBooksChanged?: () => void;
+  searchInputRef?: RefObject<HTMLInputElement | null>;
+  onSelectionBarVisibleChange?: (visible: boolean) => void;
+  showSearchShortcutHint?: boolean;
 };
 
 /**
@@ -87,13 +119,46 @@ export function BookGridView({
   emptyAction,
   emptyText,
   isLoading = false,
+  initialFilter,
+  search: searchProp,
+  onSearchChange,
+  filter: filterProp,
+  onFilterChange,
+  serverSideFiltering = false,
+  hasActiveFilters = false,
+  onClearFilters,
+  enableSelection = false,
+  onBooksChanged,
+  searchInputRef: searchInputRefProp,
+  onSelectionBarVisibleChange,
+  showSearchShortcutHint = false,
 }: BookGridViewProps) {
   const t = useTranslations("book");
   const tStatus = useTranslations("status");
   const tCommon = useTranslations("common");
 
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<FilterStatus>("ALL");
+  const isSearchControlled = searchProp !== undefined;
+  const isFilterControlled = filterProp !== undefined;
+  const skipFilterCookie =
+    isFilterControlled || !!initialFilter || serverSideFiltering;
+
+  const [internalSearch, setInternalSearch] = useState("");
+  const [internalFilter, setInternalFilter] = useState<FilterStatus>(
+    initialFilter ?? "ALL"
+  );
+  const search = isSearchControlled ? searchProp : internalSearch;
+  const filter = isFilterControlled ? filterProp : internalFilter;
+
+  const handleSearchChange = (value: string) => {
+    if (onSearchChange) onSearchChange(value);
+    else setInternalSearch(value);
+  };
+
+  const handleFilterChange = (value: FilterStatus) => {
+    if (onFilterChange) onFilterChange(value);
+    else setInternalFilter(value);
+  };
+
   const [sort, setSort] = useState<SortOption>("title-asc");
   const [groupBy, setGroupBy] = useState<GroupOption>("none");
   const [collapsedGroups, setCollapsedGroups] = useState<
@@ -102,6 +167,32 @@ export function BookGridView({
   const [isDisplayOpen, setIsDisplayOpen] = useState(false);
   const [cardFields, setCardFields] = useState<BookCardFields>(initialFields);
   const [areControlsOpen, setAreControlsOpen] = useState(false);
+
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [isBulkLoading, setIsBulkLoading] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  const internalSearchInputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = searchInputRefProp ?? internalSearchInputRef;
+
+  const bookText = useCallback(
+    (key: string, fallback: string, values?: Record<string, string | number>) => {
+      if (t.has(key as Parameters<typeof t>[0])) {
+        return values
+          ? t(key as Parameters<typeof t>[0], values as never)
+          : t(key as Parameters<typeof t>[0]);
+      }
+      if (values) {
+        return Object.entries(values).reduce(
+          (text, [name, value]) => text.replace(`{${name}}`, String(value)),
+          fallback
+        );
+      }
+      return fallback;
+    },
+    [t]
+  );
 
   const readCookie = (key: string) => {
     const match = document.cookie
@@ -127,7 +218,9 @@ export function BookGridView({
         groupBy?: GroupOption;
         cardFields?: BookCardFields;
       };
-      if (prefs.filter) setFilter(prefs.filter);
+      if (prefs.filter && !skipFilterCookie) {
+        handleFilterChange(prefs.filter);
+      }
       if (prefs.sort) setSort(prefs.sort);
       if (prefs.groupBy) setGroupBy(prefs.groupBy);
       if (prefs.cardFields)
@@ -135,20 +228,21 @@ export function BookGridView({
     } catch {
       // ignore invalid cookie payload
     }
-  }, [cookieKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cookieKey, skipFilterCookie]);
 
   useEffect(() => {
     if (!cookieKey) return;
-    writeCookie(
-      cookieKey,
-      JSON.stringify({
-        filter,
-        sort,
-        groupBy,
-        cardFields,
-      })
-    );
-  }, [cookieKey, filter, sort, groupBy, cardFields]);
+    const prefs: Record<string, unknown> = {
+      sort,
+      groupBy,
+      cardFields,
+    };
+    if (!skipFilterCookie) {
+      prefs.filter = filter;
+    }
+    writeCookie(cookieKey, JSON.stringify(prefs));
+  }, [cookieKey, filter, sort, groupBy, cardFields, skipFilterCookie]);
 
   const filterOptions = useMemo(
     () =>
@@ -184,17 +278,6 @@ export function BookGridView({
     [t]
   );
 
-  const sortCollection = useMemo(
-    () =>
-      createListCollection<SortOptionItem>({
-        items: sortOptions.map((option) => ({
-          value: option.value,
-          label: option.label,
-        })),
-      }),
-    [sortOptions]
-  );
-
   const groupOptions = useMemo(
     () =>
       [
@@ -208,30 +291,25 @@ export function BookGridView({
     [t]
   );
 
-  const groupCollection = useMemo(
+  const filterItems: FilterOptionItem[] = [...filterOptions];
+  const sortItems: SortOptionItem[] = [...sortOptions];
+  const groupItems: GroupOptionItem[] = [...groupOptions];
+
+  const bulkStatusOptions = useMemo(
     () =>
-      createListCollection<GroupOptionItem>({
-        items: groupOptions.map((option) => ({
-          value: option.value,
-          label: option.label,
-        })),
-      }),
-    [groupOptions]
+      [
+        { value: "TO_READ", label: tStatus("toRead") },
+        { value: "READING", label: tStatus("reading") },
+        { value: "READ", label: tStatus("read") },
+        { value: "DROPPED", label: tStatus("dropped") },
+      ] as const,
+    [tStatus]
   );
 
-  const filterCollection = useMemo(
-    () =>
-      createListCollection<FilterOptionItem>({
-        items: filterOptions.map((option) => ({
-          value: option.value,
-          label: option.label,
-        })),
-      }),
-    [filterOptions]
-  );
-
-  // Apply search and status/wishlist filters.
+  // Apply search and status/wishlist filters (skipped when server-side filtered).
   const filteredBooks = useMemo(() => {
+    if (serverSideFiltering) return books;
+
     const query = search.trim().toLowerCase();
 
     return books.filter((book) => {
@@ -244,10 +322,11 @@ export function BookGridView({
         .map((a) => a.author.name.toLowerCase())
         .join(" ");
       return (
-        book.title.toLowerCase().includes(query) || authorText.includes(query)
+        book.title.toLowerCase().includes(query) ||
+        authorText.includes(query)
       );
     });
-  }, [books, filter, search]);
+  }, [books, filter, search, serverSideFiltering]);
 
   // Sort books by the selected sort key.
   const sortedBooks = useMemo(() => {
@@ -367,7 +446,7 @@ export function BookGridView({
           if (!book.rating) {
             return { key: "no-rating", label: t("groupNoRating"), order: 999 };
           }
-          const stars = Math.min(5, Math.round(book.rating));
+          const stars = Math.min(5, Math.max(1, Math.ceil(book.rating / 2)));
           return {
             key: `rating-${stars}`,
             label: t("groupRatingStars", { stars }),
@@ -420,17 +499,193 @@ export function BookGridView({
     setCollapsedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const toggleSelect = (bookId: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(bookId)) next.delete(bookId);
+      else next.add(bookId);
+      return next;
+    });
+  };
+
+  const selectAllVisible = () => {
+    setSelected(new Set(sortedBooks.map((book) => book.id)));
+  };
+
+  const clearSelection = () => {
+    setSelected(new Set());
+  };
+
+  const toggleSelectionMode = () => {
+    setSelectionMode((prev) => {
+      if (prev) clearSelection();
+      return !prev;
+    });
+  };
+
+  const bulkPatch = async (payload: {
+    status?: ReadingStatus;
+    isWishlist?: boolean;
+  }) => {
+    if (selected.size === 0) return;
+
+    setIsBulkLoading(true);
+    try {
+      const response = await fetch("/api/books/bulk", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ids: Array.from(selected),
+          ...payload,
+        }),
+      });
+
+      if (!response.ok) {
+        toast.error(tCommon("saveFailed"));
+        return;
+      }
+
+      toast.success(
+        bookText("bulkUpdated", "Books updated", { count: selected.size })
+      );
+      clearSelection();
+      onBooksChanged?.();
+    } catch {
+      toast.error(tCommon("saveFailed"));
+    } finally {
+      setIsBulkLoading(false);
+    }
+  };
+
+  const bulkDelete = async () => {
+    if (selected.size === 0) return;
+
+    setIsBulkLoading(true);
+    try {
+      const response = await fetch("/api/books/bulk", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selected) }),
+      });
+
+      if (!response.ok) {
+        toast.error(tCommon("deleteFailed"));
+        return;
+      }
+
+      toast.success(
+        bookText("bulkDeleted", "Books deleted", { count: selected.size })
+      );
+      setIsDeleteDialogOpen(false);
+      clearSelection();
+      onBooksChanged?.();
+    } catch {
+      toast.error(tCommon("deleteFailed"));
+    } finally {
+      setIsBulkLoading(false);
+    }
+  };
+
+  const showBulkBar = enableSelection && selectionMode && selected.size > 0;
+
+  useEffect(() => {
+    onSelectionBarVisibleChange?.(showBulkBar);
+  }, [onSelectionBarVisibleChange, showBulkBar]);
+
+  const activeFilterChips = useMemo(() => {
+    const chips: Array<{ key: string; label: string; onClear: () => void }> = [];
+
+    if (filter !== "ALL" && filter !== "WISHLIST") {
+      const option = filterOptions.find((item) => item.value === filter);
+      chips.push({
+        key: "status",
+        label: option?.label ?? filter,
+        onClear: () => handleFilterChange("ALL"),
+      });
+    }
+
+    if (filter === "WISHLIST") {
+      chips.push({
+        key: "wishlist",
+        label: t("filterWishlist"),
+        onClear: () => handleFilterChange("ALL"),
+      });
+    }
+
+    if (search.trim()) {
+      chips.push({
+        key: "search",
+        label: `"${search.trim()}"`,
+        onClear: () => handleSearchChange(""),
+      });
+    }
+
+    return chips;
+  }, [filter, filterOptions, handleFilterChange, handleSearchChange, search, t]);
+
   return (
-    <Stack gap={4}>
-      <Stack gap={4}>
-        <Input
-          type="search"
-          aria-label={tCommon("search")}
-          placeholder={tCommon("search")}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          maxW={{ base: "full", md: "300px" }}
-        />
+    <div className={cn("space-y-4", showBulkBar && "pb-24")}>
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex min-w-0 flex-1 flex-col gap-1 sm:max-w-[300px]">
+            <Input
+              ref={searchInputRef}
+              type="search"
+              aria-label={tCommon("search")}
+              placeholder={tCommon("search")}
+              value={search}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="max-w-full"
+            />
+            {showSearchShortcutHint && (
+              <p className="hidden text-xs text-muted-foreground md:block">
+                {t("pressSlashToSearch")}
+              </p>
+            )}
+          </div>
+          {enableSelection && (
+            <Button
+              type="button"
+              variant={selectionMode ? "default" : "outline"}
+              size="sm"
+              onClick={toggleSelectionMode}
+            >
+              <RiCheckboxMultipleLine className="size-4" />
+              {bookText("selectMode", "Select")}
+            </Button>
+          )}
+        </div>
+        {hasActiveFilters && activeFilterChips.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            {activeFilterChips.map((chip) => (
+              <Badge
+                key={chip.key}
+                variant="secondary"
+                className="gap-1 pr-1 font-normal"
+              >
+                {chip.label}
+                <button
+                  type="button"
+                  aria-label={tCommon("clear")}
+                  onClick={chip.onClear}
+                  className="rounded-full p-0.5 hover:bg-muted-foreground/20"
+                >
+                  <RiCloseLine className="size-3" />
+                </button>
+              </Badge>
+            ))}
+            {onClearFilters && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onClearFilters}
+              >
+                {bookText("clearFilters", "Clear filters")}
+              </Button>
+            )}
+          </div>
+        )}
         <BookGridControls
           areControlsOpen={areControlsOpen}
           onToggleControls={() => setAreControlsOpen((prev) => !prev)}
@@ -442,13 +697,13 @@ export function BookGridView({
           }
           sort={sort}
           onSortChange={(value) => setSort(value)}
-          sortCollection={sortCollection}
+          sortItems={sortItems}
           groupBy={groupBy}
           onGroupByChange={(value) => setGroupBy(value)}
-          groupCollection={groupCollection}
+          groupItems={groupItems}
           filter={filter}
-          onFilterChange={(value) => setFilter(value)}
-          filterCollection={filterCollection}
+          onFilterChange={handleFilterChange}
+          filterItems={filterItems}
           showGroupActions={groupBy !== "none" && groupedBooks.length > 0}
           onCollapseAll={() => {
             const nextState: Record<string, boolean> = {};
@@ -459,26 +714,24 @@ export function BookGridView({
           }}
           onExpandAll={() => setCollapsedGroups({})}
         />
-      </Stack>
+      </div>
 
       {isLoading ? (
         <BookGridSkeleton />
       ) : sortedBooks.length === 0 ? (
-        <Card.Root>
-          <Card.Body>
-            <Stack align="center" py={12}>
-              <Icon as={FiBookOpen} boxSize={10} color="brand.fg" />
-              <Text color="fg.muted" fontSize="lg">
-                {emptyText ?? t("noBooks")}
-              </Text>
-              {emptyAction}
-            </Stack>
-          </Card.Body>
-        </Card.Root>
+        <div className="rounded-2xl bg-card p-12 text-center shadow-sm ring-1 ring-foreground/5 dark:ring-foreground/10">
+          <div className="flex flex-col items-center gap-3">
+            <RiBookOpenLine className="size-10 text-primary" />
+            <p className="text-lg text-muted-foreground">
+              {emptyText ?? t("noBooks")}
+            </p>
+            {emptyAction}
+          </div>
+        </div>
       ) : (
-        <Stack gap={6}>
+        <div className="space-y-6">
           {groupedBooks.map((group) => (
-            <Stack key={group.key} gap={3}>
+            <div key={group.key} className="space-y-3">
               {group.label && (
                 <GroupToggle
                   label={group.label}
@@ -488,25 +741,128 @@ export function BookGridView({
                 />
               )}
               {!collapsedGroups[group.key] && (
-                <Grid
-                  templateColumns={{
-                    base: "repeat(2, 1fr)",
-                    sm: "repeat(3, 1fr)",
-                    md: "repeat(4, 1fr)",
-                    lg: "repeat(5, 1fr)",
-                    xl: "repeat(6, 1fr)",
-                  }}
-                  gap={4}
-                >
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                   {group.books.map((book) => (
-                    <BookCard key={book.id} book={book} fields={cardFields} />
+                    <BookCard
+                      key={book.id}
+                      book={book}
+                      fields={cardFields}
+                      selectionMode={selectionMode}
+                      selected={selected.has(book.id)}
+                      onToggleSelect={toggleSelect}
+                    />
                   ))}
-                </Grid>
+                </div>
               )}
-            </Stack>
+            </div>
           ))}
-        </Stack>
+        </div>
       )}
-    </Stack>
+
+      {showBulkBar && (
+        <div className="fixed inset-x-0 bottom-0 z-50 border-t bg-background/95 p-4 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 sm:px-6 lg:px-8">
+            <span className="text-sm font-medium">
+              {bookText("selectedCount", "{count} selected", {
+                count: selected.size,
+              })}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isBulkLoading}
+              onClick={selectAllVisible}
+            >
+              {bookText("selectAllVisible", "Select all visible")}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={isBulkLoading}
+              onClick={clearSelection}
+            >
+              {tCommon("clear")}
+            </Button>
+            <Select
+              disabled={isBulkLoading}
+              onValueChange={(value) =>
+                bulkPatch({ status: value as ReadingStatus })
+              }
+            >
+              <SelectTrigger size="sm" className="w-[160px]">
+                <SelectValue
+                  placeholder={bookText("bulkChangeStatus", "Change status")}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {bulkStatusOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isBulkLoading}
+              onClick={() => bulkPatch({ isWishlist: true })}
+            >
+              {bookText("bulkAddWishlist", "Add to wishlist")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isBulkLoading}
+              onClick={() => bulkPatch({ isWishlist: false })}
+            >
+              {bookText("bulkRemoveWishlist", "Remove from wishlist")}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={isBulkLoading}
+              onClick={() => setIsDeleteDialogOpen(true)}
+            >
+              {tCommon("delete")}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tCommon("delete")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {bookText(
+                "bulkDeleteConfirm",
+                "Are you sure you want to delete the selected books?",
+                { count: selected.size }
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkLoading}>
+              {tCommon("cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isBulkLoading}
+              onClick={(event) => {
+                event.preventDefault();
+                void bulkDelete();
+              }}
+            >
+              {tCommon("delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 }

@@ -17,7 +17,7 @@ const createBookSchema = z
     status: z.enum(["TO_READ", "READING", "READ", "DROPPED"]).default("TO_READ"),
     totalPages: z.number().int().positive().optional().nullable(),
     currentPage: z.number().int().min(0).default(0),
-    rating: z.number().int().min(1).max(5).optional().nullable(),
+    rating: z.number().int().min(1).max(10).optional().nullable(),
     summary: z.string().max(5000).optional().nullable(),
     favoriteQuote: z.string().max(2000).optional().nullable(),
     favoriteMoment: z.string().max(2000).optional().nullable(),
@@ -137,7 +137,16 @@ export async function GET(request: NextRequest) {
       userId: string;
       status?: "TO_READ" | "READING" | "READ" | "DROPPED";
       isWishlist?: boolean;
-      title?: { contains: string; mode: "insensitive" };
+      OR?: Array<
+        | { title: { contains: string; mode: "insensitive" } }
+        | {
+            authors: {
+              some: {
+                author: { name: { contains: string; mode: "insensitive" } };
+              };
+            };
+          }
+      >;
     } = {
       userId: session.user.id,
     };
@@ -146,12 +155,22 @@ export async function GET(request: NextRequest) {
       where.status = status as "TO_READ" | "READING" | "READ" | "DROPPED";
     }
 
-    if (wishlist === "true") {
+    if (wishlist === "true" || wishlist === "1") {
       where.isWishlist = true;
     }
 
-    if (search) {
-      where.title = { contains: search, mode: "insensitive" };
+    if (search?.trim()) {
+      const q = search.trim();
+      where.OR = [
+        { title: { contains: q, mode: "insensitive" } },
+        {
+          authors: {
+            some: {
+              author: { name: { contains: q, mode: "insensitive" } },
+            },
+          },
+        },
+      ];
     }
 
     const [books, total] = await Promise.all([
@@ -237,6 +256,13 @@ export async function POST(request: NextRequest) {
       seriesId: validatedData.seriesId ?? null,
     });
 
+    const uniqueAuthorIds = authorIds
+      ? Array.from(new Set(authorIds))
+      : undefined;
+    const uniqueGenreIds = genreIds
+      ? Array.from(new Set(genreIds))
+      : undefined;
+
     const book = await db.book.create({
       data: {
         ...bookData,
@@ -244,16 +270,16 @@ export async function POST(request: NextRequest) {
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
         userId: session.user.id,
-        authors: authorIds?.length
+        authors: uniqueAuthorIds?.length
           ? {
-              create: authorIds.map((authorId) => ({
+              create: uniqueAuthorIds.map((authorId) => ({
                 authorId,
               })),
             }
           : undefined,
-        genres: genreIds?.length
+        genres: uniqueGenreIds?.length
           ? {
-              create: genreIds.map((genreId) => ({
+              create: uniqueGenreIds.map((genreId) => ({
                 genreId,
               })),
             }

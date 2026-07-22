@@ -2,27 +2,19 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { RiLoader4Line } from "@remixicon/react";
+
+import { Badge } from "@/components/ui/badge";
+import { BookCover } from "@/components/ui/book-cover";
+import { Button } from "@/components/ui/button";
 import {
-  Box,
-  Input,
-  Stack,
-  Text,
-  Button,
-  Spinner,
-  Card,
-  Flex,
-  Badge,
-} from "@chakra-ui/react";
-import {
-  DialogRoot,
+  Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogBody,
-  DialogFooter,
-  DialogCloseTrigger,
 } from "@/components/ui/dialog";
-import { BookCover } from "@/components/ui/book-cover";
+import { Input } from "@/components/ui/input";
 
 export type SearchResult = {
   id: string;
@@ -66,58 +58,8 @@ export function BookSearchModal({
   const [searched, setSearched] = useState(false);
   const activeController = useRef<AbortController | null>(null);
 
-  // Auto-populate query and search when modal opens with initialQuery.
-  useEffect(() => {
-    if (open && initialQuery) {
-      setQuery(initialQuery);
-      activeController.current?.abort();
-      const controller = new AbortController();
-      activeController.current = controller;
-      // Trigger search automatically.
-      const searchWithInitialQuery = async () => {
-        setLoading(true);
-        setSearched(true);
-
-        try {
-          const response = await fetch(
-            `/api/books/search?q=${encodeURIComponent(initialQuery)}`,
-            { signal: controller.signal }
-          );
-          if (response.ok) {
-            const data = await response.json();
-            setResults(data);
-          } else {
-            setResults([]);
-          }
-        } catch (error) {
-          if (error instanceof DOMException && error.name === "AbortError") {
-            return;
-          }
-          console.error("Failed to search books:", error);
-          setResults([]);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      searchWithInitialQuery();
-    } else if (!open) {
-      activeController.current?.abort();
-      // Reset local state when the dialog closes.
-      setQuery("");
-      setResults([]);
-      setSearched(false);
-    }
-    return () => {
-      activeController.current?.abort();
-    };
-  }, [open, initialQuery]);
-
-  /**
-   * Execute the search request against the API.
-   */
-  const handleSearch = async () => {
-    if (!query.trim()) return;
+  const runSearch = async (searchQuery: string) => {
+    if (!searchQuery.trim()) return;
 
     activeController.current?.abort();
     const controller = new AbortController();
@@ -127,7 +69,7 @@ export function BookSearchModal({
 
     try {
       const response = await fetch(
-        `/api/books/search?q=${encodeURIComponent(query)}`,
+        `/api/books/search?q=${encodeURIComponent(searchQuery)}`,
         { signal: controller.signal }
       );
       if (response.ok) {
@@ -147,9 +89,26 @@ export function BookSearchModal({
     }
   };
 
+  // Auto-populate query and search when modal opens with initialQuery.
+  useEffect(() => {
+    if (open && initialQuery) {
+      setQuery(initialQuery);
+      runSearch(initialQuery);
+    } else if (!open) {
+      activeController.current?.abort();
+      setQuery("");
+      setResults([]);
+      setSearched(false);
+    }
+    return () => {
+      activeController.current?.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialQuery]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
-      handleSearch();
+      runSearch(query);
     }
   };
 
@@ -165,131 +124,119 @@ export function BookSearchModal({
   };
 
   return (
-    <DialogRoot
+    <Dialog
       open={open}
-      onOpenChange={({ open }) => !open && onClose()}
-      size="xl"
+      onOpenChange={(nextOpen) => !nextOpen && onClose()}
     >
-      <DialogContent>
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>{t("searchOnline")}</DialogTitle>
-          <DialogCloseTrigger />
         </DialogHeader>
 
-        <DialogBody>
-          <Stack gap={4}>
-            <Flex gap={2}>
-              <Input
-                type="search"
-                aria-label={tCommon("search")}
-                placeholder={t("searchPlaceholder")}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={handleKeyDown}
-                size="lg"
-                flex={1}
-              />
-              <Button
-                onClick={handleSearch}
-                colorPalette="brand"
-                loading={loading}
-                size="lg"
-              >
-                {tCommon("search")}
-              </Button>
-            </Flex>
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            <Input
+              type="search"
+              aria-label={tCommon("search")}
+              placeholder={t("searchPlaceholder")}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="h-10 flex-1"
+            />
+            <Button
+              type="button"
+              onClick={() => runSearch(query)}
+              disabled={loading}
+              className="h-10"
+            >
+              {loading && <RiLoader4Line className="animate-spin" />}
+              {tCommon("search")}
+            </Button>
+          </div>
 
-            {loading && (
-              <Flex justify="center" py={8}>
-                <Spinner size="xl" color="brand.500" />
-              </Flex>
-            )}
+          {loading && (
+            <div className="flex justify-center py-8">
+              <RiLoader4Line className="size-8 animate-spin text-primary" />
+            </div>
+          )}
 
-            {!loading && searched && results.length === 0 && (
-              <Box textAlign="center" py={8}>
-                <Text color="fg.muted">{t("noResultsFound")}</Text>
-              </Box>
-            )}
+          {!loading && searched && results.length === 0 && (
+            <div className="py-8 text-center">
+              <p className="text-muted-foreground">{t("noResultsFound")}</p>
+            </div>
+          )}
 
-            {!loading && results.length > 0 && (
-              <Stack gap={3} maxH="500px" overflowY="auto">
-                {results.map((book) => (
-                  <Card.Root
-                    key={book.id}
-                    cursor="pointer"
-                    _hover={{ bg: "bg.muted" }}
-                    onClick={() => handleSelect(book)}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={book.title}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        handleSelect(book);
-                      }
-                    }}
-                  >
-                    <Card.Body p={4}>
-                      <Flex gap={4}>
-                        <Box flexShrink={0} width="72px">
-                          <BookCover
-                            coverUrl={book.coverUrl ?? null}
-                            title={book.title}
-                            size="sm"
-                          />
-                        </Box>
-                        <Stack gap={2} flex={1} minW={0}>
-                          <Box>
-                            <Text fontWeight="bold" fontSize="lg" lineClamp={2}>
-                              {book.title}
-                            </Text>
-                            <Text fontSize="sm" color="fg.muted">
-                              {book.authors.join(", ") ||
-                                t("unknownAuthor")}
-                            </Text>
-                          </Box>
+          {!loading && results.length > 0 && (
+            <div className="max-h-[500px] space-y-3 overflow-y-auto">
+              {results.map((book) => (
+                <div
+                  key={book.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={book.title}
+                  onClick={() => handleSelect(book)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      handleSelect(book);
+                    }
+                  }}
+                  className="cursor-pointer rounded-2xl p-4 shadow-sm ring-1 ring-foreground/5 transition-colors hover:bg-muted dark:ring-foreground/10"
+                >
+                  <div className="flex gap-4">
+                    <div className="w-18 shrink-0">
+                      <BookCover
+                        coverUrl={book.coverUrl ?? null}
+                        title={book.title}
+                        size="sm"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div>
+                        <p className="line-clamp-2 text-lg font-bold">
+                          {book.title}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {book.authors.join(", ") || t("unknownAuthor")}
+                        </p>
+                      </div>
 
-                          {book.description && (
-                            <Text fontSize="sm" color="fg.muted" lineClamp={2}>
-                              {book.description}
-                            </Text>
-                          )}
+                      {book.description && (
+                        <p className="line-clamp-2 text-sm text-muted-foreground">
+                          {book.description}
+                        </p>
+                      )}
 
-                          <Flex gap={2} flexWrap="wrap">
-                            {book.publishedDate && (
-                              <Badge size="sm" colorPalette="ink">
-                                {book.publishedDate}
-                              </Badge>
-                            )}
-                            {book.totalPages && (
-                              <Badge size="sm" colorPalette="accent">
-                                {book.totalPages} {t("pages")}
-                              </Badge>
-                            )}
-                            {book.publisher && (
-                              <Badge size="sm" colorPalette="ink">
-                                {book.publisher}
-                              </Badge>
-                            )}
-                          </Flex>
-                        </Stack>
-                      </Flex>
-                    </Card.Body>
-                  </Card.Root>
-                ))}
-              </Stack>
-            )}
-          </Stack>
-        </DialogBody>
+                      <div className="flex flex-wrap gap-2">
+                        {book.publishedDate && (
+                          <Badge variant="secondary">
+                            {book.publishedDate}
+                          </Badge>
+                        )}
+                        {book.totalPages && (
+                          <Badge variant="secondary">
+                            {book.totalPages} {t("pages")}
+                          </Badge>
+                        )}
+                        {book.publisher && (
+                          <Badge variant="secondary">{book.publisher}</Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={onClose}>
             {tCommon("cancel")}
           </Button>
         </DialogFooter>
       </DialogContent>
-    </DialogRoot>
+    </Dialog>
   );
 }
-
-

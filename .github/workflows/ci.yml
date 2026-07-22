@@ -86,3 +86,32 @@ jobs:
           NEXTAUTH_URL: http://localhost:3000
           NEXTAUTH_SECRET: build-secret-key
           REGISTRATION_INVITE_CODE: build-invite-code
+
+  e2e:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+
+      - name: Run Playwright e2e
+        run: npm run test:e2e -- --project=chromium
+        env:
+          CI: "true"
+          PLAYWRIGHT_PORT: "3001"
+          NEXTAUTH_SECRET: playwright-test-secret
+          REGISTRATION_INVITE_CODE: playwright-invite

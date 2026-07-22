@@ -1,17 +1,13 @@
-import type { ParsedBookRow } from "@/hooks/import/use-column-processing";
-import {
-    Badge,
-    Box,
-    Button,
-    Heading,
-    HStack,
-    IconButton,
-    Table,
-    Text,
-    VStack
-} from "@chakra-ui/react";
+"use client";
+
 import { useTranslations } from "next-intl";
-import { FaTrash } from "react-icons/fa";
+import { RiDeleteBinLine, RiLoaderLine } from "@remixicon/react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import type { ParsedBookRow } from "@/hooks/import/use-column-processing";
+import { cn } from "@/lib/utils";
 
 type ReviewStepProps = {
   paginatedRows: ParsedBookRow[];
@@ -37,115 +33,142 @@ export function ReviewStep({
   isSubmitting,
 }: ReviewStepProps) {
   const t = useTranslations("sheetImport");
+  const tBook = useTranslations("book");
+  const tCommon = useTranslations("common");
 
   return (
-    <VStack gap={6} align="stretch" w="full">
-      <Heading size="md">{t("steps.review.title")}</Heading>
-      <Text color="fg.muted">{t("steps.review.description")}</Text>
+    <div className="flex w-full flex-col gap-6">
+      <div className="space-y-1.5">
+        <h2 className="font-heading text-lg font-medium">
+          {t("steps.review.title")}
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          {t("steps.review.description")}
+        </p>
+      </div>
 
-      <HStack justify="space-between" bg="bg.subtle" p={4} borderRadius="md">
-        <VStack align="start" gap={0}>
-          <Text fontSize="sm" color="fg.muted">
-            {t("rowsToImport")}
-          </Text>
-          <Text fontSize="2xl" fontWeight="bold">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-muted/40 p-4">
+        <div className="space-y-0.5">
+          <p className="text-sm text-muted-foreground">{t("rowsToImport")}</p>
+          <p className="text-2xl font-semibold">
             {validRowsCount} / {totalRows}
-          </Text>
-        </VStack>
+          </p>
+        </div>
         <Button
-          loading={isSubmitting}
-          colorPalette="blue"
           size="lg"
           onClick={onSubmit}
-          disabled={validRowsCount === 0}
+          disabled={validRowsCount === 0 || isSubmitting}
         >
+          {isSubmitting && (
+            <RiLoaderLine className="animate-spin" data-icon="inline-start" />
+          )}
           {t("startImport")}
         </Button>
-      </HStack>
+      </div>
 
-      <Box overflowX="auto" borderWidth={1} borderRadius="md">
-        <Table.Root size="sm" striped>
-          <Table.Header>
-            <Table.Row>
-              <Table.ColumnHeader>{t("fields.title")}</Table.ColumnHeader>
-              <Table.ColumnHeader>{t("fields.authors")}</Table.ColumnHeader>
-              <Table.ColumnHeader>{t("fields.status")}</Table.ColumnHeader>
-              <Table.ColumnHeader>{t("actions")}</Table.ColumnHeader>
-            </Table.Row>
-          </Table.Header>
-          <Table.Body>
+      <div className="overflow-x-auto rounded-2xl border border-border/60">
+        <table className="w-full text-sm">
+          <thead className="border-b bg-muted/40">
+            <tr>
+              <th className="w-10 px-3 py-2 text-left font-medium" />
+              <th className="px-3 py-2 text-left font-medium">
+                {tBook("title")}
+              </th>
+              <th className="px-3 py-2 text-left font-medium">
+                {tBook("authors")}
+              </th>
+              <th className="px-3 py-2 text-left font-medium">
+                {tBook("status")}
+              </th>
+              <th className="px-3 py-2 text-left font-medium">{t("actions")}</th>
+            </tr>
+          </thead>
+          <tbody>
             {paginatedRows.map((row) => (
-              <Table.Row key={row.rowIndex} opacity={row.skip ? 0.5 : 1}>
-                <Table.Cell>
-                  <VStack align="start" gap={0}>
-                    <Text fontWeight="medium" lineClamp={1}>
-                      {row.title || <Badge colorPalette="red">{t("missing")}</Badge>}
-                    </Text>
-                    {row.totalPages && (
-                      <Text fontSize="xs" color="fg.muted">
-                        {row.totalPages} pages
-                      </Text>
+              <tr
+                key={row.rowIndex}
+                className={cn(
+                  "border-b last:border-0",
+                  row.skip && "opacity-50"
+                )}
+              >
+                <td className="px-3 py-2">
+                  <Checkbox
+                    checked={!row.skip}
+                    onCheckedChange={() => onRemoveRow(row.rowIndex)}
+                    aria-label={t("skipRow")}
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <div className="flex flex-col gap-0.5">
+                    {row.title ? (
+                      <span className="line-clamp-1 font-medium">
+                        {row.title}
+                      </span>
+                    ) : (
+                      <Badge variant="destructive">{t("missing")}</Badge>
                     )}
-                  </VStack>
-                </Table.Cell>
-                <Table.Cell>
+                    {row.totalPages != null && (
+                      <span className="text-xs text-muted-foreground">
+                        {row.totalPages} {tBook("pages").toLowerCase()}
+                      </span>
+                    )}
+                  </div>
+                </td>
+                <td className="px-3 py-2">
                   {row.authors.length > 0 ? (
                     row.authors.join(", ")
                   ) : (
-                    <Badge colorPalette="red">{t("missing")}</Badge>
+                    <Badge variant="destructive">{t("missing")}</Badge>
                   )}
-                </Table.Cell>
-                <Table.Cell>
+                </td>
+                <td className="px-3 py-2">
                   {row.status ? (
-                    <Badge colorPalette="blue" variant="subtle">
-                      {row.status}
-                    </Badge>
+                    <Badge variant="secondary">{row.status}</Badge>
                   ) : (
-                    <Text fontSize="xs" color="fg.muted">
-                      —
-                    </Text>
+                    <span className="text-xs text-muted-foreground">—</span>
                   )}
-                </Table.Cell>
-                <Table.Cell>
-                  <IconButton
-                    aria-label={t("remove")}
-                    colorPalette="red"
+                </td>
+                <td className="px-3 py-2">
+                  <Button
+                    type="button"
+                    size="icon-xs"
                     variant="ghost"
-                    size="xs"
+                    aria-label={t("remove")}
                     onClick={() => onRemoveRow(row.rowIndex)}
                   >
-                    <FaTrash />
-                  </IconButton>
-                </Table.Cell>
-              </Table.Row>
+                    <RiDeleteBinLine />
+                  </Button>
+                </td>
+              </tr>
             ))}
-          </Table.Body>
-        </Table.Root>
-      </Box>
+          </tbody>
+        </table>
+      </div>
 
       {totalPreviewPages > 1 && (
-        <HStack justify="center" gap={4}>
+        <div className="flex items-center justify-center gap-4">
           <Button
             size="sm"
             variant="outline"
             disabled={previewPage === 1}
             onClick={() => setPreviewPage(previewPage - 1)}
           >
-            {t("previous")}
+            {tCommon("previous")}
           </Button>
-          <Text fontSize="sm">
+          <span className="text-sm">
             {previewPage} / {totalPreviewPages}
-          </Text>
+          </span>
           <Button
             size="sm"
             variant="outline"
             disabled={previewPage === totalPreviewPages}
             onClick={() => setPreviewPage(previewPage + 1)}
           >
-            {t("next")}
+            {tCommon("next")}
           </Button>
-        </HStack>
+        </div>
       )}
-    </VStack>
+    </div>
   );
 }

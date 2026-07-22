@@ -1,7 +1,11 @@
-import { Box, Button, Heading, Input, Text, VStack } from "@chakra-ui/react";
+"use client";
+
 import { useTranslations } from "next-intl";
 import { useRef } from "react";
-import { FaFileExcel } from "react-icons/fa";
+import { RiFileExcel2Line } from "@remixicon/react";
+
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type FileSelectStepProps = {
   isParsingFile: boolean;
@@ -24,57 +28,63 @@ export function FileSelectStep({
   };
 
   return (
-    <VStack gap={6} align="stretch">
-      <Heading size="md">{t("steps.upload.title")}</Heading>
-      <Text color="fg.muted">{t("steps.upload.description")}</Text>
+    <div className="flex flex-col gap-6">
+      <div className="space-y-1.5">
+        <h2 className="font-heading text-lg font-medium">
+          {t("steps.upload.title")}
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          {t("steps.upload.description")}
+        </p>
+      </div>
 
-      <Box
-        borderWidth={2}
-        borderStyle="dashed"
-        borderColor={fileError ? "red.500" : "border"}
-        borderRadius="lg"
-        p={10}
-        textAlign="center"
-        cursor={isParsingFile ? "wait" : "pointer"}
-        _hover={{ borderColor: isParsingFile ? "border" : "blue.500" }}
+      <div
+        role="button"
+        tabIndex={0}
         onClick={handleBoxClick}
-        transition="all 0.2s"
-        bg="bg.subtle"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handleBoxClick();
+          }
+        }}
+        className={cn(
+          "flex flex-col items-center justify-center gap-4 rounded-3xl border-2 border-dashed bg-muted/40 p-10 text-center transition-colors",
+          fileError ? "border-destructive" : "border-border",
+          isParsingFile
+            ? "cursor-wait"
+            : "cursor-pointer hover:border-primary"
+        )}
       >
-        <Input
+        <input
           type="file"
           accept=".xlsx, .xls"
           onChange={onFileChange}
           ref={fileInputRef}
-          display="none"
+          className="hidden"
+          tabIndex={-1}
         />
-        <VStack gap={4}>
-          <Box color="blue.500" fontSize="4xl">
-            <FaFileExcel />
-          </Box>
-          <VStack gap={1}>
-            <Text fontWeight="bold" fontSize="lg">
-              {isParsingFile ? t("parsing") : t("dragDrop")}
-            </Text>
-            {!isParsingFile && (
-              <Text fontSize="sm" color="fg.muted">
-                {t("supportedFormats")}
-              </Text>
-            )}
-          </VStack>
+        <RiFileExcel2Line className="size-12 text-primary" />
+        <div className="space-y-1">
+          <p className="text-lg font-semibold">
+            {isParsingFile ? t("parsing") : t("dragDrop")}
+          </p>
           {!isParsingFile && (
-            <Button size="sm" variant="outline" colorPalette="blue">
-              {t("browseFiles")}
-            </Button>
+            <p className="text-sm text-muted-foreground">
+              {t("supportedFormats")}
+            </p>
           )}
-        </VStack>
-      </Box>
+        </div>
+        {!isParsingFile && (
+          <Button type="button" size="sm" variant="outline">
+            {t("browseFiles")}
+          </Button>
+        )}
+      </div>
 
       {fileError && (
-        <Text color="red.500" fontSize="sm" textAlign="center">
-          {fileError}
-        </Text>
+        <p className="text-center text-sm text-destructive">{fileError}</p>
       )}
-    </VStack>
+    </div>
   );
 }

@@ -26,7 +26,12 @@
     "deleteFailed": "Échec de la suppression",
     "clear": "Effacer",
     "optional": "Optionnel",
-    "viewAll": "Voir tout"
+    "viewAll": "Voir tout",
+    "createFailed": "Échec de la création",
+    "pagination": "Pagination",
+    "paginationPrevious": "Page précédente",
+    "paginationNext": "Page suivante",
+    "pageOf": "Page {page} sur {totalPages}"
   },
   "auth": {
     "login": "Connexion",
@@ -54,6 +59,12 @@
     "series": "Séries",
     "statistics": "Statistiques",
     "settings": "Paramètres"
+  },
+  "theme": {
+    "toggle": "Changer de thème",
+    "light": "Clair",
+    "dark": "Sombre",
+    "system": "Système"
   },
   "home": {
     "heroSubtitle": "Suivez votre parcours de lecture. Gérez les livres lus, en cours ou à lire. Visualisez vos habitudes de lecture avec de belles statistiques.",
@@ -94,10 +105,14 @@
     "unknownGender": "Genre inconnu",
     "unknownNationality": "Nationalité inconnue",
     "filtersButton": "Filtres",
-    "sortingLabel": "Tri :"
+    "sortingLabel": "Tri :",
+    "editTitle": "Modifier l'auteur·ice",
+    "deleteTitle": "Supprimer l'auteur·ice",
+    "deleteConfirm": "Êtes-vous sûr·e de vouloir supprimer cet·te auteur·ice ? {count, plural, =0 {Aucun livre ne sera affecté.} one {# livre sera détaché de cet·te auteur·ice.} other {# livres seront détachés de cet·te auteur·ice.}}"
   },
   "book": {
     "title": "Titre",
+    "details": "Livre",
     "author": "Auteur·ice",
     "authors": "Auteur·ices",
     "genre": "Genre",
@@ -189,7 +204,32 @@
     "formatPlaceholder": "Sélectionner un format",
     "totalPagesPlaceholder": "ex : 350",
     "summaryPlaceholder": "Vos pensées sur le livre...",
-    "unknownAuthor": "Auteur·ice inconnu·e"
+    "unknownAuthor": "Auteur·ice inconnu·e",
+    "removeFromWishlist": "Retirer de la liste de souhaits",
+    "removedFromWishlist": "Retiré de la liste de souhaits",
+    "addToWishlist": "Ajouter à la liste de souhaits",
+    "addedToWishlist": "Ajouté à la liste de souhaits",
+    "continueReading": "Continuer : {title}",
+    "markFinished": "Marquer comme terminé",
+    "plusOne": "+1 page",
+    "plusTen": "+10 pages",
+    "selectMode": "Sélectionner",
+    "selectedCount": "{count} sélectionné(s)",
+    "selectAllVisible": "Tout sélectionner (affichés)",
+    "bulkChangeStatus": "Changer le statut",
+    "bulkAddWishlist": "Ajouter à la liste de souhaits",
+    "bulkRemoveWishlist": "Retirer de la liste de souhaits",
+    "bulkDeleted": "{count, plural, one {# livre supprimé} other {# livres supprimés}}",
+    "bulkDeleteConfirm": "Supprimer {count, plural, one {le livre sélectionné} other {les # livres sélectionnés}} ?",
+    "pressSlashToSearch": "Appuyez sur / pour rechercher",
+    "clearFilters": "Effacer les filtres",
+    "unsavedChanges": "Vous avez des modifications non enregistrées. Les abandonner ?",
+    "currentlyReadingEmpty": "Aucune lecture en cours pour le moment",
+    "sectionEssentials": "Essentiel",
+    "sectionReading": "Lecture",
+    "sectionNotes": "Notes",
+    "sectionDates": "Dates",
+    "sectionSeries": "Série"
   },
   "sheetImport": {
     "title": "Importer depuis un tableur",
@@ -263,7 +303,51 @@
     "createsNew": "Crée un·e nouvel·le auteur·ice",
     "importButton": "Importer les livres",
     "importSuccess": "Import terminé",
-    "importFailed": "Échec de l'import"
+    "importSuccessDescription": "{count, plural, one {# livre importé avec succès.} other {# livres importés avec succès.}}",
+    "importFailed": "Échec de l'import",
+    "importError": "Erreur d'import",
+    "parsing": "Analyse du fichier...",
+    "dragDrop": "Glissez-déposez votre fichier Excel ici",
+    "supportedFormats": "Formats pris en charge : .xlsx, .xls",
+    "rowsDetected": "{count, plural, one {# ligne détectée} other {# lignes détectées}}",
+    "field": "Champ",
+    "column": "Colonne",
+    "selectColumn": "Sélectionner une colonne",
+    "ignore": "Ne pas importer",
+    "rowsToImport": "Lignes à importer",
+    "startImport": "Lancer l'import",
+    "missing": "Manquant",
+    "remove": "Retirer",
+    "actions": "Actions",
+    "steps": {
+      "upload": {
+        "label": "Fichier",
+        "title": "Importer un tableur",
+        "description": "Choisissez un fichier Excel contenant votre liste de livres."
+      },
+      "mapping": {
+        "label": "Colonnes",
+        "title": "Associer les colonnes",
+        "description": "Faites correspondre les colonnes du tableur aux champs du livre."
+      },
+      "authors": {
+        "label": "Auteur·ices",
+        "title": "Associer les auteur·ices",
+        "description": "Associez les auteur·ices détecté·es à des existant·es, ou créez-en de nouveaux."
+      },
+      "review": {
+        "label": "Vérifier",
+        "title": "Vérifier l'import",
+        "description": "Confirmez les livres à importer avant de valider."
+      }
+    },
+    "authorInFile": "Auteur·ice dans le fichier",
+    "matchWith": "Associer à",
+    "autoMatched": "Associé automatiquement",
+    "willCreate": "Sera créé·e",
+    "searchAuthor": "Rechercher un·e auteur·ice...",
+    "createNewAuthor": "Créer un·e nouvel·le auteur·ice",
+    "noResults": "Aucun résultat"
   },
   "series": {
     "createTitle": "Créer une série",
@@ -275,7 +359,12 @@
     "booksCount": "{count, plural, =0 {Aucun livre} one {# livre} other {# livres}}",
     "emptyBooks": "Aucun livre dans cette série pour le moment",
     "bookOrder": "T{order}",
-    "unknownAuthor": "Auteur·ice inconnu·e"
+    "unknownAuthor": "Auteur·ice inconnu·e",
+    "actions": "Actions de la série",
+    "view": "Voir",
+    "editTitle": "Renommer la série",
+    "deleteTitle": "Supprimer la série",
+    "deleteConfirm": "Êtes-vous sûr·e de vouloir supprimer cette série ? {count, plural, =0 {Aucun livre ne sera affecté.} one {# livre sera détaché de cette série.} other {# livres seront détachés de cette série.}}"
   },
   "status": {
     "toRead": "À lire",
@@ -311,6 +400,7 @@
   "settings": {
     "title": "Paramètres",
     "profile": "Profil",
+    "password": "Mot de passe",
     "language": "Langue",
     "formats": "Formats de livre",
     "genders": "Genres",
@@ -336,6 +426,7 @@
     "addFormat": "Ajouter un format",
     "addGender": "Ajouter un genre",
     "addGenre": "Ajouter un genre littéraire",
-    "addNationality": "Ajouter une nationalité"
+    "addNationality": "Ajouter une nationalité",
+    "noItems": "Rien pour le moment"
   }
 }
